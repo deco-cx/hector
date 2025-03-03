@@ -1,6 +1,6 @@
 import React from 'react';
 import { Typography, Space, Tag, Tooltip, Divider } from 'antd';
-import { FileTextOutlined, CodeOutlined, FileImageOutlined, SoundOutlined } from '@ant-design/icons';
+import { FileTextOutlined, CodeOutlined, FileImageOutlined, SoundOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import { ActionData, ActionType } from '../../../config/actionsConfig';
 
 const { Text } = Typography;
@@ -10,7 +10,8 @@ const actionIcons: Record<ActionType, React.ReactNode> = {
   generateText: <FileTextOutlined />,
   generateJSON: <CodeOutlined />,
   generateImage: <FileImageOutlined />,
-  generateAudio: <SoundOutlined />
+  generateAudio: <SoundOutlined />,
+  generateVideo: <PlayCircleOutlined />
 };
 
 // Map action types to colors for tags
@@ -18,7 +19,8 @@ const actionColors: Record<ActionType, string> = {
   generateText: 'blue',
   generateJSON: 'purple',
   generateImage: 'green',
-  generateAudio: 'orange'
+  generateAudio: 'orange',
+  generateVideo: 'magenta'
 };
 
 interface AvailableVariablesProps {

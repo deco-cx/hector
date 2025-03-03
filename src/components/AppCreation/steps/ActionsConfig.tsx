@@ -6,7 +6,7 @@ import {
 import { 
   PlusOutlined, DeleteOutlined, EditOutlined, EyeOutlined, 
   InfoCircleOutlined, FileTextOutlined, CodeOutlined,
-  FileImageOutlined, SoundOutlined
+  FileImageOutlined, SoundOutlined, PlayCircleOutlined
 } from '@ant-design/icons';
 import { v4 as uuidv4 } from 'uuid';
 import { 
@@ -25,7 +25,8 @@ const actionIcons: Record<ActionType, React.ReactNode> = {
   generateText: <FileTextOutlined />,
   generateJSON: <CodeOutlined />,
   generateImage: <FileImageOutlined />,
-  generateAudio: <SoundOutlined />
+  generateAudio: <SoundOutlined />,
+  generateVideo: <PlayCircleOutlined />
 };
 
 interface ActionsConfigProps {

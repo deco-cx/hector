@@ -1,6 +1,6 @@
 import { JSONSchema7 } from 'json-schema';
 
-export type ActionType = 'generateText' | 'generateJSON' | 'generateImage' | 'generateAudio';
+export type ActionType = 'generateText' | 'generateJSON' | 'generateImage' | 'generateAudio' | 'generateVideo';
 
 export interface ActionConfig {
   type: ActionType;
@@ -41,7 +41,32 @@ export const availableActions: Record<ActionType, ActionConfig> = {
           type: 'string',
           title: 'Model',
           description: 'The AI model to use for text generation',
-          default: 'text-model',
+          enum: [
+            'Best',
+            'Fast',
+            'anthropic:claude-3-7-sonnet-latest',
+            'anthropic:claude-3-5-haiku-20241022',
+            'openai:gpt-4-turbo',
+            'openai:gpt-4',
+            'openai:gpt-4o',
+            'openai:gpt-4o-mini',
+            'openai:o1-preview',
+            'openai:o1-mini',
+            'openai:o1',
+            'openai:o3-mini',
+            'openai:gpt-4o-audio-preview',
+            'deepseek:deepseek-chat',
+            'deepseek:deepseek-reasoner',
+            'mistral:pixtral-large-latest',
+            'mistral:mistral-large-latest',
+            'mistral:mistral-small-latest',
+            'mistral:pixtral-12b-2409',
+            'perplexity:sonar',
+            'perplexity:sonar-pro',
+            'xai:grok-2-latest',
+            'xai:grok-2-vision-latest'
+          ],
+          default: 'Best',
         },
         temperature: {
           type: 'number',
@@ -61,7 +86,7 @@ export const availableActions: Record<ActionType, ActionConfig> = {
       },
     },
     defaultProps: {
-      model: 'text-model',
+      model: 'Best',
       temperature: 0.7,
       maxTokens: 500,
       prompt: '',
@@ -123,7 +148,33 @@ export const availableActions: Record<ActionType, ActionConfig> = {
           type: 'string',
           title: 'Model',
           description: 'The AI model to use for image generation',
-          default: 'image-model',
+          enum: [
+            'Best',
+            'Fast',
+            'openai:dall-e-3',
+            'stability:core',
+            'stability:ultra',
+            'stability:conservative',
+            'stability:creative',
+            'stability:fast',
+            'stability:erase',
+            'stability:inpaint',
+            'stability:outpaint',
+            'stability:search-and-replace',
+            'stability:search-and-recolor',
+            'stability:remove-background',
+            'stability:sketch',
+            'stability:structure',
+            'stability:style',
+            'replicate:black-forest-labs/flux-dev-lora',
+            'replicate:smoosh-sh/baby-mystic',
+            'replicate:zetyquickly-org/faceswap-a-gif',
+            'replicate:bytedance/pulid',
+            'replicate:recraft-ai/recraft-v3',
+            'replicate:bytedance/sdxl-lightning-4step',
+            'replicate:adirik/interior-design'
+          ],
+          default: 'Best',
         },
         size: {
           type: 'string',
@@ -143,7 +194,7 @@ export const availableActions: Record<ActionType, ActionConfig> = {
       },
     },
     defaultProps: {
-      model: 'image-model',
+      model: 'Best',
       size: '512x512',
       n: 1,
       prompt: '',
@@ -168,12 +219,55 @@ export const availableActions: Record<ActionType, ActionConfig> = {
           type: 'string',
           title: 'Model',
           description: 'The AI model to use for audio generation',
-          default: 'audio-model',
+          enum: [
+            'Best',
+            'Fast',
+            'elevenlabs:tts',
+            'replicate:meta/musicgen',
+            'replicate:fictions-ai/autocaption'
+          ],
+          default: 'Best',
         },
       },
     },
     defaultProps: {
-      model: 'audio-model',
+      model: 'Best',
+      prompt: '',
+    },
+  },
+  generateVideo: {
+    type: 'generateVideo',
+    label: 'Generate Video',
+    description: 'Generate video content using AI models',
+    icon: 'PlayCircleOutlined',
+    fileExtension: '.mp4',
+    schema: {
+      type: 'object',
+      required: ['prompt', 'model'],
+      properties: {
+        prompt: {
+          type: 'string',
+          title: 'Prompt',
+          description: 'The prompt for video generation. Use @filename.md to reference input fields.',
+        },
+        model: {
+          type: 'string',
+          title: 'Model',
+          description: 'The AI model to use for video generation',
+          enum: [
+            'Best',
+            'Fast',
+            'minmax:video-01',
+            'vidu:text2video',
+            'replicate:tencent/hunyuan-video',
+            'replicate:zsxkib/mmaudio'
+          ],
+          default: 'Best',
+        },
+      },
+    },
+    defaultProps: {
+      model: 'Best',
       prompt: '',
     },
   },
@@ -276,6 +370,12 @@ export const executeAction = async (
 
     case 'generateAudio':
       return await sdk.ai.generateAudio({
+        model: config.model,
+        prompt: config.prompt,
+      });
+
+    case 'generateVideo':
+      return await sdk.ai.generateVideo({
         model: config.model,
         prompt: config.prompt,
       });
