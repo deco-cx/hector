@@ -1,0 +1,174 @@
+/* Modify CSS to ensure Schema fields are visible */
+/* Remove the rule that hides the root fieldset */
+.default-field-template > fieldset#root {
+  /* Keep some constraints but don't hide */
+  height: auto !important;
+  min-height: auto !important;
+  max-height: none !important;
+  padding: 0 !important;
+  margin: 0 0 16px 0 !important; /* Add bottom margin for spacing */
+  border: none !important;
+  overflow: visible !important;
+  /* Remove these properties that were hiding the content */
+  /* visibility: hidden !important; */
+  /* position: absolute !important; */
+}
+
+/* Hide only truly empty fieldsets, not ones with content */
+fieldset:empty {
+  display: none !important;
+}
+
+/* Make sure we only hide empty form elements */
+.ant-form-item:empty,
+.ant-form-item-control:empty,
+.ant-form-item-control-input:empty {
+  display: none !important;
+}
+
+/* Fix fieldset height issue - primary problem */
+fieldset#root {
+  height: auto !important;
+  min-height: auto !important;
+  max-height: none !important;
+  display: block !important;
+  overflow: visible !important;
+}
+
+/* Target all fieldsets to ensure no excessive height */
+fieldset {
+  height: auto !important;
+  min-height: auto !important;
+  max-height: none !important;
+}
+
+/* Target empty or nearly-empty containers that might be taking space */
+.ant-form-item-control-input-content:empty {
+  display: none !important;
+}
+
+/* Force all form rows to be compact */
+.ant-row {
+  min-height: auto !important;
+}
+
+/* Fix default-field-template which contains the fieldset */
+.default-field-template {
+  margin-bottom: 0 !important;
+  height: auto !important;
+  display: block !important;
+}
+
+/* Additional targeting for any component with excessive height */
+.ant-form-item-control {
+  min-height: auto !important;
+  height: auto !important;
+}
+
+/* For all the existing margin fixes */
+.json-schema-form-wrapper fieldset {
+  margin-bottom: 0 !important;
+}
+
+.rjsf-no-margin {
+  margin-bottom: 0 !important;
+}
+
+.ant-card .default-field-template {
+  margin-bottom: 0 !important;
+}
+
+.ant-card-body .ant-form-item:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* Fix any potential nested form elements */
+.ant-card-body fieldset {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Remove any extra margin from form labels */
+.ant-card-body .ant-form-item-label {
+  margin-bottom: 8px !important;
+}
+
+/* Fix overall spacing */
+.compact-form {
+  margin-bottom: 0 !important;
+}
+
+/* Target specific margin issues */
+#root > .ant-row {
+  margin-bottom: 0 !important;
+}
+
+/* Directly target the big bottom margin issue */
+fieldset#root {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/* Fix for specific RJSF component */
+.ant-card-body > .json-schema-form-wrapper > div > fieldset {
+  margin-bottom: 0 !important;
+}
+
+/* Target any unused space */
+.ant-card-body > div:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* Fix for the excessive 300px margin issue */
+.default-field-template {
+  margin-bottom: 0 !important;
+}
+
+.default-field-template > div:last-child {
+  margin-bottom: 0 !important;
+}
+
+.default-field-template > fieldset {
+  margin-bottom: 0 !important;
+}
+
+/* Target the exact structure from the HTML example */
+div[class*="ant-form-item"] {
+  margin-bottom: 12px !important;
+}
+
+/* Override any RJSF default margins */
+#root, fieldset#root, .json-schema-form-wrapper, .rjsf {
+  margin-bottom: 0 !important; 
+}
+
+/* Force height constraints */
+.json-schema-form-wrapper {
+  max-height: fit-content !important;
+  overflow: visible !important;
+}
+
+/* Ensure card body has no padding at bottom */
+.ant-card-body {
+  padding-bottom: 0 !important;
+}
+
+/* Styles for specific field types */
+textarea[id*="schema"] {
+  min-height: 150px !important;
+  font-family: monospace !important;
+  white-space: pre !important;
+  resize: vertical !important;
+}
+
+/* Ensure the schema field container has enough space */
+.ant-form-item:has(textarea[id*="schema"]) {
+  margin-bottom: 24px !important;
+}
+
+/* Make form containers visible and properly sized */
+.ant-form-item {
+  display: block !important;
+  height: auto !important;
+  min-height: auto !important;
+}

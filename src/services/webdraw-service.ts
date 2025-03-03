@@ -233,4 +233,19 @@ export class WebdrawService {
       throw error;
     }
   }
+
+  async executeAIGeneration(prompt: string): Promise<string> {
+    try {
+      console.log("Executing AI generation with prompt:", prompt);
+      // Call the AI SDK to generate text
+      const { text } = await this.sdk.ai.generateText({
+        prompt,
+        model: 'anthropic:claude-3-5-sonnet-latest'
+      });
+      return text;
+    } catch (error) {
+      console.error("Error executing AI generation:", error);
+      throw error;
+    }
+  }
 } 

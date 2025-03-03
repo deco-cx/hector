@@ -62,10 +62,27 @@ const PromptTextArea: React.FC<PromptTextAreaProps> = ({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         rows={rows}
-        style={{ marginBottom: 16 }}
+        style={{ 
+          marginBottom: 16,
+          resize: 'vertical',
+          minHeight: '120px',
+          borderRadius: '6px'  
+        }}
       />
       
-      <Card size="small" title="Variable References" style={{ marginBottom: 16 }}>
+      <Card 
+        size="small" 
+        title={
+          <div style={{ fontSize: '14px', fontWeight: 'bold' }}>
+            Variable References
+          </div>
+        } 
+        style={{ 
+          marginBottom: 16,
+          borderRadius: '6px',
+          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
+        }}
+      >
         <AvailableVariables 
           inputs={inputs}
           actions={actions}
