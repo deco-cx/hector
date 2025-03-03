@@ -219,6 +219,13 @@ Configures the AI-driven actions that the app will perform, such as generating t
     -   **Prompt:** Users define the AI prompt, referencing input fields or previous actions with @filename.ext notation
     -   **Additional Properties:** Specific to each action type (e.g., model, temperature, max tokens for text)
       
+-   **Available Variables Component:** 
+    -   Displays all available variables that can be referenced in the prompt
+    -   Shows input fields and outputs from previous actions with appropriate icons and labels
+    -   Allows users to click on a variable to insert its reference (@filename.ext) into the prompt field
+    -   Visually distinguishes between input fields and different types of action outputs using color-coded tags
+    -   Automatically updates based on the current action being edited to only show relevant variables
+
 -   **Schema-driven Forms:** Action-specific configuration forms are automatically generated using React JSON Schema Form:
     -   Forms adapt to each action type's schema
     -   Fields include appropriate validation
@@ -234,6 +241,7 @@ Configures the AI-driven actions that the app will perform, such as generating t
 -   Cards for each action with summary in view mode and configuration form in edit mode
 -   "Add Action" section with cards for each available action type
 -   Dynamically generated form fields for action properties (common and type-specific)
+-   Interactive prompt field with available variables component showing clickable variable references
 -   Toggle buttons to switch between view and edit modes
 -   Auto-generated output filename display (non-editable)
 -   Informative tooltips for each property
@@ -539,6 +547,13 @@ Configures the AI-driven actions that the app will perform, such as generating t
     -   **Prompt:** Users define the AI prompt, referencing input fields or previous actions with @filename.ext notation
     -   **Additional Properties:** Specific to each action type (e.g., model, temperature, max tokens for text)
       
+-   **Available Variables Component:** 
+    -   Displays all available variables that can be referenced in the prompt
+    -   Shows input fields and outputs from previous actions with appropriate icons and labels
+    -   Allows users to click on a variable to insert its reference (@filename.ext) into the prompt field
+    -   Visually distinguishes between input fields and different types of action outputs using color-coded tags
+    -   Automatically updates based on the current action being edited to only show relevant variables
+
 -   **Schema-driven Forms:** Action-specific configuration forms are automatically generated using React JSON Schema Form:
     -   Forms adapt to each action type's schema
     -   Fields include appropriate validation
@@ -554,6 +569,7 @@ Configures the AI-driven actions that the app will perform, such as generating t
 -   Cards for each action with summary in view mode and configuration form in edit mode
 -   "Add Action" section with cards for each available action type
 -   Dynamically generated form fields for action properties (common and type-specific)
+-   Interactive prompt field with available variables component showing clickable variable references
 -   Toggle buttons to switch between view and edit modes
 -   Auto-generated output filename display (non-editable)
 -   Informative tooltips for each property

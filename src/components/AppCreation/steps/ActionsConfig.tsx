@@ -16,6 +16,7 @@ import {
 import JsonSchemaForm from '@rjsf/antd';
 import { RJSFSchema } from '@rjsf/utils';
 import validator from '@rjsf/validator-ajv8';
+import PromptTextArea from '../components/PromptTextArea';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -29,6 +30,13 @@ const actionIcons: Record<ActionType, React.ReactNode> = {
 
 interface ActionsConfigProps {
   formData: {
+    inputs: Array<{
+      name: string;
+      label: string;
+      type: string;
+      required: boolean;
+      placeholder?: string;
+    }>;
     actions: ActionData[];
     [key: string]: any;
   };
@@ -119,6 +127,21 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
     updateActions(newActions);
   };
 
+  // Handle direct prompt change
+  const handlePromptChange = (index: number, value: string) => {
+    if (!Array.isArray(formData.actions)) return;
+    
+    const newActions = [...formData.actions];
+    newActions[index] = {
+      ...newActions[index],
+      config: {
+        ...newActions[index].config,
+        prompt: value
+      }
+    };
+    updateActions(newActions);
+  };
+
   // Handle JSON Schema Form submission
   const handleConfigFormChange = (index: number, newFormData: any) => {
     if (!Array.isArray(formData.actions)) return;
@@ -129,6 +152,37 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
       config: newFormData
     };
     updateActions(newActions);
+  };
+
+  // Custom field template for JsonSchemaForm to handle the prompt field specially
+  const CustomFieldTemplate = (props: any) => {
+    const { id, label, required, children, schema, formData, onChange } = props;
+    
+    // If this is the prompt field, use our custom PromptTextArea component
+    if (id.endsWith('_prompt') && schema.title === 'Prompt') {
+      const actionIndex = editingIndex !== null ? editingIndex : -1;
+      
+      return (
+        <div className="custom-field-template">
+          <label htmlFor={id}>
+            {label}
+            {required ? <span className="required-indicator">*</span> : null}
+          </label>
+          <PromptTextArea
+            value={formData || ''}
+            onChange={(value) => onChange(value)}
+            placeholder={schema.description || 'Enter your prompt here...'}
+            rows={4}
+            inputs={Array.isArray(formData.inputs) ? formData.inputs : []}
+            actions={Array.isArray(formData.actions) ? formData.actions : []}
+            currentActionIndex={actionIndex}
+          />
+        </div>
+      );
+    }
+    
+    // For all other fields, return the default rendering
+    return <div className="default-field-template">{children}</div>;
   };
 
   // Ensure we have a valid actions array
@@ -226,25 +280,50 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
                   
                   <Divider orientation="left">Configuration</Divider>
                   
-                  {/* Using React JSON Schema Form instead of manual fields */}
+                  {/* Special handling for prompt field */}
+                  <AntForm.Item
+                    label="Prompt"
+                    required
+                    tooltip="Use @filename.ext to reference inputs and other actions"
+                  >
+                    <PromptTextArea
+                      value={action.config.prompt || ''}
+                      onChange={(value) => handlePromptChange(index, value)}
+                      inputs={Array.isArray(formData.inputs) ? formData.inputs : []}
+                      actions={actions}
+                      currentActionIndex={index}
+                    />
+                  </AntForm.Item>
+                  
+                  {/* Using React JSON Schema Form for other fields */}
                   <JsonSchemaForm
-                    schema={availableActions[action.type].schema as RJSFSchema}
-                    formData={action.config}
+                    schema={{
+                      ...availableActions[action.type].schema as RJSFSchema,
+                      // Remove prompt from schema since we handle it separately
+                      properties: Object.fromEntries(
+                        Object.entries((availableActions[action.type].schema as RJSFSchema).properties || {})
+                          .filter(([key]) => key !== 'prompt')
+                      )
+                    }}
+                    formData={{
+                      ...action.config,
+                      // Exclude prompt from formData since we handle it separately
+                      prompt: undefined
+                    }}
                     validator={validator}
-                    onChange={(e) => handleConfigFormChange(index, e.formData)}
+                    onChange={(e) => {
+                      // Merge the updated form data with the existing prompt
+                      handleConfigFormChange(index, {
+                        ...e.formData,
+                        prompt: action.config.prompt
+                      });
+                    }}
                     uiSchema={{
                       // Customize UI as needed
                       "ui:submitButtonOptions": {
                         norender: true, // Hide submit button
                       },
                       // Custom UI for specific fields
-                      prompt: {
-                        "ui:widget": "textarea",
-                        "ui:options": {
-                          rows: 4
-                        },
-                        "ui:help": "Use @filename.ext to reference inputs and other actions."
-                      },
                       schema: {
                         "ui:widget": "textarea",
                         "ui:options": {
