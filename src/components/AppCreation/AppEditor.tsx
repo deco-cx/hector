@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Tabs, message, Spin, Alert, Button } from 'antd';
+import { Tabs, message, Spin, Alert, Button, Input } from 'antd';
 import { useWebdraw } from '../../context/WebdrawContext';
 import debounce from 'lodash/debounce';
 import { StyleGuide } from './steps/StyleGuide';
@@ -26,7 +26,7 @@ interface FormDataType extends AppConfig {
 }
 
 export function AppEditor() {
-  const { appName } = useParams<{ appName: string }>();
+  const { appName: appId } = useParams<{ appName: string }>();
   const navigate = useNavigate();
   const { service, isSDKAvailable } = useWebdraw();
   const [loading, setLoading] = useState(true);
@@ -41,8 +41,8 @@ export function AppEditor() {
         return;
       }
       
-      if (!appName) {
-        message.error('App name is required');
+      if (!appId) {
+        message.error('App ID is required');
         navigate('/');
         return;
       }
@@ -50,42 +50,108 @@ export function AppEditor() {
       setLoading(true);
       
       try {
-        console.log(`Attempting to load app with ID: ${appName}`);
+        console.log(`Attempting to load app with ID: ${appId}`);
         // Get app data from service
-        const appData = await service.getApp(appName);
+        const appData = await service.getApp(appId);
         console.log("App data loaded successfully:", appData);
         setFormData(appData as unknown as FormDataType);
         setLoading(false);
       } catch (error) {
-        console.error(`Failed to load app with ID ${appName}:`, error);
-        message.error(`Failed to load app "${appName}". The app might not exist or there was an error loading it.`);
+        console.error(`Failed to load app with ID ${appId}:`, error);
+        message.error(`Failed to load app "${appId}". The app might not exist or there was an error loading it.`);
         navigate('/');
       }
     }
     
     loadApp();
-  }, [appName, service, navigate, isSDKAvailable]);
+  }, [appId, service, navigate, isSDKAvailable]);
   
   // Debounced save function
   const debouncedSave = useCallback(
     debounce(async (data: FormDataType) => {
       if (!isSDKAvailable || !data) return;
       
+      // Log app data before saving to check if style is defined
+      console.log('App data before save:', {
+        id: data.id,
+        name: data.name,
+        style: data.style,
+        template: data.template
+      });
+      
       try {
-        await service.saveApp(data as unknown as AppConfig);
+        // Make sure appId is used as the ID if it's not already set
+        const appDataToSave = {
+          ...data,
+          id: data.id || appId // Use existing ID or fall back to appId from URL
+        };
+        
+        // Log the final app data being saved
+        console.log('Final app data being saved:', {
+          id: appDataToSave.id,
+          name: appDataToSave.name,
+          style: appDataToSave.style,
+          template: appDataToSave.template,
+          hasOutputProp: Boolean(appDataToSave.output),
+          hasInputsProp: Boolean(appDataToSave.inputs),
+          hasActionsProp: Boolean(appDataToSave.actions)
+        });
+        
+        console.log('Saving app with ID:', appDataToSave.id);
+        await service.saveApp(appDataToSave as unknown as AppConfig);
         console.log('App saved successfully');
       } catch (error) {
         console.error('Failed to save app:', error);
         message.error('Failed to save app');
       }
     }, 1000),
-    [service, isSDKAvailable]
+    [service, isSDKAvailable, appId]
   );
   
   // Handle form data changes
   const handleFormDataChange = useCallback((newData: FormDataType) => {
-    setFormData(newData);
-    debouncedSave(newData);
+    // Log the changed data
+    console.log('Form data changed:', {
+      id: newData.id,
+      name: newData.name, 
+      style: newData.style,
+      action: 'setting formData and calling debouncedSave'
+    });
+    
+    // Make sure we preserve existing data when partial updates come in
+    setFormData(prevData => {
+      if (!prevData) return newData;
+      
+      // Create a merged version that keeps existing fields if not present in newData
+      const mergedData = {
+        ...prevData,
+        ...newData,
+        // Ensure these critical properties are preserved
+        id: newData.id || prevData.id,
+        name: newData.name !== undefined ? newData.name : prevData.name,
+        style: newData.style || prevData.style,
+        template: newData.template || prevData.template,
+        // Make sure complex objects are properly merged
+        inputs: newData.inputs || prevData.inputs,
+        actions: newData.actions || prevData.actions,
+        output: {
+          ...(prevData.output || {}),
+          ...(newData.output || {})
+        }
+      };
+      
+      console.log('Merged form data:', {
+        id: mergedData.id,
+        name: mergedData.name,
+        style: mergedData.style,
+        template: mergedData.template
+      });
+      
+      // Save the merged data
+      debouncedSave(mergedData);
+      
+      return mergedData;
+    });
   }, [debouncedSave]);
   
   if (!isSDKAvailable) {
@@ -122,7 +188,26 @@ export function AppEditor() {
   
   return (
     <div className="app-editor">
-      <h1>{formData.name}</h1>
+      <div className="mb-6">
+        <div className="flex items-center mb-1">
+          <Input 
+            className="text-2xl font-bold py-2 mr-4" 
+            value={formData.name}
+            onChange={(e) => {
+              const newName = e.target.value;
+              handleFormDataChange({
+                ...formData,
+                name: newName
+              });
+            }}
+            placeholder="App Name"
+            style={{ maxWidth: '500px' }}
+          />
+        </div>
+        <div className="text-gray-500 text-sm">
+          App ID: <code>{formData.id}</code> (used for the file name, cannot be changed)
+        </div>
+      </div>
       
       <Tabs
         activeKey={activeTab}

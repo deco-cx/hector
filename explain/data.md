@@ -150,8 +150,9 @@ In Hector, "files" function primarily as variables within the system, but are al
 App configurations are stored as JSON files in the `~/Hector/apps/` directory using the Webdraw filesystem. The platform uses the following Webdraw SDK methods for basic CRUD operations:
 
 - `fs.list`: To retrieve all available apps
-- `fs.readFile`: To load an app's configuration
+- `fs.read`: To load an app's configuration
 - `fs.write`: To save or update an app's configuration
+- `fs.remove`: To delete an app's configuration
 
 Since Webdraw FS already provides a different drive for each user, the app doesn't need to worry about multitenancy.
 

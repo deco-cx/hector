@@ -31,7 +31,7 @@ export class WebdrawService {
         jsonFiles.map(async (file) => {
           try {
             console.log("Reading file:", file);
-            const content = await this.sdk.fs.readFile({ path: file });
+            const content = await this.sdk.fs.read(file);
             return JSON.parse(content) as AppConfig;
           } catch (error) {
             console.error(`Error reading file ${file}:`, error);
@@ -64,9 +64,24 @@ export class WebdrawService {
     const path = `${this.APPS_PATH}${id}.json`;
     console.log("Reading app file from path:", path);
     try {
-      const content = await this.sdk.fs.readFile({ path });
+      const content = await this.sdk.fs.read(path);
       console.log("File content loaded successfully");
-      return JSON.parse(content) as AppConfig;
+      
+      // Parse the content
+      const appData = JSON.parse(content) as AppConfig;
+      
+      // Log the loaded app data to check if style is defined
+      console.log("Loaded app data:", {
+        id: appData.id,
+        name: appData.name,
+        style: appData.style,
+        template: appData.template,
+        hasOutputProp: Boolean(appData.output),
+        hasInputsProp: Boolean(appData.inputs),
+        hasActionsProp: Boolean(appData.actions)
+      });
+      
+      return appData;
     } catch (error) {
       console.error("Error reading app file:", error);
       throw error;
@@ -74,14 +89,38 @@ export class WebdrawService {
   }
 
   async saveApp(app: AppConfig): Promise<void> {
+    if (!app) {
+      throw new Error("Cannot save null or undefined app");
+    }
+    
+    if (!app.id) {
+      throw new Error("App ID is required for saving");
+    }
+    
     const path = `${this.APPS_PATH}${app.id}.json`;
     console.log("Saving app file to path:", path);
+    
     try {
-      await this.sdk.fs.writeFile({
-        path,
-        content: JSON.stringify(app, null, 2)
-      });
-      console.log("File saved successfully");
+      // Make sure the directory exists
+      await this.sdk.fs.mkdir(this.APPS_PATH, { recursive: true });
+      
+      // Convert app to string first to make sure we're not passing an object
+      const appData = JSON.stringify(app, null, 2);
+      console.log("Stringified app data for saving");
+      
+      // Try the new write method first
+      try {
+        await this.sdk.fs.write(path, appData);
+        console.log("File saved successfully using write method");
+      } catch (writeError) {
+        console.warn("Write method failed, falling back to writeFile:", writeError);
+        // Fall back to the old writeFile method if needed
+        await this.sdk.fs.writeFile({
+          path,
+          content: appData
+        });
+        console.log("File saved successfully using writeFile method");
+      }
     } catch (error) {
       console.error("Error saving app file:", error);
       throw error;
@@ -90,7 +129,7 @@ export class WebdrawService {
 
   async deleteApp(id: string): Promise<void> {
     const path = `${this.APPS_PATH}${id}.json`;
-    await this.sdk.fs.delete({ path });
+    await this.sdk.fs.remove(path);
   }
 
   async executeAction(action: Action, variables: Record<string, string>): Promise<string> {
@@ -144,11 +183,40 @@ export class WebdrawService {
 
   private async saveExecutionResult(filename: string, content: string): Promise<void> {
     const path = `${this.EXECUTIONS_PATH}${filename}`;
-    await this.sdk.fs.writeFile({ path, content });
+    try {
+      // Try the new write method first
+      try {
+        await this.sdk.fs.write(path, content);
+        console.log(`Execution result saved to ${filename} using write method`);
+      } catch (writeError) {
+        console.warn("Write method failed, falling back to writeFile:", writeError);
+        // Fall back to the old writeFile method if needed
+        await this.sdk.fs.writeFile({
+          path,
+          content
+        });
+        console.log(`Execution result saved to ${filename} using writeFile method`);
+      }
+    } catch (error) {
+      console.error(`Error saving execution result to ${filename}:`, error);
+      throw error;
+    }
   }
 
   async getExecutionResult(filename: string): Promise<string> {
     const path = `${this.EXECUTIONS_PATH}${filename}`;
-    return this.sdk.fs.readFile({ path });
+    try {
+      // Try the new read method first
+      try {
+        return await this.sdk.fs.read(path);
+      } catch (readError) {
+        console.warn("Read method failed, falling back to readFile:", readError);
+        // Fall back to the old readFile method if needed
+        return await this.sdk.fs.readFile({ path });
+      }
+    } catch (error) {
+      console.error(`Error reading execution result from ${filename}:`, error);
+      throw error;
+    }
   }
 } 

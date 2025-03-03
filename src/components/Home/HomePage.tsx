@@ -80,7 +80,7 @@ export function HomePage() {
   return (
     <div className="home-container p-4">
       <div className="text-center mb-12">
-        <Title>Welcome to Hector</Title>
+        <Title>Hector</Title>
         <div className="max-w-3xl mx-auto mt-8">
           <Steps
             direction="vertical"
@@ -120,23 +120,29 @@ export function HomePage() {
         />
       )}
 
-      <div className="w-full flex justify-center mt-12 mb-16">
-        <div className="inline-block">
+      <Row justify="center" className="my-12">
+        <Col>
           <Button
             type="primary"
             onClick={showCreateModal}
             disabled={!isSDKAvailable}
-            icon={<PlusOutlined className="text-xl" />}
-            className="py-16 px-20 h-auto flex flex-col items-center justify-center text-2xl font-bold shadow-lg hover:shadow-xl transition-all bg-purple-600 hover:bg-purple-700 border-purple-600"
+            icon={<PlusOutlined />}
+            style={{
+              padding: '0.75rem 2rem',
+              height: 'auto',
+              fontSize: '1.1rem',
+              backgroundColor: '#7B2CBF',
+              borderColor: '#7B2CBF'
+            }}
             size="large"
           >
             New App
           </Button>
-        </div>
-      </div>
+        </Col>
+      </Row>
 
-      <Row gutter={[24, 24]} className="mt-8">
-        <Col xs={24}>
+      <Row justify="center">
+        <Col xs={24} md={20} lg={18} xl={16}>
           <Card 
             title="My Apps" 
             className="h-full"

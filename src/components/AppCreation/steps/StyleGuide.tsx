@@ -53,10 +53,22 @@ export function StyleGuide({ formData, setFormData }: StyleGuideProps) {
   const { token } = useToken();
 
   const handleStyleChange = (styleId: string) => {
-    setFormData((prev: { style: string; [key: string]: any }) => ({
-      ...prev,
-      style: styleId,
-    }));
+    console.log('Style changing to:', styleId);
+    
+    // The problem is that we're returning a new object with only the style field
+    // Let's log the full formData to see what we're working with
+    console.log('Current formData in StyleGuide:', {
+      id: formData.id,
+      name: formData.name,
+      style: formData.style,
+      template: formData.template
+    });
+    
+    // Update using the complete formData object to preserve all fields
+    setFormData({
+      ...formData,  // Keep all existing properties
+      style: styleId // Update only the style
+    });
   };
 
   return (
