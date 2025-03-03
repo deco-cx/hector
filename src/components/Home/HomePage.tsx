@@ -191,7 +191,7 @@ export function HomePage() {
                     ]}
                   >
                     <List.Item.Meta
-                      title={app.name}
+                      title={app.name.includes('/') ? app.name.split('/').pop()?.replace('.json', '') : app.name}
                       description={`Template: ${app.template}, Style: ${app.style}`}
                     />
                   </List.Item>

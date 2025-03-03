@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Tabs, message, Spin, Alert, Button, Input } from 'antd';
+import { Tabs, message, Spin, Alert, Button, Input, Card, Space, Typography, Row, Col } from 'antd';
 import { useWebdraw } from '../../context/WebdrawContext';
-import debounce from 'lodash/debounce';
 import { StyleGuide } from './steps/StyleGuide';
 import { InputsConfig } from './steps/InputsConfig';
 import { ActionsConfig } from './steps/ActionsConfig';
 import { OutputConfig } from './steps/OutputConfig';
 import { AppConfig } from '../../types/webdraw';
+import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons';
 
 // Temporary type for component props until we can align the types
 interface FormDataType extends AppConfig {
@@ -32,6 +32,19 @@ export function AppEditor() {
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState<FormDataType | null>(null);
   const [activeTab, setActiveTab] = useState('style');
+  const [inputsKey, setInputsKey] = useState(0); // Add a key to force refresh
+  const [saving, setSaving] = useState(false); // Track save operation status
+  
+  // Handle tab selection
+  const handleTabChange = (key: string) => {
+    console.log('Tab changed to:', key);
+    setActiveTab(key);
+    
+    // Force refresh of the Inputs tab when selecting it
+    if (key === 'inputs') {
+      setInputsKey(prev => prev + 1);
+    }
+  };
   
   // Load app data
   useEffect(() => {
@@ -54,7 +67,15 @@ export function AppEditor() {
         // Get app data from service
         const appData = await service.getApp(appId);
         console.log("App data loaded successfully:", appData);
-        setFormData(appData as unknown as FormDataType);
+        
+        // Ensure critical arrays are initialized
+        const normalizedAppData = {
+          ...appData,
+          inputs: Array.isArray(appData.inputs) ? appData.inputs : [],
+          actions: Array.isArray(appData.actions) ? appData.actions : []
+        };
+        
+        setFormData(normalizedAppData as unknown as FormDataType);
         setLoading(false);
       } catch (error) {
         console.error(`Failed to load app with ID ${appId}:`, error);
@@ -66,93 +87,56 @@ export function AppEditor() {
     loadApp();
   }, [appId, service, navigate, isSDKAvailable]);
   
-  // Debounced save function
-  const debouncedSave = useCallback(
-    debounce(async (data: FormDataType) => {
-      if (!isSDKAvailable || !data) return;
-      
-      // Log app data before saving to check if style is defined
-      console.log('App data before save:', {
-        id: data.id,
-        name: data.name,
-        style: data.style,
-        template: data.template
-      });
-      
-      try {
-        // Make sure appId is used as the ID if it's not already set
-        const appDataToSave = {
-          ...data,
-          id: data.id || appId // Use existing ID or fall back to appId from URL
-        };
-        
-        // Log the final app data being saved
-        console.log('Final app data being saved:', {
-          id: appDataToSave.id,
-          name: appDataToSave.name,
-          style: appDataToSave.style,
-          template: appDataToSave.template,
-          hasOutputProp: Boolean(appDataToSave.output),
-          hasInputsProp: Boolean(appDataToSave.inputs),
-          hasActionsProp: Boolean(appDataToSave.actions)
-        });
-        
-        console.log('Saving app with ID:', appDataToSave.id);
-        await service.saveApp(appDataToSave as unknown as AppConfig);
-        console.log('App saved successfully');
-      } catch (error) {
-        console.error('Failed to save app:', error);
-        message.error('Failed to save app');
-      }
-    }, 1000),
-    [service, isSDKAvailable, appId]
-  );
-  
-  // Handle form data changes
-  const handleFormDataChange = useCallback((newData: FormDataType) => {
-    // Log the changed data
-    console.log('Form data changed:', {
-      id: newData.id,
-      name: newData.name, 
-      style: newData.style,
-      action: 'setting formData and calling debouncedSave'
-    });
+  // Function to perform the actual save - call this explicitly when needed
+  const saveApp = useCallback(async () => {
+    if (!isSDKAvailable || !formData) return;
     
-    // Make sure we preserve existing data when partial updates come in
+    setSaving(true);
+    
+    // Ensure the ID is set
+    const appDataToSave = {
+      ...formData,
+      id: formData.id || appId
+    };
+    
+    console.log('Saving app data:', appDataToSave);
+    
+    try {
+      await service.saveApp(appDataToSave as unknown as AppConfig);
+      console.log('App saved successfully');
+      message.success('App saved successfully');
+    } catch (error) {
+      console.error('Failed to save app:', error);
+      message.error('Failed to save app');
+    } finally {
+      setSaving(false);
+    }
+  }, [formData, service, isSDKAvailable, appId]);
+  
+  // Handle form data changes - this only updates the React state
+  const handleFormDataChange = useCallback((newData: FormDataType) => {
     setFormData(prevData => {
       if (!prevData) return newData;
       
-      // Create a merged version that keeps existing fields if not present in newData
-      const mergedData = {
+      // Create a merged version with the new data
+      return {
         ...prevData,
-        ...newData,
-        // Ensure these critical properties are preserved
-        id: newData.id || prevData.id,
-        name: newData.name !== undefined ? newData.name : prevData.name,
-        style: newData.style || prevData.style,
-        template: newData.template || prevData.template,
-        // Make sure complex objects are properly merged
-        inputs: newData.inputs || prevData.inputs,
-        actions: newData.actions || prevData.actions,
-        output: {
-          ...(prevData.output || {}),
-          ...(newData.output || {})
-        }
+        ...newData
       };
-      
-      console.log('Merged form data:', {
-        id: mergedData.id,
-        name: mergedData.name,
-        style: mergedData.style,
-        template: mergedData.template
-      });
-      
-      // Save the merged data
-      debouncedSave(mergedData);
-      
-      return mergedData;
     });
-  }, [debouncedSave]);
+  }, []);
+  
+  // Monitor formData changes for debugging
+  useEffect(() => {
+    if (formData) {
+      console.log('AppEditor formData updated:', {
+        id: formData.id,
+        hasInputs: Boolean(formData.inputs),
+        inputsLength: Array.isArray(formData.inputs) ? formData.inputs.length : 'not an array',
+        inputs: formData.inputs
+      });
+    }
+  }, [formData]);
   
   if (!isSDKAvailable) {
     return (
@@ -187,74 +171,111 @@ export function AppEditor() {
   }
   
   return (
-    <div className="app-editor">
-      <div className="mb-6">
-        <div className="flex items-center mb-1">
-          <Input 
-            className="text-2xl font-bold py-2 mr-4" 
-            value={formData.name}
-            onChange={(e) => {
-              const newName = e.target.value;
-              handleFormDataChange({
-                ...formData,
-                name: newName
-              });
+    <div className="app-editor bg-gray-50 min-h-screen">
+      {/* Header Section */}
+      <Card 
+        className="mb-8 border-b shadow-sm rounded-none" 
+        bodyStyle={{ padding: '20px' }}
+      >
+        {/* Back to Home Link */}
+        <div className="flex justify-between items-center">
+          <Button 
+            type="link" 
+            icon={<ArrowLeftOutlined />} 
+            onClick={() => navigate('/')}
+            className="text-purple-700 hover:text-purple-500 p-0 flex items-center text-base mb-6"
+          >
+            Back to Home
+          </Button>
+          
+          <Button
+            type="primary"
+            onClick={saveApp}
+            loading={saving}
+            icon={<SaveOutlined />}
+          >
+            Save Changes
+          </Button>
+        </div>
+        
+        {/* App Information */}
+        <div className="mt-2">
+          <Typography.Title 
+            level={2}
+            className="mb-3 py-3 px-4"
+            style={{ 
+              background: '#f5f3ff', 
+              borderBottom: '2px solid #7c3aed',
+              borderRadius: '4px 4px 0 0'
             }}
-            placeholder="App Name"
-            style={{ maxWidth: '500px' }}
-          />
+          >
+            {formData.name}
+          </Typography.Title>
+          
+          <div className="text-gray-500 text-sm px-1 mt-3">
+            App ID: <code className="bg-gray-100 px-2 py-1 rounded">{formData.id}</code> 
+            <span className="ml-3">(used for the file name, cannot be changed)</span>
+          </div>
         </div>
-        <div className="text-gray-500 text-sm">
-          App ID: <code>{formData.id}</code> (used for the file name, cannot be changed)
-        </div>
-      </div>
+      </Card>
       
-      <Tabs
-        activeKey={activeTab}
-        onChange={setActiveTab}
-        items={[
-          {
-            key: 'style',
-            label: 'Style',
-            children: (
-              <StyleGuide
-                formData={formData}
-                setFormData={handleFormDataChange}
-              />
-            ),
-          },
-          {
-            key: 'inputs',
-            label: 'Inputs',
-            children: (
-              <InputsConfig
-                formData={formData}
-                setFormData={handleFormDataChange}
-              />
-            ),
-          },
-          {
-            key: 'actions',
-            label: 'Actions',
-            children: (
-              <ActionsConfig
-                formData={formData}
-                setFormData={handleFormDataChange}
-              />
-            ),
-          },
-          {
-            key: 'output',
-            label: 'Output',
-            children: (
-              <OutputConfig
-                formData={formData}
-                setFormData={handleFormDataChange}
-              />
-            ),
-          },
-        ]}
-      />
+      {/* Tabs Section */}
+      <div className="px-6 mb-6">
+        <Tabs
+          activeKey={activeTab}
+          onChange={handleTabChange}
+          type="card"
+          size="large"
+          tabBarGutter={16}
+          className="app-tabs"
+          items={[
+            {
+              key: 'style',
+              label: 'Style',
+              children: (
+                <StyleGuide
+                  key="style-guide"
+                  formData={formData}
+                  setFormData={handleFormDataChange}
+                />
+              ),
+            },
+            {
+              key: 'inputs',
+              label: 'Inputs',
+              children: (
+                <InputsConfig
+                  key={inputsKey}
+                  formData={formData}
+                  setFormData={handleFormDataChange}
+                />
+              ),
+            },
+            {
+              key: 'actions',
+              label: 'Actions',
+              children: (
+                <ActionsConfig
+                  key="actions-config"
+                  formData={formData}
+                  setFormData={handleFormDataChange}
+                />
+              ),
+            },
+            {
+              key: 'output',
+              label: 'Output',
+              children: (
+                <OutputConfig
+                  key="output-config"
+                  formData={formData}
+                  setFormData={handleFormDataChange}
+                />
+              ),
+            },
+          ]}
+        />
+      </div>
     </div>
   );
 } 

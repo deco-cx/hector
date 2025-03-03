@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Typography, Button, Space, Input, Select, Card, 
   Tooltip, Row, Col, Divider, Empty, Form as AntForm
@@ -37,13 +37,10 @@ interface ActionsConfigProps {
 
 export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [newAction, setNewAction] = useState(false);
-
-  const handleActionsChange = (actions: ActionData[]) => {
-    setFormData((prev: typeof formData) => ({
-      ...prev,
-      actions,
-    }));
+  
+  // Direct update to parent
+  const updateActions = (actions: ActionData[]) => {
+    setFormData({ actions });
   };
 
   const handleCardFlip = (index: number) => {
@@ -55,32 +52,42 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
   };
 
   const handleAddAction = (type: ActionType) => {
-    setNewAction(true);
     const actionConfig = availableActions[type];
     
     const newActionData: ActionData = {
       id: uuidv4(),
       type,
       title: `New ${actionConfig.label}`,
-      filename: generateActionFilename(`New ${actionConfig.label}`, type, formData.actions),
+      filename: generateActionFilename(`New ${actionConfig.label}`, type, formData.actions || []),
       config: { ...actionConfig.defaultProps }
     };
     
-    const newActions = [...formData.actions, newActionData];
-    handleActionsChange(newActions);
-    setEditingIndex(newActions.length - 1);
+    const currentActions = Array.isArray(formData.actions) ? [...formData.actions] : [];
+    const newActions = [...currentActions, newActionData];
+    
+    updateActions(newActions);
+    
+    // Set editing to the new action after state update
+    setTimeout(() => {
+      setEditingIndex(newActions.length - 1);
+    }, 0);
   };
 
   const handleDeleteAction = (index: number) => {
+    if (!Array.isArray(formData.actions)) return;
+    
     const newActions = [...formData.actions];
     newActions.splice(index, 1);
-    handleActionsChange(newActions);
+    updateActions(newActions);
+    
     if (editingIndex === index) {
       setEditingIndex(null);
     }
   };
 
   const handleActionChange = (index: number, field: string, value: any) => {
+    if (!Array.isArray(formData.actions)) return;
+    
     const newActions = [...formData.actions];
     
     if (field === 'type') {
@@ -109,18 +116,23 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
       );
     }
     
-    handleActionsChange(newActions);
+    updateActions(newActions);
   };
 
   // Handle JSON Schema Form submission
   const handleConfigFormChange = (index: number, newFormData: any) => {
+    if (!Array.isArray(formData.actions)) return;
+    
     const newActions = [...formData.actions];
     newActions[index] = {
       ...newActions[index],
       config: newFormData
     };
-    handleActionsChange(newActions);
+    updateActions(newActions);
   };
+
+  // Ensure we have a valid actions array
+  const actions = Array.isArray(formData.actions) ? formData.actions : [];
 
   return (
     <div>
@@ -130,14 +142,14 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
         Each action can use input fields and the results of previous actions.
       </Paragraph>
 
-      {formData.actions.length === 0 ? (
+      {actions.length === 0 ? (
         <Empty 
           description="No actions added yet" 
           image={Empty.PRESENTED_IMAGE_SIMPLE}
         />
       ) : (
         <Space direction="vertical" style={{ width: '100%' }} size="large">
-          {formData.actions.map((action, index) => (
+          {actions.map((action, index) => (
             <Card
               key={action.id}
               size="small"

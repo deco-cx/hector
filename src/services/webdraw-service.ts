@@ -32,13 +32,27 @@ export class WebdrawService {
           try {
             console.log("Reading file:", file);
             const content = await this.sdk.fs.read(file);
-            return JSON.parse(content) as AppConfig;
+            const appData = JSON.parse(content) as AppConfig;
+            
+            // Extract just the filename from the path for display
+            const filename = file.split('/').pop() || '';
+            const filenameWithoutExt = filename.replace('.json', '');
+            
+            // If the app name is a path or missing, replace it with the simplified filename
+            if (!appData.name || appData.name.includes('/')) {
+              appData.name = filenameWithoutExt;
+            }
+            
+            return appData;
           } catch (error) {
             console.error(`Error reading file ${file}:`, error);
             // Return a minimal placeholder for corrupted files
+            const filename = file.split('/').pop() || 'unknown';
+            const filenameWithoutExt = filename.replace('.json', '');
+            
             return {
-              id: file.split('/').pop()?.replace('.json', '') || 'unknown',
-              name: `Error loading app (${file})`,
+              id: filenameWithoutExt,
+              name: filenameWithoutExt, // Simplified name
               template: 'unknown',
               style: 'unknown',
               inputs: [],
