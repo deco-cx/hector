@@ -693,7 +693,13 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
                   </Modal>
                   
                   {/* Using React JSON Schema Form for other fields */}
-                  <div className="json-schema-form-wrapper" style={{ height: 'auto', maxHeight: 'none', overflow: 'visible' }}>
+                  <div className="json-schema-form-wrapper" style={{ 
+                    height: 'auto', 
+                    maxHeight: 'none', 
+                    overflow: 'visible',
+                    marginBottom: 0,
+                    paddingBottom: 0,
+                  }}>
                     <JsonSchemaForm
                       schema={{
                         ...availableActions[action.type].schema as RJSFSchema,
@@ -726,10 +732,16 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
                           "ui:widget": "textarea",
                           "ui:options": {
                             rows: 8
-                          }
+                          },
+                          "classNames": "schema-field-wrapper"
                         },
-                        // Add more compact styling
-                        "ui:classNames": "compact-form"
+                        "*": {
+                          "ui:classNames": "compact-field",
+                          "ui:options": {
+                            // Set all fields to be compact with no excessive spacing
+                            marginBottom: "8px"
+                          }
+                        }
                       }}
                       // Pass our custom field template to render the "Use AI" button
                       templates={{ FieldTemplate: CustomFieldTemplate }}

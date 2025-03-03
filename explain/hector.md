@@ -218,6 +218,8 @@ Configures the AI-driven actions that the app will perform, such as generating t
     -   **Schema-based Form:** Dynamic configuration form generated from JSON Schema for each action type
     -   **Prompt:** Users define the AI prompt, referencing input fields or previous actions with @filename.ext notation
     -   **Additional Properties:** Specific to each action type (e.g., model, temperature, max tokens for text)
+    -   **Schema Field (JSON Actions):** For JSON generation actions, users can define a JSON schema or use the "Use AI" button to generate a schema using the Object Generation API
+    -   **Model Selection (Text and JSON):** For text and JSON generation, users can choose from a variety of AI models including general options (Best, Fast) and specific provider models (Anthropic, OpenAI, Deepseek, Mistral, etc.)
       
 -   **Available Variables Component:** 
     -   Displays all available variables that can be referenced in the prompt
@@ -231,6 +233,13 @@ Configures the AI-driven actions that the app will perform, such as generating t
     -   Fields include appropriate validation
     -   Specialized widgets for different data types (text areas for prompts, sliders for numeric values, etc.)
     -   Consistent user experience across all form fields
+      
+-   **AI Schema Generation:** For JSON actions, the platform provides specialized AI-powered Schema generation:
+    -   **Use AI Button:** Located alongside the Schema field to invoke AI-powered schema generation
+    -   **Object Generation API:** Uses a specialized API to create properly structured JSON Schema documents
+    -   **Descriptive Interface:** Users describe the data structure they want to create in natural language
+    -   **Fallback Mechanism:** Automatically falls back to text-based generation if object generation fails
+    -   **Validation:** Ensures the generated schema conforms to JSON Schema standards
       
 -   **Multiple Actions:** Users can chain multiple actions, with each action potentially using outputs from previous ones.
   
@@ -283,6 +292,29 @@ Each app is stored as a JSON file in ~/Hector/apps/ using the Webdraw filesystem
       "type": "Gerar Imagem",
       "prompt": "Create a cover for @child_name.md's story",
       "output_filename": "cover.png"
+    },
+    {
+      "type": "Gerar JSON",
+      "prompt": "Generate a product catalog for @store_name.md",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "products": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "price": { "type": "number" },
+                "category": { "type": "string" }
+              }
+            }
+          }
+        }
+      },
+      "model": "Best",
+      "temperature": 0.7,
+      "output_filename": "catalog.json"
     }
   ],
   "output": {
@@ -310,7 +342,32 @@ The app uses the Webdraw AI SDK to perform AI-driven actions and manage file sto
 - **Gerar Imagem**: Maps to generateImage() for image creation.
 - **Gerar Aúdio**: Maps to generateAudio() for audio production.
 
-### 6.1 Example Payload Configuration
+### 6.1 AI Object Generation for Schema Creation
+
+The application leverages the Webdraw SDK's Object Generation API to create JSON Schema definitions for JSON actions:
+
+- **generateObject()**: This specialized API endpoint creates structured data following a provided schema
+- **Schema Generation Flow**:
+  1. User clicks "Use AI" button next to the Schema field
+  2. A specialized modal appears for Schema generation
+  3. User enters a description of the data structure they need
+  4. The system calls generateObject() with a meta-schema to produce a valid JSON Schema
+  5. If successful, the generated schema is inserted into the Schema field
+  6. If unsuccessful, the system falls back to text generation
+
+- **Benefits**:
+  - More accurate and valid JSON Schemas compared to text-based generation
+  - Proper schema structure with correct types, validations, and nested objects
+  - More intuitive interface for users who may not be familiar with JSON Schema syntax
+  - Enhanced reliability with fallback mechanisms
+  
+- **Model Selection for JSON Generation**:
+  - JSON generation supports the same model options as text generation
+  - Models include options like Best, Fast, and specific models from providers (anthropic, openai, deepseek, mistral, etc.)
+  - Model selection affects the quality and style of the generated JSON content
+  - Different models may be better suited for different types of JSON structures
+
+### 6.2 Example Payload Configuration
 
 For "Gerar Texto":
 
@@ -319,6 +376,26 @@ For "Gerar Texto":
   prompt: "Generate a story for @child_name.md",
   model: "text-model",
   maxTokens: 500
+}
+```
+
+For "Gerar JSON" with Object Generation for Schema:
+
+```typescript
+{
+  // For schema generation
+  schema: {
+    type: "object",
+    properties: {
+      jsonSchema: {
+        type: "object",
+        description: "A valid JSON Schema defining the structure of objects"
+      }
+    }
+  },
+  prompt: "Create a JSON schema for a product catalog with name, price, and category fields",
+  model: "anthropic:claude-3-7-sonnet-latest", // Same model options as text generation
+  temperature: 0.7
 }
 ```
 
@@ -546,6 +623,8 @@ Configures the AI-driven actions that the app will perform, such as generating t
     -   **Schema-based Form:** Dynamic configuration form generated from JSON Schema for each action type
     -   **Prompt:** Users define the AI prompt, referencing input fields or previous actions with @filename.ext notation
     -   **Additional Properties:** Specific to each action type (e.g., model, temperature, max tokens for text)
+    -   **Schema Field (JSON Actions):** For JSON generation actions, users can define a JSON schema or use the "Use AI" button to generate a schema using the Object Generation API
+    -   **Model Selection (Text and JSON):** For text and JSON generation, users can choose from a variety of AI models including general options (Best, Fast) and specific provider models (Anthropic, OpenAI, Deepseek, Mistral, etc.)
       
 -   **Available Variables Component:** 
     -   Displays all available variables that can be referenced in the prompt
@@ -559,6 +638,13 @@ Configures the AI-driven actions that the app will perform, such as generating t
     -   Fields include appropriate validation
     -   Specialized widgets for different data types (text areas for prompts, sliders for numeric values, etc.)
     -   Consistent user experience across all form fields
+      
+-   **AI Schema Generation:** For JSON actions, the platform provides specialized AI-powered Schema generation:
+    -   **Use AI Button:** Located alongside the Schema field to invoke AI-powered schema generation
+    -   **Object Generation API:** Uses a specialized API to create properly structured JSON Schema documents
+    -   **Descriptive Interface:** Users describe the data structure they want to create in natural language
+    -   **Fallback Mechanism:** Automatically falls back to text-based generation if object generation fails
+    -   **Validation:** Ensures the generated schema conforms to JSON Schema standards
       
 -   **Multiple Actions:** Users can chain multiple actions, with each action potentially using outputs from previous ones.
   

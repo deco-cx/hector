@@ -107,6 +107,37 @@ export const availableActions: Record<ActionType, ActionConfig> = {
           title: 'Prompt',
           description: 'The prompt for JSON generation. Use @filename.md to reference input fields.',
         },
+        model: {
+          type: 'string',
+          title: 'Model',
+          description: 'The AI model to use for JSON generation',
+          enum: [
+            'Best',
+            'Fast',
+            'anthropic:claude-3-7-sonnet-latest',
+            'anthropic:claude-3-5-haiku-20241022',
+            'openai:gpt-4-turbo',
+            'openai:gpt-4',
+            'openai:gpt-4o',
+            'openai:gpt-4o-mini',
+            'openai:o1-preview',
+            'openai:o1-mini',
+            'openai:o1',
+            'openai:o3-mini',
+            'openai:gpt-4o-audio-preview',
+            'deepseek:deepseek-chat',
+            'deepseek:deepseek-reasoner',
+            'mistral:pixtral-large-latest',
+            'mistral:mistral-large-latest',
+            'mistral:mistral-small-latest',
+            'mistral:pixtral-12b-2409',
+            'perplexity:sonar',
+            'perplexity:sonar-pro',
+            'xai:grok-2-latest',
+            'xai:grok-2-vision-latest'
+          ],
+          default: 'Best',
+        },
         schema: {
           type: 'string',
           title: 'Schema',
@@ -124,6 +155,7 @@ export const availableActions: Record<ActionType, ActionConfig> = {
       },
     },
     defaultProps: {
+      model: 'Best',
       temperature: 0.7,
       prompt: '',
       schema: '{\n  "type": "object",\n  "properties": {\n    "example": {\n      "type": "string"\n    }\n  }\n}',
@@ -355,6 +387,7 @@ export const executeAction = async (
 
     case 'generateJSON':
       return await sdk.ai.generateObject({
+        model: config.model,
         prompt: config.prompt,
         schema: JSON.parse(config.schema),
         temperature: config.temperature,
