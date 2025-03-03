@@ -1,0 +1,8 @@
+---
+description: UI design
+globs: *.tsx
+alwaysApply: false
+---
+<Rule>Use Ant Design for UI components</Rule>
+<Rule>Use Tailwind for specific properties</Rule>
+<Rule>The app should be mobile first. The desktop version is just a mobile version with more room</Rule>

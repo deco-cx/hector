@@ -2,7 +2,16 @@
 
 ## 1. Overview
 
-The AI App Builder, named "Hector," is a no-code platform designed to empower users to create, manage, and run custom AI-powered applications. By leveraging a step-by-step configuration process, users can define an app's visual style, input fields, AI-driven actions, and output formats. The platform integrates with the Webdraw AI SDK to enable the generation of various content types, including text, images, audio, and more. This design document outlines the app's functionality, user interface, data model, and technical integrations, providing a comprehensive blueprint for development.
+The AI App Builder, named "Hector," is a no-code platform designed to empower users to create, manage, and run custom AI-powered applications.
+
+By leveraging a step-by-step configuration process, users can define an app's visual style, input fields, AI-driven actions, and output formats.
+
+The platform integrates with the Webdraw AI SDK, which offers
+- Easy access to multiple AI models
+- A filesystem for each user to server as database.
+- Rhe generation of various content types, including text, images, audio, and more.
+
+This design document outlines the app's functionality, user interface, data model, and technical integrations, providing a comprehensive blueprint for development.
 
 It should work similarly to create Zaps on Zapier, but simples, mobile-friendly and AI-oriented.
 
@@ -10,15 +19,23 @@ It should work similarly to create Zaps on Zapier, but simples, mobile-friendly 
 
 ### 2.1 Frontend Framework
 
-- **React**: The application is built using React (v19.0.0), a JavaScript library for building user interfaces.
-- **TypeScript**: The project uses TypeScript (v4.9.5) for type safety and improved developer experience.
-- **Single Page Application (SPA)**: Hector is implemented as a frontend-only SPA with browser routing. It should build a static app that doesn't require a server.
+- **React**: The application uses React 18 (v18.2.0) for:
+  - Better stability with common libraries
+  - Full compatibility with Ant Design
+  - Widely supported ecosystem
+  - Proven production reliability
 
-### 2.2 UI Components and Styling
+- **TypeScript**: The project uses TypeScript for type safety and improved developer experience.
 
-- **DaisyUI**: The application uses DaisyUI, a component library for Tailwind CSS that provides ready-to-use UI components with a consistent design system.
-- **Themes**: DaisyUI's theming capabilities are leveraged to implement the various visual themes offered in the Styleguide configuration.
-- **Responsive Design**: The UI is designed to be responsive and work across different device sizes.
+### 2.2 UI Framework
+
+- **Ant Design v5.x**: The application uses Ant Design for:
+  - Pre-built, high-quality React components
+  - Built-in support for React 18
+  - Modern design system with consistent UX patterns
+  - Built-in styling system with CSS-in-JS
+  - Mobile-first responsive components
+  - No need for additional CSS frameworks
 
 ### 2.3 Data Management
 
@@ -31,9 +48,21 @@ It should work similarly to create Zaps on Zapier, but simples, mobile-friendly 
 
 ### 2.4 Build and Development Tools
 
-- **React Scripts**: The project uses Create React App's scripts for development, building, and testing.
-- **ESLint**: Code quality is maintained through ESLint with React-specific rules.
-- **Jest and Testing Library**: Testing is supported through Jest and React Testing Library.
+- **Vite**: Modern build tool chosen for:
+  - Lightning-fast development server with HMR
+  - Optimized production builds
+  - Native TypeScript support
+  - Simple configuration
+  - Strong plugin ecosystem
+- **ESLint**: Code quality maintenance through ESLint with React-specific rules
+- **Jest and Testing Library**: Testing support through Jest and React Testing Library
+
+### 2.5 Development Philosophy
+
+- **Simplicity First**: We favor simple, maintainable solutions over complex architectures
+- **Mobile-First**: All features are designed with mobile users in mind
+- **Developer Experience**: Tools and frameworks are chosen to enhance development speed and code quality
+- **Performance**: Leveraging modern build tools and optimized dependencies for fast load times
 
 ## 3. User Flows
 
@@ -123,11 +152,22 @@ It should work similarly to create Zaps on Zapier, but simples, mobile-friendly 
    - Offers a selection of visual themes (e.g., "Minimalistic," "Cyberpunk," "Classic") with previews.
 
 3. **Inputs Configuration**:
-   - Form to add input fields, each with:
-     - Filename: e.g., "child_name.md"
-     - Type: e.g., "Text," "Image"
-     - Title: Multilingual label (e.g., "EN: Child's Name," "PT: Nome da Criança")
-     - Additional properties (e.g., required status).
+   - Input Field Cards: Each input field is displayed as a card with two views:
+     - View Mode: Shows a preview of the field with its label, filename, type, and a visual representation.
+     - Edit Mode: Provides a form for configuring the field's properties.
+
+   - Add Input Field: Users can add multiple input fields, each with:
+     - Display Label: Text shown to users filling out the form.
+     - Filename: Automatically generated from the label (e.g., "childs_name.md"). Used to reference this field in other parts of the app.
+     - Type: The input type (e.g., "Text," "Number," "Email," "Textarea," "Select").
+     - Required Status: Whether the field is mandatory or optional.
+     - Placeholder Text: Custom text that appears in the input field when it's empty, providing guidance to users.
+   
+   - Automatic Filename Generation: The system automatically converts the Display Label into a filename with the appropriate extension (.md for text fields). It handles uniqueness by adding suffixes if needed.
+
+   - Card Flipping Interface: Users can toggle between view and edit modes by clicking an icon, creating a visual "flip" effect for better user experience.
+
+   - Field Management: Users can easily add, edit, and delete fields, with intuitive controls and visual feedback.
 
 4. **Actions Configuration**:
    - List to add actions (e.g., "Gerar JSON," "Gerar Texto," "Gerar Imagem," "Gerar Aúdio") with configuration forms:
@@ -167,7 +207,8 @@ Each app is stored as a JSON file in ~/Hector/apps/ using the Webdraw filesystem
         "EN": "Child's Name",
         "PT": "Nome da Criança"
       },
-      "required": true
+      "required": true,
+      "placeholder": "Enter the child's name"
     }
   ],
   "actions": [
@@ -266,7 +307,7 @@ const user = await SDK.getUser(); // Returns { username: string } if user is log
 
 - The application is a frontend-only Single Page Application (SPA) with browser routing.
 - The Webdraw SDK is imported and runs in an iframe.
-- DaisyUI is used for UI components and styling, providing a modern and responsive interface.
+- Ant Design provides the UI components and styling system, ensuring a modern and responsive interface.
 
 ### 10.2 Additional Features
 
@@ -285,26 +326,16 @@ This design document provides a complete specification for "Hector," the AI App 
 
 # Screens
 
-  
-
 The AI App Builder, "Hector," is composed of several key screens that guide users through the process of creating, configuring, and running custom AI-powered applications. Each screen serves a distinct purpose and is designed to be intuitive, ensuring users can navigate the app-building process with ease. Below is a detailed breakdown of each screen and its functionality.
-
-  
 
 ----------
 
 ## 1. Dashboard
 
-  
-
 **Purpose:**  
 The Dashboard is the entry point for users, providing an overview of their existing apps and options to create, edit, or run apps.
 
-  
-
 **Functionality:**
-
-  
 
 -   **Header:** Displays the app name ("Hector - AI App Builder") and a brief description of its features:  
     -   "No-code interface"
@@ -314,22 +345,18 @@ The Dashboard is the entry point for users, providing an overview of their exist
     -   "Export an APP"
       
     
-  
 -   **My Apps Section:** Lists all user-created apps with the following options for each:  
     -   **Edit:** Opens the App Configuration Screen to modify the app.
       
     -   **Run:** Opens the Running Screen to interact with the app.
       
     
-  
 -   **New App Button:** Initiates the app creation process by navigating to the App Configuration Screen.
   
 
 **Visual Elements:**
 
-  
-
--   App list with cards or table rows, each showing the app’s name and action buttons ("Edit," "Run").
+-   App list with cards or table rows, each showing the app's name and action buttons ("Edit," "Run").
   
 -   Prominent "New App" button.
   
@@ -338,16 +365,10 @@ The Dashboard is the entry point for users, providing an overview of their exist
 
 ## 2. App Configuration Screen
 
-  
-
 **Purpose:**  
 This is the central screen for creating or editing an app. It is divided into four main steps: Styleguide, Inputs, Actions, and Output. Users can configure each aspect of their app in a structured, step-by-step manner.
 
-  
-
 **Functionality:**
-
-  
 
 -   **Steps Navigation:** The screen is organized into collapsible sections or tabs for each step:  
     1.  **Styleguide**
@@ -359,15 +380,12 @@ This is the central screen for creating or editing an app. It is divided into fo
     7.  **Output**
       
     
-  
 -   Users can navigate between steps sequentially or jump to a specific section.
   
 -   Each section is clearly marked, with a progress indicator or step numbers (e.g., "1> Styleguide," "2> Inputs").
   
 
 **Visual Elements:**
-
-  
 
 -   Step indicators or tabs at the top or side of the screen.
   
@@ -380,16 +398,10 @@ This is the central screen for creating or editing an app. It is divided into fo
 
 ### 2.1 Styleguide Configuration
 
-  
-
 **Purpose:**  
 Allows users to select a visual theme for their app, defining its aesthetic elements such as colors, fonts, and spacing.
 
-  
-
 **Functionality:**
-
-  
 
 -   **Theme Selection:** Users choose from predefined styles (e.g., "Minimalistic," "Cyberpunk," "Classic").
   
@@ -399,8 +411,6 @@ Allows users to select a visual theme for their app, defining its aesthetic elem
   
 
 **Visual Elements:**
-
-  
 
 -   Grid or list of style cards with previews.
   
@@ -413,58 +423,45 @@ Allows users to select a visual theme for their app, defining its aesthetic elem
 
 ### 2.2 Inputs Configuration
 
-  
-
 **Purpose:**  
 Defines the data inputs that the app will collect from its users (e.g., text fields, dropdowns, file uploads).
 
-  
-
 **Functionality:**
 
-  
+-   **Input Field Cards:** Each input field is displayed as a card with two views:  
+    -   **View Mode:** Shows a preview of the field with its label, filename, type, and a visual representation.
+    -   **Edit Mode:** Provides a form for configuring the field's properties.
 
 -   **Add Input Field:** Users can add multiple input fields, each with:  
-    -   **Filename:** A unique identifier (e.g., "child_name.md").
-      
-    -   **Type:** The input type (e.g., "Text," "Image," "Select").
-      
-    -   **Title:** Multilingual labels (e.g., "EN: Child's Name," "PT: Nome da Criança").
-      
-    -   **Additional Properties:** Options like "Required," "Multi-Value," or "Clean on Startup."
-      
+    -   **Display Label:** Text shown to users filling out the form.
+    -   **Filename:** Automatically generated from the label (e.g., "childs_name.md"). Used to reference this field in other parts of the app.
+    -   **Type:** The input type (e.g., "Text," "Number," "Email," "Textarea," "Select").
+    -   **Required Status:** Whether the field is mandatory or optional.
+    -   **Placeholder Text:** Custom text that appears in the input field when it's empty, providing guidance to users.
     
-  
--   **Edit or Remove Fields:** Users can modify or delete existing input fields.
-  
--   **Language Support:** Input titles can be defined in multiple languages (e.g., English and Portuguese).
-  
+-   **Automatic Filename Generation:** The system automatically converts the Display Label into a filename with the appropriate extension (.md for text fields). It handles uniqueness by adding suffixes if needed.
+    
+-   **Card Flipping Interface:** Users can toggle between view and edit modes by clicking an icon, creating a visual "flip" effect for better user experience.
+
+-   **Field Management:** Users can easily add, edit, and delete fields, with intuitive controls and visual feedback.
 
 **Visual Elements:**
 
-  
-
--   Form with fields for each input property.
-  
+-   Cards for each field with preview in view mode.
+-   Toggle buttons to flip between view and edit modes.
+-   Field preview showing how the input will appear to end users.
+-   Auto-generated filename display (non-editable).
 -   "Add Field" button to create new inputs.
-  
--   List of configured inputs with edit and delete icons.
-  
+-   Delete button for removing unwanted fields.
 
 ----------
 
 ### 2.3 Actions Configuration
 
-  
-
 **Purpose:**  
 Configures the AI-driven actions that the app will perform, such as generating text, images, or audio based on user inputs.
 
-  
-
 **Functionality:**
-
-  
 
 -   **Add Action:** Users can add actions from a list of available types (e.g., "Gerar JSON," "Gerar Texto," "Gerar Imagem," "Gerar Aúdio").
   
@@ -476,15 +473,12 @@ Configures the AI-driven actions that the app will perform, such as generating t
     -   **Output Filename:** Specifies where the generated content will be saved (e.g., "story.md").
       
     
-  
 -   **Multiple Actions:** Users can chain multiple actions, with each action potentially using outputs from previous ones.
   
 -   **Action Validation:** Ensures that prompts or schemas are correctly formatted and reference valid input variables.
   
 
 **Visual Elements:**
-
-  
 
 -   List of configured actions with options to edit or remove.
   
@@ -497,16 +491,10 @@ Configures the AI-driven actions that the app will perform, such as generating t
 
 ### 2.4 Output Configuration
 
-  
-
 **Purpose:**  
-Defines how the app’s generated content is presented or exported to the user.
-
-  
+Defines how the app's generated content is presented or exported to the user.
 
 **Functionality:**
-
-  
 
 -   **Output Type:** Users select the format for the output (e.g., HTML, JSON, or direct file display).
   
@@ -519,8 +507,6 @@ Defines how the app’s generated content is presented or exported to the user.
 
 **Visual Elements:**
 
-  
-
 -   Dropdown for selecting output type.
   
 -   List or grid to select files for inclusion in the output.
@@ -532,18 +518,12 @@ Defines how the app’s generated content is presented or exported to the user.
 
 ## 3. Running Screen
 
-  
-
 **Purpose:**  
 Allows users to interact with their configured app by providing inputs and generating outputs.
 
-  
-
 **Functionality:**
 
-  
-
--   **Dynamic Input Form:** Generates input fields based on the app’s configured inputs (e.g., text boxes, file uploaders).
+-   **Dynamic Input Form:** Generates input fields based on the app's configured inputs (e.g., text boxes, file uploaders).
   
 -   **Generate Button:** Triggers the execution of all configured actions using the provided inputs.
   
@@ -553,8 +533,6 @@ Allows users to interact with their configured app by providing inputs and gener
   
 
 **Visual Elements:**
-
-  
 
 -   Form with dynamically generated input fields.
   
@@ -569,27 +547,19 @@ Allows users to interact with their configured app by providing inputs and gener
 
 ## 4. Export Screen
 
-  
-
 **Purpose:**  
-Enables users to export their app’s configuration for sharing or standalone deployment.
-
-  
+Enables users to export their app's configuration for sharing or standalone deployment.
 
 **Functionality:**
 
-  
-
 -   **Export Format:** Users can choose to export the app as an HTML file or JSON configuration.
   
--   **Generate Export:** Clicking "Export" packages the app’s configuration and generated files into a downloadable format.
+-   **Generate Export:** Clicking "Export" packages the app's configuration and generated files into a downloadable format.
   
 -   **Validation:** Ensures the app is fully configured and valid before allowing export.
   
 
 **Visual Elements:**
-
-  
 
 -   Dropdown to select export format (e.g., "HTML," "JSON").
   
@@ -601,8 +571,6 @@ Enables users to export their app’s configuration for sharing or standalone de
 ----------
 
 ## 5. Additional UI Elements
-
-  
 
 -   **Language Toggle:** Buttons or dropdowns (e.g., "EN," "PT") to switch between supported languages for the UI and app content.
   
