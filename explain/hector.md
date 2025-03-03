@@ -37,6 +37,13 @@ It should work similarly to create Zaps on Zapier, but simples, mobile-friendly 
   - Mobile-first responsive components
   - No need for additional CSS frameworks
 
+- **React JSON Schema Form**: The application uses React JSON Schema Form for:
+  - Dynamic form generation based on JSON Schema definitions
+  - Automatic validation from schema constraints
+  - Custom form layouts and widgets
+  - Integration with Ant Design components
+  - Simplified form state management
+
 ### 2.3 Data Management
 
 - **Webdraw SDK**: The application integrates with the Webdraw AI SDK for:
@@ -187,6 +194,50 @@ It should work similarly to create Zaps on Zapier, but simples, mobile-friendly 
 3. **Output Display**:
    - Shows generated content (e.g., text, images, audio) with download/share options.
 
+### 4.4 Actions Configuration
+
+**Purpose:**  
+Configures the AI-driven actions that the app will perform, such as generating text, images, or audio based on user inputs.
+
+**Functionality:**
+
+-   **Add Action:** Users can add actions from a list of available types:
+    -   **Generate Text:** Creates text content using AI models (.md files)
+    -   **Generate JSON:** Creates structured JSON data (.json files)
+    -   **Generate Image:** Creates image content (.png files)
+    -   **Generate Audio:** Creates audio content (.mp3 files)
+  
+-   **Action Configuration:** Each action has a card-based interface with:
+    -   **View Mode:** Shows a summary of the action with its type, output filename, and prompt
+    -   **Edit Mode:** Provides a form for configuring the action's properties
+  
+-   **Configure Action:** Each action has common properties and type-specific properties:
+    -   **Action Type:** The type of content to generate (Text, JSON, Image, Audio)
+    -   **Action Title:** A descriptive name for the action
+    -   **Output Filename:** Auto-generated from the title with appropriate extension (.md, .json, .png, .mp3)
+    -   **Schema-based Form:** Dynamic configuration form generated from JSON Schema for each action type
+    -   **Prompt:** Users define the AI prompt, referencing input fields or previous actions with @filename.ext notation
+    -   **Additional Properties:** Specific to each action type (e.g., model, temperature, max tokens for text)
+      
+-   **Schema-driven Forms:** Action-specific configuration forms are automatically generated using React JSON Schema Form:
+    -   Forms adapt to each action type's schema
+    -   Fields include appropriate validation
+    -   Specialized widgets for different data types (text areas for prompts, sliders for numeric values, etc.)
+    -   Consistent user experience across all form fields
+      
+-   **Multiple Actions:** Users can chain multiple actions, with each action potentially using outputs from previous ones.
+  
+-   **Reference System:** Actions can reference both input fields and outputs from previous actions using the @filename.ext notation in prompts.
+
+**Visual Elements:**
+
+-   Cards for each action with summary in view mode and configuration form in edit mode
+-   "Add Action" section with cards for each available action type
+-   Dynamically generated form fields for action properties (common and type-specific)
+-   Toggle buttons to switch between view and edit modes
+-   Auto-generated output filename display (non-editable)
+-   Informative tooltips for each property
+
 ## 5. Data Model
 
 ### 5.1 App Configuration JSON
@@ -263,7 +314,14 @@ For "Gerar Texto":
 }
 ```
 
-The UI allows users to configure these payloads, which are then passed to the SDK methods.
+The UI allows users to configure these payloads through React JSON Schema Form, an advanced form generation library that automatically builds forms based on JSON Schema definitions. This approach:
+
+1. Creates consistent, well-structured forms for each action type
+2. Handles validation automatically based on schema properties
+3. Simplifies form state management
+4. Provides a better user experience with appropriate input widgets for different data types
+
+Each action type has a corresponding JSON Schema that defines its configuration options, allowing for clear separation between the UI and data model.
 
 ### 6.2 Authentication
 
@@ -463,29 +521,42 @@ Configures the AI-driven actions that the app will perform, such as generating t
 
 **Functionality:**
 
--   **Add Action:** Users can add actions from a list of available types (e.g., "Gerar JSON," "Gerar Texto," "Gerar Imagem," "Gerar Aúdio").
+-   **Add Action:** Users can add actions from a list of available types:
+    -   **Generate Text:** Creates text content using AI models (.md files)
+    -   **Generate JSON:** Creates structured JSON data (.json files)
+    -   **Generate Image:** Creates image content (.png files)
+    -   **Generate Audio:** Creates audio content (.mp3 files)
   
--   **Configure Action:** Each action has a configuration form:  
-    -   **Type:** The action type (e.g., "Gerar Texto").
+-   **Action Configuration:** Each action has a card-based interface with:
+    -   **View Mode:** Shows a summary of the action with its type, output filename, and prompt
+    -   **Edit Mode:** Provides a form for configuring the action's properties
+  
+-   **Configure Action:** Each action has common properties and type-specific properties:
+    -   **Action Type:** The type of content to generate (Text, JSON, Image, Audio)
+    -   **Action Title:** A descriptive name for the action
+    -   **Output Filename:** Auto-generated from the title with appropriate extension (.md, .json, .png, .mp3)
+    -   **Schema-based Form:** Dynamic configuration form generated from JSON Schema for each action type
+    -   **Prompt:** Users define the AI prompt, referencing input fields or previous actions with @filename.ext notation
+    -   **Additional Properties:** Specific to each action type (e.g., model, temperature, max tokens for text)
       
-    -   **Prompt or Schema:** Users define the AI prompt or JSON schema, using variables from inputs (e.g., "Generate a story for @child_name.md").
+-   **Schema-driven Forms:** Action-specific configuration forms are automatically generated using React JSON Schema Form:
+    -   Forms adapt to each action type's schema
+    -   Fields include appropriate validation
+    -   Specialized widgets for different data types (text areas for prompts, sliders for numeric values, etc.)
+    -   Consistent user experience across all form fields
       
-    -   **Output Filename:** Specifies where the generated content will be saved (e.g., "story.md").
-      
-    
 -   **Multiple Actions:** Users can chain multiple actions, with each action potentially using outputs from previous ones.
   
--   **Action Validation:** Ensures that prompts or schemas are correctly formatted and reference valid input variables.
-  
+-   **Reference System:** Actions can reference both input fields and outputs from previous actions using the @filename.ext notation in prompts.
 
 **Visual Elements:**
 
--   List of configured actions with options to edit or remove.
-  
--   "Add Action" button with a dropdown of available action types.
-  
--   Configuration form for each action, including text areas for prompts and input fields for filenames.
-  
+-   Cards for each action with summary in view mode and configuration form in edit mode
+-   "Add Action" section with cards for each available action type
+-   Dynamically generated form fields for action properties (common and type-specific)
+-   Toggle buttons to switch between view and edit modes
+-   Auto-generated output filename display (non-editable)
+-   Informative tooltips for each property
 
 ----------
 

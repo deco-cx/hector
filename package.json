@@ -11,14 +11,21 @@
   },
   "dependencies": {
     "@ant-design/icons": "^5.6.1",
-    "@types/uuid": "^10.0.0",
-    "antd": "^5.24.2",
+    "@rjsf/antd": "^5.24.3",
+    "@rjsf/core": "^5.24.3",
+    "@rjsf/utils": "^5.24.3",
+    "@rjsf/validator-ajv8": "^5.24.3",
+    "@types/json-schema": "^7.0.15",
+    "@types/uuid": "^9.0.8",
+    "antd": "^5.14.2",
+    "json-schema": "^0.4.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^7.2.0",
-    "uuid": "^11.1.0"
+    "react-router-dom": "^6.22.1",
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
+    "@types/lodash": "^4.17.16",
     "@types/react": "^18.2.56",
     "@types/react-dom": "^18.2.19",
     "@vitejs/plugin-react": "^4.3.4",

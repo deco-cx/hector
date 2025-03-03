@@ -1,30 +1,26 @@
 import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ConfigProvider } from 'antd';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { MainLayout } from './components/Layout/MainLayout';
 import { HomePage } from './components/Home/HomePage';
-import { AppCreationWizard } from './components/AppCreation/AppCreationWizard';
-import { WebdrawProvider } from './providers/WebdrawProvider';
-import { MockWebdrawSDK } from './mocks/webdraw-sdk';
+import { AppEditor } from './components/AppCreation/AppEditor';
+import { MainLayout } from './components/Layout/MainLayout';
+import { WebdrawProvider } from './context/WebdrawContext';
+import SDK from './sdk/webdraw-sdk-client';
 import { theme } from './theme';
 
-// Initialize the mock SDK
-const mockSDK = new MockWebdrawSDK();
-
-export function App() {
+function App() {
   return (
-    <WebdrawProvider sdk={mockSDK}>
-      <ConfigProvider theme={theme}>
+    <ConfigProvider theme={theme}>
+      <WebdrawProvider sdk={SDK}>
         <Router>
-          <MainLayout>
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/create" element={<AppCreationWizard />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </MainLayout>
+          <Routes>
+            <Route path="/" element={<MainLayout><HomePage /></MainLayout>} />
+            <Route path="/edit/:appName" element={<MainLayout><AppEditor /></MainLayout>} />
+          </Routes>
         </Router>
-      </ConfigProvider>
-    </WebdrawProvider>
+      </WebdrawProvider>
+    </ConfigProvider>
   );
 }
+
+export default App;

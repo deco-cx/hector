@@ -17,8 +17,11 @@ export interface FileSystemOptions {
 export interface FileSystemInterface {
   list(path: string): Promise<string[]>;
   readFile(options: FileSystemOptions): Promise<string>;
+  read(filepath: string, options?: any): Promise<string>;
   writeFile(options: FileSystemOptions): Promise<void>;
+  write(filepath: string, text: string, options?: any): Promise<void>;
   delete(options: FileSystemOptions): Promise<void>;
+  remove(filepath: string): Promise<void>;
   mkdir(path: string, options?: { recursive?: boolean }): Promise<void>;
 }
 

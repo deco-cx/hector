@@ -1,31 +1,33 @@
 import React from 'react';
-import { Layout, Typography } from 'antd';
-import { GithubOutlined } from '@ant-design/icons';
+import { Layout, Button } from 'antd';
+import { ArrowLeftOutlined } from '@ant-design/icons';
+import { useNavigate, useLocation } from 'react-router-dom';
 
-const { Header, Content, Footer } = Layout;
-const { Title } = Typography;
+const { Content, Footer } = Layout;
 
 interface MainLayoutProps {
   children: React.ReactNode;
 }
 
 export function MainLayout({ children }: MainLayoutProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const isEditMode = location.pathname.includes('/edit/');
+  
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Title level={3} style={{ margin: 0, color: '#fff' }}>
-          Hector
-        </Title>
-        <a
-          href="https://github.com/yourusername/hector"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ color: '#fff' }}
-        >
-          <GithubOutlined style={{ fontSize: '24px' }} />
-        </a>
-      </Header>
       <Content style={{ padding: '24px', maxWidth: '1200px', width: '100%', margin: '0 auto' }}>
+        {isEditMode && (
+          <div className="mb-6">
+            <Button 
+              icon={<ArrowLeftOutlined />} 
+              onClick={() => navigate('/')}
+              size="large"
+            >
+              Back to Home
+            </Button>
+          </div>
+        )}
         {children}
       </Content>
       <Footer style={{ textAlign: 'center' }}>

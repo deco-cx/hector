@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
-  Typography, Button, Space, Form, Input, Select, Card, 
-  Tooltip, Row, Col, InputNumber, Divider, Empty 
+  Typography, Button, Space, Input, Select, Card, 
+  Tooltip, Row, Col, Divider, Empty, Form as AntForm
 } from 'antd';
 import { 
   PlusOutlined, DeleteOutlined, EditOutlined, EyeOutlined, 
@@ -13,9 +13,11 @@ import {
   ActionType, availableActions, ActionData, 
   generateActionFilename 
 } from '../../../config/actionsConfig';
+import JsonSchemaForm from '@rjsf/antd';
+import { RJSFSchema } from '@rjsf/utils';
+import validator from '@rjsf/validator-ajv8';
 
 const { Title, Paragraph, Text } = Typography;
-const { TextArea } = Input;
 
 // Map action types to their respective icons
 const actionIcons: Record<ActionType, React.ReactNode> = {
@@ -105,118 +107,19 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
         newActions[index].type, 
         formData.actions.filter((_, i) => i !== index)
       );
-    } else if (field.startsWith('config.')) {
-      // Update a specific config property
-      const configKey = field.split('.')[1];
-      newActions[index] = {
-        ...newActions[index],
-        config: {
-          ...newActions[index].config,
-          [configKey]: value
-        }
-      };
     }
     
     handleActionsChange(newActions);
   };
 
-  // Render form fields based on action type
-  const renderConfigFields = (action: ActionData, index: number) => {
-    const actionConfig = availableActions[action.type];
-    const properties = actionConfig.schema.properties || {};
-    
-    return Object.entries(properties).map(([key, prop]: [string, any]) => {
-      const value = action.config[key];
-      const label = prop.title;
-      const description = prop.description;
-      
-      if (key === 'schema' && action.type === 'generateJSON') {
-        return (
-          <Form.Item
-            key={key}
-            label={label}
-            tooltip={description}
-          >
-            <TextArea
-              rows={6}
-              value={value}
-              onChange={(e) => handleActionChange(index, `config.${key}`, e.target.value)}
-              placeholder="Enter JSON schema"
-            />
-          </Form.Item>
-        );
-      }
-      
-      if (key === 'prompt') {
-        return (
-          <Form.Item
-            key={key}
-            label={label}
-            tooltip={description}
-            required={actionConfig.schema.required?.includes(key)}
-          >
-            <TextArea
-              rows={4}
-              value={value}
-              onChange={(e) => handleActionChange(index, `config.${key}`, e.target.value)}
-              placeholder="Enter prompt. Use @filename.ext to reference inputs and other actions."
-            />
-          </Form.Item>
-        );
-      }
-      
-      if (prop.type === 'number') {
-        return (
-          <Form.Item
-            key={key}
-            label={label}
-            tooltip={description}
-            required={actionConfig.schema.required?.includes(key)}
-          >
-            <InputNumber
-              min={prop.minimum}
-              max={prop.maximum}
-              value={value}
-              onChange={(val) => handleActionChange(index, `config.${key}`, val)}
-              style={{ width: '100%' }}
-            />
-          </Form.Item>
-        );
-      }
-      
-      if (prop.enum) {
-        return (
-          <Form.Item
-            key={key}
-            label={label}
-            tooltip={description}
-            required={actionConfig.schema.required?.includes(key)}
-          >
-            <Select
-              value={value}
-              onChange={(val) => handleActionChange(index, `config.${key}`, val)}
-              options={prop.enum.map((item: string) => ({ label: item, value: item }))}
-              style={{ width: '100%' }}
-            />
-          </Form.Item>
-        );
-      }
-      
-      return (
-        <Form.Item
-          key={key}
-          label={label}
-          tooltip={description}
-          required={actionConfig.schema.required?.includes(key)}
-        >
-          <Input
-            value={value}
-            onChange={(e) => handleActionChange(index, `config.${key}`, e.target.value)}
-            placeholder={`Enter ${key}`}
-          />
-        </Form.Item>
-      );
-    });
+  // Handle JSON Schema Form submission
+  const handleConfigFormChange = (index: number, newFormData: any) => {
+    const newActions = [...formData.actions];
+    newActions[index] = {
+      ...newActions[index],
+      config: newFormData
+    };
+    handleActionsChange(newActions);
   };
 
   return (
@@ -266,54 +169,78 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
               {editingIndex === index ? (
                 // Edit Mode
                 <Space direction="vertical" style={{ width: '100%' }}>
-                  <Form layout="vertical">
-                    <Form.Item
-                      label="Action Type"
-                      required
-                    >
-                      <Select
-                        value={action.type}
-                        onChange={(value) => handleActionChange(index, 'type', value)}
-                        options={Object.entries(availableActions).map(([type, config]) => ({
-                          label: (
-                            <Space>
-                              {actionIcons[type as ActionType]}
-                              <span>{config.label}</span>
-                            </Space>
-                          ),
-                          value: type,
-                        }))}
-                      />
-                    </Form.Item>
+                  <AntForm.Item
+                    label="Action Type"
+                    required
+                  >
+                    <Select
+                      value={action.type}
+                      onChange={(value) => handleActionChange(index, 'type', value)}
+                      options={Object.entries(availableActions).map(([type, config]) => ({
+                        label: (
+                          <Space>
+                            {actionIcons[type as ActionType]}
+                            <span>{config.label}</span>
+                          </Space>
+                        ),
+                        value: type,
+                      }))}
+                    />
+                  </AntForm.Item>
 
-                    <Form.Item
-                      label="Action Title"
-                      required
-                      tooltip="A descriptive name for this action"
-                    >
-                      <Input
-                        placeholder="Enter action title"
-                        value={action.title}
-                        onChange={(e) => handleActionChange(index, 'title', e.target.value)}
-                      />
-                    </Form.Item>
-                    
-                    <Form.Item
-                      label="Output Filename (auto-generated)"
-                      tooltip="This filename will be used to reference this action's output"
-                    >
-                      <Input
-                        placeholder="Auto-generated filename"
-                        value={action.filename}
-                        disabled
-                        addonAfter={<InfoCircleOutlined />}
-                      />
-                    </Form.Item>
-                    
-                    <Divider orientation="left">Configuration</Divider>
-                    
-                    {renderConfigFields(action, index)}
-                  </Form>
+                  <AntForm.Item
+                    label="Action Title"
+                    required
+                    tooltip="A descriptive name for this action"
+                  >
+                    <Input
+                      placeholder="Enter action title"
+                      value={action.title}
+                      onChange={(e) => handleActionChange(index, 'title', e.target.value)}
+                    />
+                  </AntForm.Item>
+                  
+                  <AntForm.Item
+                    label="Output Filename (auto-generated)"
+                    tooltip="This filename will be used to reference this action's output"
+                  >
+                    <Input
+                      placeholder="Auto-generated filename"
+                      value={action.filename}
+                      disabled
+                      addonAfter={<InfoCircleOutlined />}
+                    />
+                  </AntForm.Item>
+                  
+                  <Divider orientation="left">Configuration</Divider>
+                  
+                  {/* Using React JSON Schema Form instead of manual fields */}
+                  <JsonSchemaForm
+                    schema={availableActions[action.type].schema as RJSFSchema}
+                    formData={action.config}
+                    validator={validator}
+                    onChange={(e) => handleConfigFormChange(index, e.formData)}
+                    uiSchema={{
+                      // Customize UI as needed
+                      "ui:submitButtonOptions": {
+                        norender: true, // Hide submit button
+                      },
+                      // Custom UI for specific fields
+                      prompt: {
+                        "ui:widget": "textarea",
+                        "ui:options": {
+                          rows: 4
+                        },
+                        "ui:help": "Use @filename.ext to reference inputs and other actions."
+                      },
+                      schema: {
+                        "ui:widget": "textarea",
+                        "ui:options": {
+                          rows: 6
+                        }
+                      }
+                    }}
+                  />
                 </Space>
               ) : (
                 // View Mode
