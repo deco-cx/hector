@@ -82,4 +82,32 @@ export class WebdrawService {
       ...options,
     });
   }
+
+  async executeAIGenerateObject<T = any>(payload: { 
+    prompt: string, 
+    schema: { 
+      type: "object", 
+      properties: Record<string, any> 
+    } 
+  }): Promise<T> {
+    console.log("WebdrawService.ts executeAIGenerateObject called");
+    try {
+      // Call our existing generateObject method with the payload
+      const response = await this.generateObject<any>( 
+        payload.prompt,
+        payload.schema
+      );
+      
+      // Return the object directly
+      if (response && response.object) {
+        return response.object as T;
+      }
+      
+      // If we don't have an object structure, return the whole response
+      return response as unknown as T;
+    } catch (error) {
+      console.error("Error in executeAIGenerateObject:", error);
+      throw error;
+    }
+  }
 } 

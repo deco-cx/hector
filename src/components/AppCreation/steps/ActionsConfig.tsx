@@ -166,15 +166,60 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
   // Custom field template for JsonSchemaForm to handle the prompt field specially
   const CustomFieldTemplate = (props: any) => {
     const { id, label, required, children, schema, formData, onChange } = props;
+    
     const [isGenerating, setIsGenerating] = useState(false);
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [userPrompt, setUserPrompt] = useState('');
-    const actionIndex = editingIndex !== null ? editingIndex : -1;
+    
+    // Access the editing index and current action type directly from parent scope
+    // The parent component is the one with the actions data, not inside formData
+    const currentActionIndex = editingIndex !== null ? editingIndex : -1; // Default to -1 if null
+    
+    // Get the actual action object directly from the parent component state
+    const actionsList = Array.isArray(formData.actions) ? formData.actions : [];
+    const currentAction = currentActionIndex >= 0 && currentActionIndex < actionsList.length 
+      ? actionsList[currentActionIndex] 
+      : null;
+    const currentActionType = currentAction?.type;
+    
+    console.log("Action context:", { 
+      editingIndex, 
+      currentActionIndex, 
+      currentActionType,
+      actionId: currentAction?.id,
+      actionTitle: currentAction?.title
+    });
+    
+    // Check if this is the Schema field for JSON actions - using direct parent context
+    const isJsonAction = currentActionType === 'generateJSON';
+    const isSchemaField = id === 'root_schema' && label === 'Schema' && isJsonAction;
+    
+    // Simplified detection that doesn't rely on action context
+    const isSchemaFieldByInput = id === 'root_schema' && label === 'Schema';
+    
+    console.log("Field detection:", { 
+      id, 
+      isSchema: id === 'root_schema', 
+      label, 
+      currentActionType,
+      isJsonAction,
+      isSchemaField 
+    });
     
     // Handle opening the AI prompt modal
     const handleOpenAIModal = () => {
-      // Set a default prompt suggestion based on the field
-      setUserPrompt(`Generate content for ${schema.title || 'this field'}${schema.description ? ` that ${schema.description}` : ''}`);
+      // Different defaults based on field type
+      if (id === 'root_schema' && label === 'Schema') {
+        console.log("Setting schema prompt template");
+        setUserPrompt(`Create a JSON schema for data with appropriate properties and data types.`);
+      } else if (isSchemaField) {
+        console.log("Setting schema prompt via isSchemaField detection");
+        setUserPrompt('Create a JSON schema for ' + (currentAction?.title || 'this data'));
+      } else {
+        // Set a default prompt suggestion based on the field
+        console.log("Setting regular prompt template");
+        setUserPrompt(`Generate content for ${schema.title || 'this field'}${schema.description ? ` that ${schema.description}` : ''}`);
+      }
       setIsModalVisible(true);
     };
     
@@ -200,10 +245,80 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
       setIsModalVisible(false);
       
       try {
-        // Call the AI to generate text with the user's prompt
-        const result = await service.executeAIGeneration(userPrompt);
+        let result;
         
-        // Update the field with the generated text
+        // Force schema field detection based on ID and label only - bypass context detection issues
+        const isSchemaFieldByInput = id === 'root_schema' && label === 'Schema';
+        
+        // Special handling for Schema field in generateJSON action - use object generation
+        if (isSchemaFieldByInput) {
+          console.log("USING GENERATE_OBJECT API for schema field");
+          
+          // Use generateObject for the Schema field
+          try {
+            // Define the expected schema structure we want the AI to generate
+            const schemaForAI = {
+              type: "object" as const,
+              properties: {
+                jsonSchema: {
+                  type: "object",
+                  description: "A valid JSON Schema defining the structure of objects"
+                }
+              }
+            };
+            
+            console.log("Calling executeAIGenerateObject with schema:", JSON.stringify(schemaForAI, null, 2));
+            
+            // Call the service method directly
+            const response = await service.executeAIGenerateObject<{jsonSchema: Record<string, any>}>({
+              prompt: userPrompt,
+              schema: schemaForAI
+            });
+            
+            console.log("Generate object response:", response);
+            
+            // Check if the response has the expected structure
+            if (response && response.jsonSchema) {
+              // Format the returned schema as a JSON string
+              result = JSON.stringify(response.jsonSchema, null, 2);
+              console.log("Generated schema:", result);
+            } else {
+              // Fallback if the response doesn't have the expected structure
+              console.error("Invalid response format:", response);
+              message.error("Received invalid schema format from AI");
+              
+              // Try to use the entire response as a fallback
+              result = JSON.stringify(response, null, 2);
+            }
+          } catch (objectError) {
+            console.error("Error using generateObject:", objectError);
+            message.error("Failed to generate JSON schema, falling back to text generation");
+            
+            // Fall back to regular text generation as a last resort
+            try {
+              result = await service.executeAIGeneration(`Generate a JSON schema for ${userPrompt}. Please respond with ONLY valid JSON schema, no explanations or other text.`);
+              
+              // Try to format the result in case it's not properly formatted JSON
+              try {
+                const parsed = JSON.parse(result);
+                result = JSON.stringify(parsed, null, 2);
+              } catch (parseError) {
+                console.warn("Could not parse result as JSON:", parseError);
+                // Keep the original result if parsing fails
+              }
+            } catch (textError) {
+              console.error("Text generation fallback also failed:", textError);
+              throw textError;
+            }
+          }
+        } else {
+          console.log("Using generateText for regular field:", id);
+          
+          // Use regular generateText for other fields
+          result = await service.executeAIGeneration(userPrompt);
+        }
+        
+        // Update the field with the generated content
         onChange(result);
         message.success('AI content generated successfully');
       } catch (error) {
@@ -214,9 +329,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
       }
     };
     
-    // Check if this is an empty field with no content - REMOVED empty field check to fix schema display
-    
-    // If this is the prompt field, use our custom PromptTextArea component
+    // Check if this is the prompt field, use our custom PromptTextArea component
     if (id.endsWith('_prompt') && schema.title === 'Prompt') {
       return (
         <div className="custom-field-template">
@@ -242,12 +355,12 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
             rows={4}
             inputs={Array.isArray(formData.inputs) ? formData.inputs : []}
             actions={Array.isArray(formData.actions) ? formData.actions : []}
-            currentActionIndex={actionIndex}
+            currentActionIndex={currentActionIndex}
           />
           
           {/* AI Prompt Modal */}
           <Modal
-            title="Generate with AI"
+            title={isSchemaFieldByInput ? "Generate JSON Schema with Object Generation API" : "Generate with AI"}
             open={isModalVisible}
             onOk={handleModalSubmit}
             onCancel={handleModalCancel}
@@ -255,7 +368,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
             width={500}
           >
             <AntForm.Item
-              label="What would you like to generate?"
+              label={isSchemaFieldByInput ? "Describe the data structure you want to create" : "What would you like to generate?"}
               required
               labelCol={{ span: 24 }}
               wrapperCol={{ span: 24 }}
@@ -263,7 +376,9 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
               <Input.TextArea
                 value={userPrompt}
                 onChange={(e) => setUserPrompt(e.target.value)}
-                placeholder="Describe what you want the AI to generate..."
+                placeholder={isSchemaFieldByInput 
+                  ? "E.g., Create a JSON schema for a user profile with name, email, and address fields" 
+                  : "Describe what you want the AI to generate..."}
                 rows={4}
                 autoFocus
               />
@@ -277,7 +392,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
                 <AvailableVariables 
                   inputs={Array.isArray(formData.inputs) ? formData.inputs : []}
                   actions={Array.isArray(formData.actions) ? formData.actions : []}
-                  currentActionIndex={actionIndex}
+                  currentActionIndex={currentActionIndex}
                   onVariableClick={(variable) => {
                     setUserPrompt(prev => `${prev} ${variable}`.trim());
                   }}
@@ -286,7 +401,9 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
             </div>
             
             <p className="text-sm text-gray-500">
-              You can include any of the above variables in your prompt. For example: "Create a story about @child_name.md who dreams of becoming a @career.md"
+              {isSchemaFieldByInput 
+                ? "This will use the AI Object Generation API to create a valid JSON Schema. The schema will define the structure and validation rules for the JSON data that will be generated by this action."
+                : "You can include any of the above variables in your prompt. For example: \"Create a story about @child_name.md who dreams of becoming a @career.md\""}
             </p>
           </Modal>
         </div>
@@ -301,7 +418,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
             {label}
             {required ? <span className="required-indicator">*</span> : null}
           </label>
-          {schema.type === 'string' && !schema.enum && (
+          {(schema.type === 'string' && !schema.enum) && (
             <Button 
               type="primary" 
               size="small"
@@ -317,7 +434,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
         
         {/* AI Prompt Modal */}
         <Modal
-          title="Generate with AI"
+          title={isSchemaFieldByInput ? "Generate JSON Schema with Object Generation API" : "Generate with AI"}
           open={isModalVisible}
           onOk={handleModalSubmit}
           onCancel={handleModalCancel}
@@ -325,7 +442,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
           width={500}
         >
           <AntForm.Item
-            label="What would you like to generate?"
+            label={isSchemaFieldByInput ? "Describe the data structure you want to create" : "What would you like to generate?"}
             required
             labelCol={{ span: 24 }}
             wrapperCol={{ span: 24 }}
@@ -333,7 +450,9 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
             <Input.TextArea
               value={userPrompt}
               onChange={(e) => setUserPrompt(e.target.value)}
-              placeholder="Describe what you want the AI to generate..."
+              placeholder={isSchemaFieldByInput 
+                ? "E.g., Create a JSON schema for a user profile with name, email, and address fields" 
+                : "Describe what you want the AI to generate..."}
               rows={4}
               autoFocus
             />
@@ -347,7 +466,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
               <AvailableVariables 
                 inputs={Array.isArray(formData.inputs) ? formData.inputs : []}
                 actions={Array.isArray(formData.actions) ? formData.actions : []}
-                currentActionIndex={actionIndex}
+                currentActionIndex={currentActionIndex}
                 onVariableClick={(variable) => {
                   setUserPrompt(prev => `${prev} ${variable}`.trim());
                 }}
@@ -356,7 +475,9 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
           </div>
           
           <p className="text-sm text-gray-500">
-            You can include any of the above variables in your prompt. For example: "Create a story about @child_name.md who dreams of becoming a @career.md"
+            {isSchemaFieldByInput 
+              ? "This will use the AI Object Generation API to create a valid JSON Schema. The schema will define the structure and validation rules for the JSON data that will be generated by this action."
+              : "You can include any of the above variables in your prompt. For example: \"Create a story about @child_name.md who dreams of becoming a @career.md\""}
           </p>
         </Modal>
       </div>

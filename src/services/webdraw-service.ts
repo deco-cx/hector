@@ -248,4 +248,59 @@ export class WebdrawService {
       throw error;
     }
   }
+
+  async executeAIGenerateObject<T = any>(payload: { 
+    prompt: string, 
+    schema: { 
+      type: "object", 
+      properties: Record<string, any> 
+    } 
+  }): Promise<T> {
+    try {
+      console.log("======= EXECUTING AI GENERATE OBJECT =======");
+      console.log("AI Generate Object request:");
+      console.log("- Prompt:", payload.prompt);
+      console.log("- Schema:", JSON.stringify(payload.schema, null, 2));
+      
+      // Make sure we use the correct method on the SDK
+      if (!this.sdk.ai.generateObject) {
+        console.error("SDK ERROR: generateObject method is not available on the AI SDK");
+        throw new Error("SDK does not support generateObject - check SDK version");
+      }
+      
+      // Call the AI SDK to generate an object according to the schema
+      console.log("Calling SDK generateObject method...");
+      const response = await this.sdk.ai.generateObject<T>({
+        prompt: payload.prompt,
+        schema: payload.schema
+      });
+      
+      console.log("SDK generateObject response received:");
+      console.log(JSON.stringify(response, null, 2));
+      
+      if (!response || !response.object) {
+        console.error("SDK ERROR: generateObject response is missing the object property");
+        throw new Error("Invalid response from AI generateObject");
+      }
+      
+      const { object } = response;
+      console.log("Result object:", JSON.stringify(object, null, 2));
+      console.log("======= AI GENERATE OBJECT COMPLETED =======");
+      
+      return object;
+    } catch (error) {
+      console.error("======= AI GENERATE OBJECT ERROR =======");
+      console.error("Error executing AI object generation:", error);
+      
+      // Log more details about the error
+      if (error instanceof Error) {
+        console.error("Error name:", error.name);
+        console.error("Error message:", error.message);
+        console.error("Error stack:", error.stack);
+      }
+      
+      // Rethrow the error for handling by the caller
+      throw error;
+    }
+  }
 } 
