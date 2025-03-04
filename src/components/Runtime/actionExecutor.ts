@@ -12,8 +12,12 @@ interface WebDrawSDK {
   upscaleImage: (config: any) => Promise<any>;
   removeBackground: (config: any) => Promise<any>;
   fs: {
-    chmod: (path: string, mode: string) => Promise<void>;
-    exists: (path: string) => Promise<boolean>;
+    chmod: (filepath: string, mode: number) => Promise<void>;
+    exists: (filepath: string) => Promise<boolean>;
+    write: (filepath: string, text: string, options?: any) => Promise<void>;
+    read: (filepath: string, options?: any) => Promise<string | Uint8Array>;
+    readFile: (filepath: string, options?: any) => Promise<string | Uint8Array>;
+    mkdir: (filepath: string, options?: { recursive?: boolean; mode?: number }) => Promise<void>;
   };
   // Add other SDK methods as needed
 }
@@ -35,7 +39,8 @@ export interface ActionExecutionResult {
 async function makeFilePublic(sdk: WebDrawSDK, filePath: string): Promise<void> {
   try {
     // Make the file publicly accessible (typically takes ~100-200ms)
-    await sdk.fs.chmod(filePath, '0644');
+    // Note: chmod takes a number for mode
+    await sdk.fs.chmod(filePath, 0o644); // 0o644 is octal notation for permissions
     console.log(`Made file public: ${filePath}`);
   } catch (error) {
     console.error(`Error making file public: ${filePath}`, error);
@@ -203,6 +208,14 @@ async function processFileResult(sdk: WebDrawSDK, result: any): Promise<any> {
 }
 
 /**
+ * Extended ActionData type to use safely in this file 
+ */
+interface ExtendedActionData extends ActionData {
+  inputs?: Array<InputField & { filename: string; required?: boolean; type?: string }>;
+  outputs?: string[];
+}
+
+/**
  * Execute an action based on its type using the Webdraw SDK
  * @param action The action to execute
  * @param executionContext The execution context to use for resolving values
@@ -217,22 +230,24 @@ export async function executeAction(
     // Create configuration by resolving input values from execution context
     const config: Record<string, any> = {};
     
+    // Safely access action.inputs if it exists with type casting
+    const actionWithInputs = action as ExtendedActionData;
+    const inputs = actionWithInputs.inputs || [];
+    
     // Map inputs to configuration values
-    if (action.inputs) {
-      for (const input of action.inputs) {
-        const value = executionContext.getValue(input.filename);
-        
-        if (value !== undefined) {
-          // Handle special input types
-          if (input.type === 'image' || input.type === 'audio' || input.type === 'file') {
-            // For file types, we need to make sure we extract the right property based on what the SDK expects
-            config[input.filename] = typeof value === 'object' ? value : { base64: value };
-          } else {
-            config[input.filename] = value;
-          }
-        } else if (input.required) {
-          throw new Error(`Required input ${input.filename} is missing for action ${action.id}`);
+    for (const input of inputs) {
+      const value = executionContext.getValue(input.filename);
+      
+      if (value !== undefined) {
+        // Handle special input types
+        if (input.type === 'image' || input.type === 'audio' || input.type === 'file') {
+          // For file types, we need to make sure we extract the right property based on what the SDK expects
+          config[input.filename] = typeof value === 'object' ? value : { base64: value };
+        } else {
+          config[input.filename] = value;
         }
+      } else if (input.required) {
+        throw new Error(`Required input ${input.filename} is missing for action ${action.id}`);
       }
     }
     
@@ -321,9 +336,12 @@ export function extractInputReferences(prompt: string): string[] {
   const dollarBraceMatches = prompt.match(/\$\{input\.([\w.-]+)\}/g);
   if (dollarBraceMatches) {
     dollarBraceMatches.forEach(match => {
-      const filename = match.match(/\$\{input\.([\w.-]+)\}/)?.[1];
-      if (filename && !references.includes(filename)) {
-        references.push(filename);
+      const matchResult = match.match(/\$\{input\.([\w.-]+)\}/);
+      if (matchResult && matchResult[1]) {
+        const filename = matchResult[1];
+        if (!references.includes(filename)) {
+          references.push(filename);
+        }
       }
     });
   }
@@ -332,9 +350,12 @@ export function extractInputReferences(prompt: string): string[] {
   const doubleBraceMatches = prompt.match(/\{\{input\.([\w.-]+)\}\}/g);
   if (doubleBraceMatches) {
     doubleBraceMatches.forEach(match => {
-      const filename = match.match(/\{\{input\.([\w.-]+)\}\}/)?.[1];
-      if (filename && !references.includes(filename)) {
-        references.push(filename);
+      const matchResult = match.match(/\{\{input\.([\w.-]+)\}\}/);
+      if (matchResult && matchResult[1]) {
+        const filename = matchResult[1];
+        if (!references.includes(filename)) {
+          references.push(filename);
+        }
       }
     });
   }
@@ -396,10 +417,20 @@ export function buildDependencyGraph(
     
     // For each reference, find corresponding actions that produce this output
     for (const ref of references) {
-      const dependencyActions = actions.filter(a => 
-        (a.outputs && a.outputs.some(output => output === ref)) ||
-        (a.inputs && a.inputs.some(input => input.filename === ref))
-      );
+      // Safely access action properties with type casting
+      const dependencyActions = actions.filter(a => {
+        const extendedAction = a as ExtendedActionData;
+        
+        // Check outputs if they exist
+        const outputs = extendedAction.outputs || [];
+        const hasOutput = outputs.some(output => output === ref);
+        
+        // Check inputs if they exist
+        const inputs = extendedAction.inputs || [];
+        const hasInput = inputs.some(input => input.filename === ref);
+        
+        return hasOutput || hasInput;
+      });
       
       // Add dependencies to the graph
       for (const depAction of dependencyActions) {

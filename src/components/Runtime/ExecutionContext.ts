@@ -1,8 +1,5 @@
 import { ActionData, InputField } from '../../types/types';
-import { extractInputReferences, executeAction, buildDependencyGraph } from './actionExecutor';
-import * as fs from 'fs';
-import * as path from 'path';
-import * as os from 'os';
+import { extractInputReferences, buildDependencyGraph } from './actionExecutor';
 
 /**
  * Metadata for an action execution
@@ -47,6 +44,18 @@ export interface ExecutionState {
   values: Record<string, any>;
   executionMeta: Record<string, ExecutionMetadata>;
   timestamp: string;
+}
+
+/**
+ * WebDraw SDK interface for file operations
+ */
+interface WebDrawSDKFS {
+  chmod: (filepath: string, mode: number) => Promise<void>;
+  exists: (filepath: string) => Promise<boolean>;
+  write: (filepath: string, text: string, options?: any) => Promise<void>;
+  read: (filepath: string, options?: any) => Promise<string | Uint8Array>;
+  readFile: (filepath: string, options?: any) => Promise<string | Uint8Array>;
+  mkdir: (filepath: string, options?: { recursive?: boolean; mode?: number }) => Promise<void>;
 }
 
 /**
@@ -280,97 +289,26 @@ export class ExecutionContext {
     this.dependencies = {};
     this.circularDependencies = {};
     
-    // Process each action
+    // Use buildDependencyGraph from actionExecutor.ts for each action
     for (const action of actions) {
-      // Skip if already processed
-      if (this.dependencies[action.id]) continue;
-      
-      // Initialize empty dependencies for this action
-      this.dependencies[action.id] = [];
-      
-      // Process prompts if any
-      if (action.prompts) {
-        for (const [field, prompt] of Object.entries(action.prompts)) {
-          if (typeof prompt === 'string') {
-            const references = extractInputReferences(prompt);
-            
-            // Add all referenced inputs as dependencies
-            for (const ref of references) {
-              if (!this.dependencies[action.id].includes(ref)) {
-                this.dependencies[action.id].push(ref);
-              }
-            }
+      if (!this.dependencies[action.id]) {
+        const { graph, circularDeps } = buildDependencyGraph(action.id, actions);
+        
+        // Merge the results into our dependency maps
+        Object.assign(this.dependencies, graph);
+        
+        // Convert circular dependencies to our format
+        for (const cycle of circularDeps) {
+          if (cycle.length > 0) {
+            const actionId = cycle[0];
+            this.circularDependencies[actionId] = {
+              cycle,
+              message: `Circular dependency detected: ${cycle.join(' -> ')} -> ${actionId}`
+            };
           }
         }
       }
     }
-    
-    // Detect circular dependencies
-    const { circularDeps } = this.detectCircularDependencies(actions);
-    
-    // Store circular dependencies
-    for (const cycle of circularDeps) {
-      const actionId = cycle[0];
-      this.circularDependencies[actionId] = {
-        cycle,
-        message: `Circular dependency detected: ${cycle.join(' -> ')} -> ${actionId}`
-      };
-    }
-  }
-  
-  /**
-   * Detects circular dependencies in the actions
-   * @param actions The actions to check
-   * @returns Object with circular dependencies
-   */
-  detectCircularDependencies(actions: ActionData[]): { circularDeps: string[][] } {
-    const circularDeps: string[][] = [];
-    const visited = new Set<string>();
-    const path: string[] = [];
-    
-    // DFS to detect cycles
-    const dfs = (actionId: string) => {
-      // If we've seen this action in the current path, we have a cycle
-      if (path.includes(actionId)) {
-        const cycle = path.slice(path.indexOf(actionId)).concat(actionId);
-        circularDeps.push(cycle);
-        return;
-      }
-      
-      // If we've already fully explored this node, skip it
-      if (visited.has(actionId)) return;
-      
-      // Add to current path
-      path.push(actionId);
-      visited.add(actionId);
-      
-      // Explore all dependencies
-      const deps = this.dependencies[actionId] || [];
-      for (const dep of deps) {
-        // Find actions that produce this dependency
-        const producers = actions.filter(a => 
-          a.outputs?.some(output => output === dep) ||
-          a.inputs?.some(input => input.filename === dep)
-        );
-        
-        // Explore each producer
-        for (const producer of producers) {
-          dfs(producer.id);
-        }
-      }
-      
-      // Remove from current path
-      path.pop();
-    };
-    
-    // Start DFS from each action
-    for (const action of actions) {
-      if (!visited.has(action.id)) {
-        dfs(action.id);
-      }
-    }
-    
-    return { circularDeps };
   }
   
   /**
@@ -381,6 +319,9 @@ export class ExecutionContext {
    */
   async executeAction(action: ActionData, sdk: any): Promise<any> {
     try {
+      // Import the executeAction function dynamically to avoid circular dependency
+      const { executeAction } = await import('./actionExecutor');
+      
       // Update execution metadata
       this.updateExecutionMeta(action.id, {
         status: 'idle',
@@ -403,8 +344,8 @@ export class ExecutionContext {
           duration
         });
         
-        // Save execution state
-        this.saveExecutionState(action);
+        // Save execution state to WebDraw's filesystem
+        await this.saveExecutionState(sdk, action);
         
         return result.data;
       } else {
@@ -419,28 +360,26 @@ export class ExecutionContext {
   }
   
   /**
-   * Saves the current execution state to a file
+   * Saves the current execution state to WebDraw filesystem
+   * @param sdk The WebDraw SDK instance
    * @param action Optional action to associate with the save
    */
-  saveExecutionState(action?: ActionData): void {
+  async saveExecutionState(sdk: any, action?: ActionData): Promise<void> {
     try {
-      const appName = action?.appName || 'app';
-      const homeDir = os.homedir();
-      const hectorDir = path.join(homeDir, 'Hector');
-      const executionsDir = path.join(hectorDir, 'executions', appName);
+      const appName = action?.id?.split('_')[0] || 'app';
       
       // Create directories if they don't exist
-      if (!fs.existsSync(hectorDir)) {
-        fs.mkdirSync(hectorDir, { recursive: true });
-      }
-      
-      if (!fs.existsSync(executionsDir)) {
-        fs.mkdirSync(executionsDir, { recursive: true });
+      try {
+        await sdk.fs.mkdir(`Hector`, { recursive: true });
+        await sdk.fs.mkdir(`Hector/executions`, { recursive: true });
+        await sdk.fs.mkdir(`Hector/executions/${appName}`, { recursive: true });
+      } catch (e) {
+        console.log('Directories might already exist:', e);
       }
       
       // Create timestamp for filename
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const filename = path.join(executionsDir, `${timestamp}.json`);
+      const filename = `Hector/executions/${appName}/${timestamp}.json`;
       
       // Create the state to save
       const state: ExecutionState = {
@@ -450,7 +389,7 @@ export class ExecutionContext {
       };
       
       // Write to file
-      fs.writeFileSync(filename, JSON.stringify(state, null, 2));
+      await sdk.fs.write(filename, JSON.stringify(state, null, 2));
       
       console.log(`Execution state saved to ${filename}`);
     } catch (error) {
@@ -486,16 +425,19 @@ export class ExecutionContext {
   }
   
   /**
-   * Loads the current execution state from persistent storage
+   * Loads the current execution from the WebDraw filesystem
+   * @param sdk The WebDraw SDK instance
    * @param appName The name of the app
    */
-  loadCurrentExecution(appName: string): void {
+  async loadCurrentExecution(sdk: any, appName: string): Promise<void> {
     try {
-      const homeDir = os.homedir();
-      const configFile = path.join(homeDir, 'Hector', 'config.json');
+      const configFile = `Hector/config.json`;
       
-      if (fs.existsSync(configFile)) {
-        const config = JSON.parse(fs.readFileSync(configFile, 'utf8'));
+      // Check if config file exists
+      const exists = await sdk.fs.exists(configFile);
+      if (exists) {
+        const configContent = await sdk.fs.readFile(configFile);
+        const config = JSON.parse(configContent as string);
         
         if (config.currentExecution) {
           this.loadFromState(config.currentExecution);
@@ -507,17 +449,20 @@ export class ExecutionContext {
   }
   
   /**
-   * Loads a previous execution state from history
+   * Loads a previous execution state from WebDraw filesystem
+   * @param sdk The WebDraw SDK instance
    * @param appName The name of the app
    * @param timestamp The timestamp of the execution to load
    */
-  loadExecutionFromHistory(appName: string, timestamp: string): void {
+  async loadExecutionFromHistory(sdk: any, appName: string, timestamp: string): Promise<void> {
     try {
-      const homeDir = os.homedir();
-      const filePath = path.join(homeDir, 'Hector', 'executions', appName, `${timestamp}.json`);
+      const filePath = `Hector/executions/${appName}/${timestamp}.json`;
       
-      if (fs.existsSync(filePath)) {
-        const state = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+      const exists = await sdk.fs.exists(filePath);
+      if (exists) {
+        const stateContent = await sdk.fs.readFile(filePath);
+        const state = JSON.parse(stateContent as string);
+        
         this.loadFromState(state);
       } else {
         throw new Error(`Execution state file not found: ${filePath}`);
