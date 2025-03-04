@@ -151,7 +151,10 @@ export const AppEditor: React.FC<AppEditorProps> = ({ tab }) => {
       console.log('Form data updated:', {
         hasInputs: Boolean(formData?.inputs),
         inputsLength: Array.isArray(formData?.inputs) ? formData.inputs.length : 'not an array',
-        inputs: formData?.inputs
+        inputs: formData?.inputs,
+        hasActions: Boolean(formData?.actions),
+        actionsLength: Array.isArray(formData?.actions) ? formData.actions.length : 'not an array',
+        actions: formData?.actions
       });
     }
   }, [formData]);
@@ -159,12 +162,17 @@ export const AppEditor: React.FC<AppEditorProps> = ({ tab }) => {
   // Create a memoized version of the language settings data to prevent unnecessary re-renders
   const languageSettingsData = useMemo(() => {
     // Always return a valid object even if formData is null
+    if (!formData) return { supportedLanguages: [DEFAULT_LANGUAGE] };
+    
+    // Create a proper deep clone to avoid reference issues
     return {
-      ...(formData || {}),
+      ...formData,
+      // Make sure the actions array is properly cloned if it exists
+      actions: formData.actions ? [...formData.actions] : [],
       // Ensure supportedLanguages is always a valid array
-      supportedLanguages: formData?.supportedLanguages || [DEFAULT_LANGUAGE]
+      supportedLanguages: formData.supportedLanguages || [DEFAULT_LANGUAGE]
     };
-  }, [formData?.supportedLanguages]);
+  }, [formData]); // Depend on the entire formData to ensure all changes are captured
   
   if (!isSDKAvailable) {
     return (

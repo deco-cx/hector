@@ -141,12 +141,21 @@ export const translateAppConfig = async (
   // Create a deep copy of the app config to avoid modifying the original
   const translatedConfig = JSON.parse(JSON.stringify(appConfig));
   
+  // Preserve the original actions array completely as is - do not translate or modify
+  // This prevents any issues with actions being lost during translation
+  const originalActions = appConfig.actions ? [...appConfig.actions] : [];
+  
   // Recursively translate all localizable fields in the app config
   const translateObject = async (obj: any): Promise<any> => {
     if (!obj || typeof obj !== 'object') return obj;
     
     // Handle arrays
     if (Array.isArray(obj)) {
+      // Special case: if this is the root actions array, return the original
+      if (obj === translatedConfig.actions) {
+        return originalActions;
+      }
+      
       const translatedArray = [];
       for (const item of obj) {
         translatedArray.push(await translateObject(item));
@@ -206,5 +215,12 @@ export const translateAppConfig = async (
   };
   
   // Start the translation process
-  return await translateObject(translatedConfig);
+  const result = await translateObject(translatedConfig);
+  
+  // Ensure the actions array is preserved in the final result
+  if (originalActions.length > 0) {
+    result.actions = originalActions;
+  }
+  
+  return result;
 }; 

@@ -154,6 +154,11 @@ const LanguageSettings: React.FC<LanguageSettingsProps> = ({
           supportedLanguages: [...supportedLanguages, lang]
         };
         
+        // Ensure actions array is properly preserved (not lost)
+        if (formData.actions && Array.isArray(formData.actions)) {
+          updatedConfig.actions = [...formData.actions];
+        }
+        
         setFormData(updatedConfig);
         message.success(`Added ${LANGUAGE_NAMES[lang]} support with empty fields`);
       },
@@ -169,6 +174,11 @@ const LanguageSettings: React.FC<LanguageSettingsProps> = ({
                 ...formData,
                 supportedLanguages: [...supportedLanguages, lang]
               };
+              
+              // Ensure actions array is properly preserved (not lost)
+              if (formData.actions && Array.isArray(formData.actions)) {
+                updatedConfig.actions = [...formData.actions];
+              }
               
               setFormData(updatedConfig);
               startTranslation(currentLanguage, lang);
@@ -221,12 +231,22 @@ const LanguageSettings: React.FC<LanguageSettingsProps> = ({
           
           // Handle arrays
           if (Array.isArray(obj)) {
+            // Special case for actions array - preserve it completely to avoid losing actions
+            if (obj === updatedConfig.actions) {
+              return obj;
+            }
             return obj.map(item => processObject(item));
           }
           
           // Handle objects
           const result: any = {};
           for (const key in obj) {
+            // Skip processing for actions to preserve them
+            if (key === 'actions' && obj === updatedConfig) {
+              result[key] = obj[key];
+              continue;
+            }
+            
             // Check if this is a localizable field
             if (obj[key] && typeof obj[key] === 'object' && obj[key][DEFAULT_LANGUAGE] !== undefined) {
               result[key] = removeLanguageFromField(obj[key]);
