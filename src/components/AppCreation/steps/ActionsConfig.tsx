@@ -196,58 +196,33 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
     setIsModalVisible(false);
     
     try {
-      console.log('Generating content using Object Generation API');
-      console.log('User prompt:', userPrompt);
-      
-      // Generate content using AI with object generation
       const response = await service.executeAIGenerateObject({
         prompt: userPrompt,
         schema: {
-          type: "object",
+          type: "object" as const,
           properties: {
             content: {
               type: "string",
-              description: "The generated content based on the prompt"
+              description: 'The generated prompt content'
             }
           }
         }
       });
       
-      console.log('Content generation response:', response);
-      
-      // Extract the content from the response
-      if (!response || !response.content) {
-        throw new Error('Generated object missing content property');
+      if (response && response.content) {
+        const generatedPrompt = response.content;
+        if (currentPromptIndex !== null) {
+          handlePromptChange(currentPromptIndex, generatedPrompt);
+          message.success('Generated new prompt!');
+        } else {
+          message.error('No action selected for prompt generation');
+        }
+      } else {
+        message.error('Failed to generate prompt. Please try again.');
       }
-      
-      const result = response.content;
-      
-      // If we have a current prompt index, update that action's prompt
-      if (currentPromptIndex !== null && formData.actions && formData.actions[currentPromptIndex]) {
-        // Get the current editor language
-        const { editorLanguage = DEFAULT_LANGUAGE } = useLanguage();
-        
-        // Get the current action
-        const currentAction = formData.actions[currentPromptIndex];
-        
-        // Create or update the Localizable value, preserving other languages
-        const currentPrompt = typeof currentAction.prompt === 'object' 
-          ? currentAction.prompt 
-          : { [DEFAULT_LANGUAGE]: currentAction.prompt || '' };
-          
-        const localizedValue = {
-          ...currentPrompt,
-          [editorLanguage]: result
-        };
-        
-        handlePromptChange(currentPromptIndex, localizedValue);
-        setCurrentPromptIndex(null);
-      }
-      
-      message.success('AI content generated successfully');
     } catch (error) {
-      console.error('Error generating content with AI:', error);
-      message.error('Failed to generate content with AI');
+      console.error('Error generating prompt:', error);
+      message.error('Failed to generate prompt: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
       setIsGenerating(false);
     }
@@ -294,25 +269,13 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
     const fieldOptions = props.uiSchema?.[id.split('_').pop()]?.['ui:options'] || {};
     const isJsonSchemaField = id.endsWith('_schema') && schema.title === 'Schema';
     
-    console.log('Field info:', { 
-      id, 
-      label, 
-      schemaTitle: schema.title, 
-      schemaType: schema.type,
-      fieldOptions,
-      isJsonSchemaField
-    });
-
     // Handle opening the AI prompt modal
     const handleOpenAIModal = () => {
-      console.log('Opening AI modal for field:', id, 'isJsonSchemaField:', isJsonSchemaField);
-      
       // Get the current action index from the editing index in the parent component
       setCurrentPromptIndex(editingIndex);
       
       // Set a different default prompt based on the field type
       if (isJsonSchemaField) {
-        console.log('Preparing JSON Schema prompt');
         const actions = Array.isArray(formData.actions) ? formData.actions : [];
         const action = editingIndex !== null && editingIndex >= 0 && editingIndex < actions.length 
           ? actions[editingIndex] 
@@ -321,7 +284,6 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
         const actionTitle = action?.title || 'structured data';
         setUserPrompt(`Create a detailed JSON Schema for ${actionTitle}. The schema should define the structure, properties, types, and validation rules for ${actionTitle}. Include required fields, property descriptions, and appropriate data types.`);
       } else {
-        console.log('Preparing regular content prompt for:', schema.title);
         setUserPrompt(`Generate content for ${schema.title || 'this field'}${schema.description ? ` that ${schema.description}` : ''}`);
       }
       
@@ -349,152 +311,79 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
       setIsGenerating(true);
       setIsModalVisible(false);
       
-      console.log('Submitting AI request for field:', id, 'isJsonSchemaField:', isJsonSchemaField);
-      
       try {
-        let result;
-        
-        // Use executeAIGenerateObject with different schemas based on field type
         if (isJsonSchemaField) {
-          console.log('Generating JSON Schema using Object Generation API');
-          console.log('User prompt:', userPrompt);
-          console.log('JSON Schema field details:', {
-            id,
-            schemaTitle: schema.title,
-            actionType: "Using editingIndex",
-            actionTitle: formData.actions?.[editingIndex]?.title
-          });
-          
           // For JSON Schema fields, use a more specific schema request
-          const enhancedPrompt = `Return a valid JSON Schema based on this description: ${userPrompt}
-
-The JSON Schema should:
-1. Use proper JSON Schema format with type definitions
-2. Include appropriate property descriptions
-3. Specify required fields
-4. Use correct data types (string, number, boolean, object, array)
-5. Include any necessary constraints (minLength, pattern, etc.)
-6. Be properly formatted with correct JSON syntax`;
-          
-          const response = await service.executeAIGenerateObject({
-            prompt: enhancedPrompt,
-            schema: {
-              type: "object",
-              properties: {
-                jsonSchema: {
-                  type: "object",
-                  description: "A valid JSON Schema defining the structure of objects following JSON Schema specification"
-                }
+          const generationSchema = {
+            type: "object" as const,
+            properties: {
+              jsonSchema: {
+                type: "string",
+                description: 'A JSON Schema definition that describes the structure, validation rules, and type information for the data.'
               }
             }
-          });
+          };
           
-          console.log('JSON Schema generation response:', response);
-          
-          // Extract the jsonSchema from the response
-          if (response && response.jsonSchema) {
-            result = JSON.stringify(response.jsonSchema, null, 2);
-            console.log('Successfully extracted JSON Schema:', result);
-          } else {
-            throw new Error('Generated object missing jsonSchema property');
-          }
-        } else {
-          console.log('Generating content using Object Generation API');
-          console.log('User prompt:', userPrompt);
-          
-          // For other field types, request an object with a newFieldValue property
+          // Call AI service to generate the schema
           const response = await service.executeAIGenerateObject({
             prompt: userPrompt,
-            schema: {
-              type: "object",
-              properties: {
-                newFieldValue: {
-                  type: "string",
-                  description: "The generated content for the field"
-                }
-              }
-            }
+            schema: generationSchema
           });
           
-          console.log('Content generation response:', response);
+          // Extract the result
+          const result = response.jsonSchema;
           
-          // Extract the newFieldValue from the response
-          if (response && response.newFieldValue) {
-            result = response.newFieldValue;
-            console.log('Successfully extracted field value:', result);
+          if (result) {
+            // Attempt to parse as JSON to ensure it's valid
+            try {
+              // If it's valid JSON, keep it as is
+              const parsedJson = JSON.parse(result);
+              const finalValue = typeof parsedJson === 'string' ? parsedJson : JSON.stringify(parsedJson, null, 2);
+              
+              // Update the form data
+              onChange(finalValue);
+              
+              message.success('Generated new JSON schema!');
+            } catch (error) {
+              // If it's not valid JSON, provide it as a string
+              onChange(result);
+              message.warning('Generated schema may not be valid JSON. Please review and correct if needed.');
+            }
           } else {
-            throw new Error('Generated object missing newFieldValue property');
+            message.error('Failed to generate schema. Please try again with a more detailed description.');
           }
-        }
-        
-        // Log the current context to understand what's happening
-        console.log('Generation context:', {
-          id,
-          schemaTitle: schema.title,
-          actionType: "Using editingIndex",
-          actionTitle: formData.actions?.[editingIndex]?.title
-        });
-        
-        if (result) {
-          // For prompt fields, update the action's prompt
-          if (id.endsWith('_prompt') && schema.title === 'Prompt' && editingIndex !== null && formData.actions && formData.actions[editingIndex]) {
-            console.log('Handling as prompt field:', id);
-            // Handle prompt field updates
-            handlePromptChange(editingIndex, result);
-            message.success('Generated new prompt!');
-          } else if (isJsonSchemaField && editingIndex !== null && formData.actions && formData.actions[editingIndex]) {
-            console.log('Handling as JSON Schema field:', id);
-            // For JSON schema fields, update the config
-            const newConfig = { ...formData.actions[editingIndex].config, schema: result };
-            console.log('New config with updated schema:', newConfig);
-            const updatedAction = { ...formData.actions[editingIndex], config: newConfig };
-            
-            const newActions = [...formData.actions];
-            newActions[editingIndex] = updatedAction;
-            updateActions(newActions);
-            
-            message.success('Generated new JSON schema!');
-          } else if (schema && editingIndex !== null && formData.actions && formData.actions[editingIndex]) {
-            // For any other field in the form, update the form data
-            const formId = id.replace(/_schema$/, '');
-            console.log('Handling as config form field:', id, formId);
-            
-            // Use handleConfigFormChange to update the config
-            const newConfig = { ...formData.actions[editingIndex].config };
-            newConfig[formId] = result;
-            console.log('New config with updated field:', newConfig);
-            
-            const newFormData = { ...formData.actions[editingIndex].config, [formId]: result };
-            handleConfigFormChange(editingIndex, newFormData);
-            
-            message.success(`Generated content for ${schema.title || 'field'}!`);
-          } else {
-            console.log('Handling as direct field update:', id);
-            // Direct update using the onChange function provided by JsonSchemaForm
-            
-            // Check if the result is a JSON string that needs to be parsed based on the schema type
-            let finalValue = result;
-            
-            // If the result looks like JSON and the schema expects an object
-            if (typeof result === 'string' && 
-                result.trim().startsWith('{') && 
-                schema.type === 'object') {
-              try {
-                finalValue = JSON.parse(result);
-                console.log('Parsed JSON result:', finalValue);
-              } catch (e) {
-                console.warn('Failed to parse result as JSON, using as string:', e);
+        } else {
+          // For other fields, use a generic content generation
+          const generationSchema = {
+            type: "object" as const,
+            properties: {
+              newFieldValue: {
+                type: "string",
+                description: 'The generated content for the field'
               }
             }
-            
-            console.log('Setting field value to:', finalValue);
-            onChange(finalValue);
+          };
+          
+          // Call AI service to generate the content
+          const response = await service.executeAIGenerateObject({
+            prompt: userPrompt,
+            schema: generationSchema
+          });
+          
+          // Extract the result
+          const result = response.newFieldValue;
+          
+          if (result) {
+            // Update the form field
+            onChange(result);
             message.success(`Generated content for ${schema.title || 'field'}!`);
+          } else {
+            message.error('Failed to generate content. Please try again.');
           }
         }
       } catch (error) {
         console.error('Error generating content:', error);
-        message.error('Failed to generate content. Please try again.');
+        message.error('Failed to generate content: ' + (error instanceof Error ? error.message : String(error)));
       } finally {
         setIsGenerating(false);
       }
@@ -559,8 +448,8 @@ The JSON Schema should:
             {/* Display available variables */}
             <AvailableVariables 
               inputs={Array.isArray(formData.inputs) ? formData.inputs : []}
-              actions={Array.isArray(formData.actions) ? formData.actions.slice(0, editingIndex || 0) : []}
-              currentActionIndex={editingIndex !== null ? editingIndex : 0}
+              actions={Array.isArray(formData.actions) ? formData.actions.slice(0, currentPromptIndex || 0) : []}
+              currentActionIndex={currentPromptIndex !== null ? currentPromptIndex : 0}
               onVariableClick={(variable) => {
                 setUserPrompt((prev) => prev + ' ' + variable);
               }}
@@ -622,8 +511,8 @@ The JSON Schema should:
           {/* Display available variables */}
           <AvailableVariables 
             inputs={Array.isArray(formData.inputs) ? formData.inputs : []}
-            actions={Array.isArray(formData.actions) ? formData.actions.slice(0, props.currentActionIndex || 0) : []}
-            currentActionIndex={props.currentActionIndex !== null ? props.currentActionIndex : 0}
+            actions={Array.isArray(formData.actions) ? formData.actions.slice(0, currentPromptIndex || 0) : []}
+            currentActionIndex={currentPromptIndex !== null ? currentPromptIndex : 0}
             onVariableClick={(variable) => {
               setUserPrompt((prev) => prev + ' ' + variable);
             }}
@@ -662,19 +551,22 @@ The JSON Schema should:
               style={{ width: '100%', marginBottom: '16px' }}
               bodyStyle={{ padding: '12px' }}
               title={
-                <Space>
-                  {actionIcons[action.type]}
-                  <span>{getLocalizedValue(action.title, DEFAULT_LANGUAGE)}</span>
-                </Space>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                  <Space>
+                    {actionIcons[action.type]}
+                    <span>{getLocalizedValue(action.title, DEFAULT_LANGUAGE)}</span>
+                  </Space>
+                  <Tooltip title={editingIndex === index ? "View action" : "Edit action"}>
+                    <Button 
+                      type="text" 
+                      size="small"
+                      icon={editingIndex === index ? <EyeOutlined /> : <EditOutlined />} 
+                      onClick={() => handleCardFlip(index)}
+                    />
+                  </Tooltip>
+                </div>
               }
               actions={[
-                <Tooltip title={editingIndex === index ? "View action" : "Edit action"} key="edit">
-                  <Button 
-                    type="text" 
-                    icon={editingIndex === index ? <EyeOutlined /> : <EditOutlined />} 
-                    onClick={() => handleCardFlip(index)}
-                  />
-                </Tooltip>,
                 <Tooltip title="Delete action" key="delete">
                   <Button
                     type="text"

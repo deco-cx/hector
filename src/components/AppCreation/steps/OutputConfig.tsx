@@ -395,7 +395,6 @@ export function OutputConfig({ formData, setFormData }: OutputConfigProps) {
               style={{ marginBottom: '8px', cursor: 'pointer' }}
               onClick={() => {
                 console.log('Card clicked for template type:', type);
-                debugger; // This will pause execution in browser dev tools
                 handleAddTemplate(type);
               }}
             >
