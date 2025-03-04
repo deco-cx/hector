@@ -148,19 +148,294 @@ export interface ActionData {
 // ============================================================================
 
 /**
+ * Message format for AI conversations
+ */
+export interface Message {
+  role: 'user' | 'system' | 'assistant' | 'function' | 'tool';
+  content: string;
+  name?: string;
+}
+
+/**
+ * AI models for text generation
+ */
+export type TextModel = 
+  | 'Best'
+  | 'Fast'
+  | string; // Allows for provider-specific models
+
+/**
+ * AI models for image generation
+ */
+export type ImageModel = 
+  | 'Best'
+  | 'Fast'
+  | string; // Allows for provider-specific models
+
+/**
+ * AI models for video generation
+ */
+export type VideoModel = 
+  | 'Best'
+  | 'Fast'
+  | string; // Allows for provider-specific models
+
+/**
+ * AI models for audio generation
+ */
+export type AudioModel = 
+  | 'Best'
+  | 'Fast'
+  | string; // Allows for provider-specific models
+
+/**
+ * AI models for 3D object generation
+ */
+export type ObjectModel3D = 
+  | 'Best'
+  | 'Fast'
+  | string; // Allows for provider-specific models
+
+/**
+ * Provider-specific options for AI requests
+ */
+export type ProviderOptions = Record<string, any>;
+
+/**
+ * Core tool definition for AI assistants
+ */
+export interface CoreTool {
+  type: string;
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, any>;
+  };
+}
+
+/**
+ * Response for 3D object generation
+ */
+export interface Object3DResponse {
+  object?: string;
+  filepath?: string;
+}
+
+/**
+ * Credits available in the wallet
+ */
+export interface WalletCredits {
+  availableCredits: number;
+  usedCredits: number;
+}
+
+/**
+ * Payload for adding credits
+ */
+export interface AddCreditsPayload {
+  amount?: number;
+}
+
+/**
+ * Response from adding credits
+ */
+export interface AddCreditsResponse {
+  success: boolean;
+  transaction?: {
+    id: string;
+    amount: number;
+    timestamp: string;
+  };
+}
+
+/**
+ * Text generation payload
+ */
+export type TextPayload = {
+  model?: TextModel;
+  system?: string;
+  temperature?: number;
+  maxTokens?: number;
+  stream?: boolean;
+  tools?: Record<string, CoreTool>;
+  providerOptions?: ProviderOptions;
+  headers?: Record<string, string>;
+} & ({
+  messages: Message[];
+} | {
+  prompt: string;
+});
+
+/**
+ * Object generation payload
+ */
+export type ObjectPayload = {
+  schema: {
+    type: "object";
+    properties: Record<string, any>;
+  };
+  temperature?: number;
+  maxTokens?: number;
+  stream?: boolean;
+  streamType?: "partial_object" | "text_stream";
+  providerOptions?: ProviderOptions;
+} & ({
+  messages: Message[];
+} | {
+  prompt: string;
+});
+
+/**
+ * Image generation payload
+ */
+export type ImagePayload = {
+  model?: ImageModel;
+  prompt?: string;
+  image?: string;
+  n?: number;
+  size?: `${number}x${number}`;
+  aspectRatio?: `${number}:${number}`;
+  providerOptions?: ProviderOptions;
+  headers?: Record<string, string>;
+  seed?: number;
+};
+
+/**
+ * Video generation payload
+ */
+export type VideoPayload = {
+  model?: VideoModel;
+  prompt?: string;
+  image?: string;
+  video?: string;
+  providerOptions?: ProviderOptions;
+  headers?: Record<string, string>;
+};
+
+/**
+ * Audio generation payload
+ */
+export type AudioPayload = {
+  model?: AudioModel;
+  prompt?: string;
+  audio?: string;
+  providerOptions?: ProviderOptions;
+  headers?: Record<string, string>;
+};
+
+/**
+ * 3D object generation payload
+ */
+export type Object3DPayload = {
+  model?: ObjectModel3D;
+  prompt?: string;
+  image?: string;
+  providerOptions?: ProviderOptions;
+  headers?: Record<string, string>;
+  seed?: number;
+};
+
+/**
+ * AI interface
+ */
+export interface AIInterface {
+  /**
+   * Generate text using AI
+   */
+  generateText(input: TextPayload): Promise<{ text: string; filepath: string }>;
+  
+  /**
+   * Stream text generation results
+   */
+  streamText(input: TextPayload): Promise<AsyncIterableIterator<{ text: string }>>;
+  
+  /**
+   * Generate a structured object using AI
+   */
+  generateObject<T = any>(input: ObjectPayload): Promise<{ object: T; filepath: string }>;
+  
+  /**
+   * Stream object generation results
+   */
+  streamObject<T = any>(input: ObjectPayload): Promise<AsyncIterableIterator<Partial<T>>>;
+  
+  /**
+   * Generate images using AI
+   */
+  generateImage(input: ImagePayload): Promise<{ images: string[]; filepath: string }>;
+  
+  /**
+   * Generate video using AI
+   */
+  generateVideo(input: VideoPayload): Promise<{ video?: string; filepath: string }>;
+  
+  /**
+   * Generate audio using AI
+   */
+  generateAudio(input: AudioPayload): Promise<{ audios: string[]; filepath: string[] }>;
+  
+  /**
+   * Generate 3D objects using AI
+   */
+  generate3DObject(input: Object3DPayload): Promise<Object3DResponse>;
+  
+  /**
+   * Get available credits in the wallet
+   */
+  getCredits(): Promise<WalletCredits>;
+  
+  /**
+   * Show UI to add credits to wallet
+   */
+  showAddCreditsToWallet(input: AddCreditsPayload): Promise<AddCreditsResponse>;
+}
+
+/**
  * WebdrawSDK main interface
  */
 export interface WebdrawSDK {
+  /**
+   * Filesystem interface for working with files
+   */
   fs: FileSystemInterface;
+  
+  /**
+   * AI interface for generating content
+   */
   ai: AIInterface;
+  
+  /**
+   * Get current user information
+   */
   getUser(): Promise<{ username: string } | null>;
+  
+  /**
+   * Redirect to login page
+   */
   redirectToLogin(options?: { appReturnUrl?: string }): void;
+  
+  /**
+   * Simple hello function for testing connection
+   */
   hello: () => string;
-  generateText: (params: GenerateTextParams) => Promise<string>;
-  generateImage: (params: GenerateImageParams) => Promise<string>;
-  generateAudio: (params: GenerateAudioParams) => Promise<string>;
-  generateVideo: (params: GenerateVideoParams) => Promise<string>;
-  generateObject: (params: GenerateObjectParams) => Promise<any>;
+  
+  /**
+   * Create variations of an image
+   * @deprecated Use ai.* methods instead
+   */
+  imageVariation?: (config: any) => Promise<any>;
+  
+  /**
+   * Upscale an image
+   * @deprecated Use ai.* methods instead
+   */
+  upscaleImage?: (config: any) => Promise<any>;
+  
+  /**
+   * Remove background from an image
+   * @deprecated Use ai.* methods instead
+   */
+  removeBackground?: (config: any) => Promise<any>;
 }
 
 /**
@@ -175,35 +450,10 @@ export interface FileSystemInterface {
   delete(options: FileSystemOptions): Promise<void>;
   remove(filepath: string): Promise<void>;
   mkdir(path: string, options?: { recursive?: boolean }): Promise<void>;
-}
-
-/**
- * AI interface
- */
-export interface AIInterface {
-  generateText(options: {
-    prompt: string;
-    model?: string;
-    temperature?: number;
-    maxTokens?: number;
-  }): Promise<{ text: string; filepath: string }>;
-
-  generateImage(options: {
-    prompt: string;
-    model?: string;
-    n?: number;
-    size?: string;
-  }): Promise<{ images: string[]; filepath: string }>;
-
-  generateObject<T>(options: {
-    prompt: string;
-    schema: {
-      type: "object";
-      properties: Record<string, any>;
-    };
-    temperature?: number;
-    maxTokens?: number;
-  }): Promise<{ object: T; filepath: string }>;
+  
+  // Additional methods used in implementation
+  chmod(filepath: string, mode: number): Promise<void>;
+  exists(filepath: string): Promise<boolean>;
 }
 
 // ============================================================================
@@ -220,7 +470,7 @@ export interface FileSystemOptions {
 }
 
 /**
- * Parameters for text generation
+ * @deprecated Use TextPayload instead
  */
 export interface GenerateTextParams {
   prompt: string;
@@ -231,7 +481,7 @@ export interface GenerateTextParams {
 }
 
 /**
- * Parameters for image generation
+ * @deprecated Use ImagePayload instead
  */
 export interface GenerateImageParams {
   prompt: string;
@@ -242,7 +492,7 @@ export interface GenerateImageParams {
 }
 
 /**
- * Parameters for audio generation
+ * @deprecated Use AudioPayload instead
  */
 export interface GenerateAudioParams {
   prompt: string;
@@ -252,7 +502,7 @@ export interface GenerateAudioParams {
 }
 
 /**
- * Parameters for video generation
+ * @deprecated Use VideoPayload instead
  */
 export interface GenerateVideoParams {
   prompt: string;
@@ -264,7 +514,7 @@ export interface GenerateVideoParams {
 }
 
 /**
- * Parameters for object generation
+ * @deprecated Use ObjectPayload instead
  */
 export interface GenerateObjectParams {
   prompt: string;

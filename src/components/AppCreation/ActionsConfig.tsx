@@ -318,7 +318,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
               </div>
               <Space>
                 {executionContext.hasValue(action.id) && (
-                  <PlayActionButton action={action} size="small" />
+                  <PlayActionButton action={action} />
                 )}
                 <Button
                   type="text"

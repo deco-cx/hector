@@ -20,7 +20,7 @@ import { RJSFSchema } from '@rjsf/utils';
 import RJSFForm from '@rjsf/antd';
 import validator from '@rjsf/validator-ajv8';
 import PromptTextArea from '../components/PromptTextArea';
-import { availableActions, generateActionFilename } from '../../../config/actionsConfig';
+import { availableActions as actionConfigs, generateActionFilename as generateFilename } from '../../../config/actionsConfig';
 import LocalizableTextArea from '../../../components/LocalizableInput/LocalizableTextArea';
 
 const { Title, Paragraph, Text } = Typography;
@@ -69,14 +69,14 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
   };
 
   const handleAddAction = (type: ActionType) => {
-    const actionConfig = availableActions[type];
+    const actionConfig = actionConfigs[type];
     
     const newActionData: ActionData = {
       id: uuidv4(),
       type,
       title: createDefaultLocalizable(`New ${actionConfig.label}`),
       description: createDefaultLocalizable(''),
-      filename: generateActionFilename(
+      filename: generateFilename(
         getLocalizedValue(createDefaultLocalizable(`New ${actionConfig.label}`), DEFAULT_LANGUAGE) || `New ${actionConfig.label}`, 
         type, 
         formData.actions || []
@@ -115,7 +115,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
     
     if (field === 'type') {
       // When changing action type, update with new default props
-      const actionConfig = availableActions[value as ActionType];
+      const actionConfig = actionConfigs[value as ActionType];
       newActions[index] = {
         ...newActions[index],
         type: value as ActionType,
@@ -124,7 +124,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
       
       // Also update filename extension
       const title = getLocalizedValue(newActions[index].title, DEFAULT_LANGUAGE) || '';
-      newActions[index].filename = generateActionFilename(
+      newActions[index].filename = generateFilename(
         title, 
         value as ActionType, 
         formData.actions.filter((_, i) => i !== index)
@@ -142,7 +142,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
       
       // Use the updated title for the filename
       const titleStr = value || '';
-      newActions[index].filename = generateActionFilename(
+      newActions[index].filename = generateFilename(
         titleStr, 
         newActions[index].type, 
         formData.actions.filter((_, i) => i !== index)
@@ -196,17 +196,19 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
     setIsModalVisible(false);
     
     try {
-      const response = await service.executeAIGenerateObject({
-        prompt: userPrompt,
-        schema: {
-          type: "object" as const,
-          properties: {
-            content: {
-              type: "string",
-              description: 'The generated prompt content'
-            }
+      const schema: { type: "object"; properties: Record<string, any> } = {
+        type: "object",
+        properties: {
+          content: {
+            type: "string",
+            description: 'The generated prompt content'
           }
         }
+      };
+      
+      const response = await service.executeAIGenerateObject({
+        prompt: userPrompt,
+        schema
       });
       
       if (response && response.content) {
@@ -314,8 +316,8 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
       try {
         if (isJsonSchemaField) {
           // For JSON Schema fields, use a more specific schema request
-          const generationSchema = {
-            type: "object" as const,
+          const generationSchema: { type: "object"; properties: Record<string, any> } = {
+            type: "object",
             properties: {
               jsonSchema: {
                 type: "string",
@@ -354,12 +356,12 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
           }
         } else {
           // For other fields, use a generic content generation
-          const generationSchema = {
-            type: "object" as const,
+          const generationSchema: { type: "object"; properties: Record<string, any> } = {
+            type: "object",
             properties: {
               newFieldValue: {
                 type: "string",
-                description: 'The generated content for the field'
+                description: `The generated value for the ${schema.title || 'field'}`
               }
             }
           };
@@ -588,7 +590,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
                     <Select
                       value={action.type}
                       onChange={(value) => handleActionChange(index, 'type', value)}
-                      options={Object.entries(availableActions).map(([type, config]) => ({
+                      options={Object.entries(actionConfigs).map(([type, config]) => ({
                         label: (
                           <Space>
                             {actionIcons[type as ActionType]}
@@ -703,10 +705,10 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
                   <div className="json-schema-form-wrapper" style={{ height: 'auto', maxHeight: 'none', overflow: 'visible' }}>
                     <RJSFForm
                       schema={{
-                        ...availableActions[action.type].schema as RJSFSchema,
+                        ...actionConfigs[action.type].schema as RJSFSchema,
                         // Remove prompt from schema since we handle it separately
                         properties: Object.fromEntries(
-                          Object.entries((availableActions[action.type].schema as RJSFSchema).properties || {})
+                          Object.entries((actionConfigs[action.type].schema as RJSFSchema).properties || {})
                             .filter(([key]) => key !== 'prompt')
                         )
                       }}
@@ -749,7 +751,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
                 // View Mode
                 <div style={{ padding: '0 0 8px 0' }}>
                   <Paragraph style={{ marginBottom: '8px' }}>
-                    <Text type="secondary">Type:</Text> {availableActions[action.type].label}
+                    <Text type="secondary">Type:</Text> {actionConfigs[action.type].label}
                   </Paragraph>
                   <Paragraph style={{ marginBottom: '8px' }}>
                     <Text type="secondary">Output:</Text> <code>{action.filename}</code>
@@ -768,7 +770,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
       
       <Title level={5}>Add New Action</Title>
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-        {Object.entries(availableActions).map(([type, config]) => (
+        {Object.entries(actionConfigs).map(([type, config]) => (
           <Col xs={12} sm={6} key={type}>
             <Card
               hoverable

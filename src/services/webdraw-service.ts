@@ -1,5 +1,5 @@
-import { WebdrawSDK, Action } from '../types/webdraw';
-import { AppConfig, OutputTemplate } from '../types/types';
+import { Action } from '../types/webdraw';
+import { AppConfig, OutputTemplate, WebdrawSDK } from '../types/types';
 
 export class WebdrawService {
   private sdk: WebdrawSDK;
@@ -8,6 +8,11 @@ export class WebdrawService {
 
   constructor(sdk: WebdrawSDK) {
     this.sdk = sdk;
+  }
+
+  // Add getter for accessing the SDK instance
+  getSDK(): WebdrawSDK {
+    return this.sdk;
   }
 
   async getCurrentUser() {

@@ -285,69 +285,39 @@ After execution, a timestamp will appear next to the button: "Executed at HH:MM:
 
 ### 8.1 SDK Action Execution
 
-The system will leverage existing executeAction functionality from `actionsConfig.ts`:
+The system leverages the executeAction functionality from `components/Runtime/actionExecutors.ts`:
 
 ```typescript
-// Enhanced version of executeAction
-export const executeAction = async (
+// Implementation of executeAction in actionExecutors.ts
+export async function executeAction(
   action: ActionData,
-  executionContext: ExecutionContext,
-  sdk: any,
-  language: string = DEFAULT_LANGUAGE
-): Promise<any> => {
-  // Get the prompt in the current language or fallback to first available
-  const prompt = typeof action.prompt === 'object' 
-    ? action.prompt[language] || Object.values(action.prompt)[0] 
-    : action.prompt;
-  
-  // Resolve references in the prompt
-  const resolvedPrompt = executionContext.resolveReferences(prompt);
-  
-  // Execute the appropriate SDK method based on action type
-  switch (action.type) {
-    case 'generateText':
-      const textResult = await sdk.ai.generateText({
-        prompt: resolvedPrompt,
-        model: action.config?.model || 'Best',
-        temperature: action.config?.temperature || 0.7,
-        maxTokens: action.config?.maxTokens || 1000
-      });
-      return textResult.text;
-      
-    case 'generateJSON':
-      const schema = typeof action.config?.schema === 'string' 
-        ? JSON.parse(action.config.schema) 
-        : action.config?.schema;
-      
-      const jsonResult = await sdk.ai.generateObject({
-        prompt: resolvedPrompt,
-        schema,
-        model: action.config?.model || 'Best',
-        temperature: action.config?.temperature || 0.7
-      });
-      return jsonResult.object;
-      
-    case 'generateImage':
-      const imageResult = await sdk.ai.generateImage({
-        prompt: resolvedPrompt,
-        model: action.config?.model || 'SDXL',
-        size: action.config?.size || '1024x1024',
-        n: action.config?.n || 1
-      });
-      return imageResult.images[0];
-      
-    case 'generateAudio':
-      const audioResult = await sdk.ai.generateAudio({
-        prompt: resolvedPrompt,
-        model: action.config?.model || 'elevenlabs'
-      });
-      return audioResult.audios[0];
-      
-    default:
-      throw new Error(`Unsupported action type: ${action.type}`);
+  context: ExecutionContext,
+  sdk: WebdrawSDK,
+  language: string = 'EN'
+): Promise<{ success: boolean; data: any; error?: Error | string }> {
+  try {
+    // Get the prompt in the current language or fallback
+    const prompt = typeof action.prompt === 'object' 
+      ? action.prompt[language] || Object.values(action.prompt)[0] 
+      : action.prompt;
+    
+    // Resolve references in the prompt
+    const resolvedPrompt = context.resolveReferences(prompt);
+    
+    // Execute based on action type with appropriate SDK method
+    // ...
+  } catch (error) {
+    // Error handling
+    // ...
   }
-};
+}
 ```
+
+This implementation handles:
+- Resolving references in prompts using the execution context
+- Properly formatting parameters for different SDK methods
+- Error handling and reporting
+- Returning a standardized result format with success/error information
 
 ## 9. Runtime Mode Implementation
 

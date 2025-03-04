@@ -4,9 +4,9 @@ import { Tabs, message, Spin, Alert, Button, Input, Card, Space, Typography, Row
 import { useWebdraw } from '../../context/WebdrawContext';
 import { StyleGuide } from './steps/StyleGuide';
 import { InputsConfig } from './steps/InputsConfig';
-import { ActionsConfig } from './steps/ActionsConfig';
+import { ActionsConfig as ActionsConfigStep } from './steps/ActionsConfig';
 import { OutputConfig } from './steps/OutputConfig';
-import { AppConfig, getLocalizedValue, DEFAULT_LANGUAGE, OutputTemplate, createDefaultLocalizable } from '../../types/types';
+import { AppConfig, getLocalizedValue, DEFAULT_LANGUAGE, OutputTemplate, createDefaultLocalizable, WebdrawSDK } from '../../types/types';
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons';
 import LanguageSettings from '../LanguageSettings/LanguageSettings';
 import JSONViewer from '../JSONViewer/JSONViewer';
@@ -287,9 +287,13 @@ export const AppEditor: React.FC<AppEditorProps> = ({ tab }) => {
   // Create a wrapper for the RuntimeProvider that removes the mode-related functionality
   const RuntimeProviderWrapper: React.FC<React.PropsWithChildren> = ({ children }) => {
     // This will be rendered inside the RuntimeContext, allowing us to use the already defined state
+    console.log('RuntimeProvider service type:', service);
+    
+    // Use the getSDK() method to access the WebdrawSDK instance
+    // We explicitly cast to WebdrawSDK from types.ts to ensure interface compatibility with RuntimeProvider
     return (
       <RuntimeProvider
-        sdk={service}
+        sdk={service.getSDK() as WebdrawSDK}
         appName={appNameString}
         inputs={formData?.inputs || []}
         actions={formData?.actions || []}
@@ -375,7 +379,7 @@ export const AppEditor: React.FC<AppEditorProps> = ({ tab }) => {
                 key: 'actions',
                 label: 'Actions',
                 children: (
-                  <ActionsConfig 
+                  <ActionsConfigStep 
                     formData={formData} 
                     setFormData={handleFormDataChange} 
                   />

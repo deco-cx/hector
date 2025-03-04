@@ -1,21 +1,46 @@
-import { Localizable } from './i18n';
+import { 
+  Localizable,
+  WebdrawSDK as MainWebdrawSDK,
+  FileSystemInterface as MainFileSystemInterface,
+  AIInterface as MainAIInterface,
+  GenerateTextParams as MainGenerateTextParams,
+  GenerateImageParams as MainGenerateImageParams,
+  GenerateAudioParams as MainGenerateAudioParams,
+  GenerateVideoParams as MainGenerateVideoParams,
+  GenerateObjectParams as MainGenerateObjectParams,
+  FileSystemOptions as MainFileSystemOptions,
+  InputField as MainInputField,
+  ActionData as MainActionData
+} from './types';
 
+/**
+ * @deprecated Use WebdrawUser from types.ts instead
+ */
 export interface WebdrawUser {
   username: string;
 }
 
+/**
+ * @deprecated Use AIGenerateOptions from types.ts instead
+ */
 export interface AIGenerateOptions {
   prompt: string;
   model?: string;
   maxTokens?: number;
 }
 
+/**
+ * @deprecated Use FileSystemOptions from types.ts instead
+ */
 export interface FileSystemOptions {
   path: string;
   content?: string;
   encoding?: string;
 }
 
+/**
+ * @deprecated Use FileSystemInterface from types.ts instead
+ */
 export interface FileSystemInterface {
   list(path: string): Promise<string[]>;
   readFile(options: FileSystemOptions): Promise<string>;
@@ -27,6 +52,9 @@ export interface FileSystemInterface {
   mkdir(path: string, options?: { recursive?: boolean }): Promise<void>;
 }
 
+/**
+ * @deprecated Use AIInterface from types.ts instead
+ */
 export interface AIInterface {
   generateText(options: {
     prompt: string;
@@ -53,6 +81,9 @@ export interface AIInterface {
   }): Promise<{ object: T; filepath: string }>;
 }
 
+/**
+ * @deprecated Use WebdrawSDK from types.ts instead
+ */
 export interface WebdrawSDK {
   fs: FileSystemInterface;
   ai: AIInterface;
@@ -66,6 +97,9 @@ export interface WebdrawSDK {
   generateObject: (params: GenerateObjectParams) => Promise<any>;
 }
 
+/**
+ * @deprecated Use FileSystemInterface from types.ts instead
+ */
 export interface FileSystem {
   list: (path: string) => Promise<string[]>;
   exists: (path: string) => Promise<boolean>;
@@ -75,6 +109,9 @@ export interface FileSystem {
   delete: (path: string) => Promise<void>;
 }
 
+/**
+ * @deprecated Use TextPayload from types.ts instead
+ */
 export interface GenerateTextParams {
   prompt: string;
   model?: string;
@@ -83,6 +120,9 @@ export interface GenerateTextParams {
   systemPrompt?: string;
 }
 
+/**
+ * @deprecated Use ImagePayload from types.ts instead
+ */
 export interface GenerateImageParams {
   prompt: string;
   model?: string;
@@ -91,6 +131,9 @@ export interface GenerateImageParams {
   negativePrompt?: string;
 }
 
+/**
+ * @deprecated Use AudioPayload from types.ts instead
+ */
 export interface GenerateAudioParams {
   prompt: string;
   model?: string;
@@ -98,6 +141,9 @@ export interface GenerateAudioParams {
   speed?: number;
 }
 
+/**
+ * @deprecated Use VideoPayload from types.ts instead
+ */
 export interface GenerateVideoParams {
   prompt: string;
   model?: string;
@@ -107,6 +153,9 @@ export interface GenerateVideoParams {
   fps?: number;
 }
 
+/**
+ * @deprecated Use ObjectPayload from types.ts instead
+ */
 export interface GenerateObjectParams {
   prompt: string;
   schema: any;
@@ -116,6 +165,9 @@ export interface GenerateObjectParams {
   systemPrompt?: string;
 }
 
+/**
+ * @deprecated Use AppConfig from types.ts instead
+ */
 export interface AppConfig {
   id: string;
   name: Localizable<string>;
@@ -127,6 +179,9 @@ export interface AppConfig {
   supportedLanguages?: string[];
 }
 
+/**
+ * @deprecated Use InputField from types.ts instead
+ */
 export interface InputField {
   filename: string;
   type: 'text' | 'image' | 'select' | 'file' | 'audio';
@@ -143,6 +198,9 @@ export interface InputField {
   defaultValue?: unknown;
 }
 
+/**
+ * @deprecated Use ActionData from types.ts instead
+ */
 export interface ActionData {
   id: string;
   type: string;
@@ -153,6 +211,9 @@ export interface ActionData {
   config: Record<string, any>;
 }
 
+/**
+ * @deprecated Use OutputTemplate from types.ts instead
+ */
 export interface OutputConfig {
   format: string;
   template?: string;
@@ -165,6 +226,9 @@ export interface OutputConfig {
   files: string[];
 }
 
+/**
+ * @deprecated Use ActionData from types.ts instead, this is a legacy format
+ */
 export interface Action {
   type: 'Gerar JSON' | 'Gerar Texto' | 'Gerar Imagem' | 'Gerar Aúdio';
   prompt: {

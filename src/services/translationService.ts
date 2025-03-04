@@ -17,9 +17,9 @@ export const translateText = async (
 ): Promise<string> => {
   if (!text) return '';
   
-  // Schema for translation (simple value)
+  // Define schema for the translation response
   const schema = {
-    type: 'object',
+    type: "object" as const,
     properties: {
       value: {
         type: 'string',
@@ -33,14 +33,14 @@ export const translateText = async (
   const prompt = `Translate the following text from ${fromLang} to ${toLang}:\n\n"${text}"`;
   
   try {
-    const result = await sdk.generateObject({
+    // Use the ai interface with the proper type
+    const result = await sdk.ai.generateObject<{value: string}>({
       prompt,
       schema,
-      model: 'Best',
       temperature: 0.3 // Lower temperature for more consistent translations
     });
     
-    return result.value || '';
+    return result.object?.value || '';
   } catch (error) {
     console.error('Translation error:', error);
     throw new Error(`Failed to translate text: ${error}`);

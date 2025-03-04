@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Steps, Card, Button } from 'antd';
-import { ActionsConfig } from './steps/ActionsConfig';
+import { ActionsConfig as ActionsConfigStep } from './steps/ActionsConfig';
 import { OutputConfig } from './steps/OutputConfig';
 import { InputField, createDefaultLocalizable } from '../../types/types';
 
@@ -80,7 +80,7 @@ const AppCreationWizard: React.FC = () => {
       case 2:
         return <InputsConfig />;
       case 3:
-        return <ActionsConfig formData={formData} setFormData={setFormData} />;
+        return <ActionsConfigStep formData={formData} setFormData={setFormData} />;
       case 4:
         return <OutputConfig formData={formData} setFormData={setFormData} />;
       default:

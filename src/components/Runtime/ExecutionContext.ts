@@ -1,4 +1,4 @@
-import { ActionData, InputField } from '../../types/types';
+import { ActionData, InputField, WebdrawSDK } from '../../types/types';
 import { extractInputReferences, buildDependencyGraph } from './actionExecutor';
 
 /**
@@ -163,17 +163,10 @@ export class ExecutionContext {
    * @param error The error that occurred
    */
   markActionFailed(actionId: string, error: Error | string): void {
-    const currentMeta = this.executionMeta[actionId] || {};
-    const attempts = (currentMeta.attempts || 0) + 1;
-    
-    this.executionMeta[actionId] = {
-      ...currentMeta,
+    this.updateExecutionMeta(actionId, {
       status: 'error',
-      error,
-      attempts,
-      executedAt: new Date().toISOString()
-    };
-    
+      error: error instanceof Error ? error : String(error)
+    });
     this.notifySubscribers();
   }
   
@@ -320,47 +313,30 @@ export class ExecutionContext {
    * @param sdk The SDK to use
    * @returns Promise resolving to the result
    */
-  async executeAction(action: ActionData, sdk: any): Promise<any> {
+  async executeAction(action: ActionData, sdk: WebdrawSDK): Promise<any> {
     try {
-      // Import the executeAction function dynamically to avoid circular dependency
-      const { executeAction } = await import('./actionExecutor');
-      
       // Update execution metadata
       this.updateExecutionMeta(action.id, {
         status: 'idle',
         executedAt: new Date().toISOString()
       });
       
-      // Execute the action
+      // Execute the action using the external executor - imported in RuntimeContext
+      // THIS METHOD IS DEPRECATED - USE RuntimeContext.executeAction INSTEAD
+      // This stub implementation is kept for backwards compatibility
+      console.warn("ExecutionContext.executeAction is deprecated. Use RuntimeContext.executeAction instead.");
+      
       const startTime = Date.now();
-      const result = await executeAction(action, this, sdk);
       const duration = Date.now() - startTime;
       
-      if (result.success) {
-        // Store the result
-        this.setValue(action.id, result.data);
-        
-        // Update execution metadata
-        this.updateExecutionMeta(action.id, {
-          status: 'success',
-          error: undefined,
-          duration
-        });
-        
-        // Save execution state to WebDraw's filesystem
-        await this.saveExecutionState(sdk, action);
-        
-        // Update lastExecutionTime on execution
-        this.lastExecutionTime = new Date().toISOString();
-        
-        return result.data;
-      } else {
-        // Mark as failed
-        this.markActionFailed(action.id, result.error || 'Unknown error');
-        throw result.error || new Error('Unknown error');
-      }
-    } catch (error) {
-      this.markActionFailed(action.id, error instanceof Error ? error : new Error(String(error)));
+      // We always return an error so callers migrate to the new approach
+      const error = new Error('Action execution method has moved to RuntimeContext to avoid circular dependencies');
+      this.markActionFailed(action.id, error);
+      throw error;
+    } catch (error: unknown) {
+      // Convert error to Error or string
+      const typedError = error instanceof Error ? error : String(error);
+      this.markActionFailed(action.id, typedError);
       throw error;
     }
   }

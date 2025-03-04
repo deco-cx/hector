@@ -1,4 +1,4 @@
-import { WebdrawSDK, AppConfig } from '../types/types';
+import { WebdrawSDK, AppConfig, TextPayload, ImagePayload, ObjectPayload } from '../types/types';
 
 export class WebdrawService {
   private sdk: WebdrawSDK;
@@ -61,33 +61,36 @@ export class WebdrawService {
     await this.sdk.fs.remove(appPath);
   }
 
-  async generateText(prompt: string, options: any = {}) {
-    return this.sdk.ai.generateText({
+  async generateText(prompt: string, options: Partial<Omit<TextPayload, 'prompt'>> = {}) {
+    const payload: TextPayload = {
       prompt,
       ...options,
-    });
+    };
+    return this.sdk.ai.generateText(payload);
   }
 
-  async generateImage(prompt: string, options: any = {}) {
-    return this.sdk.ai.generateImage({
+  async generateImage(prompt: string, options: Partial<Omit<ImagePayload, 'prompt'>> = {}) {
+    const payload: ImagePayload = {
       prompt,
       ...options,
-    });
+    };
+    return this.sdk.ai.generateImage(payload);
   }
 
-  async generateObject<T>(prompt: string, schema: any, options: any = {}) {
-    return this.sdk.ai.generateObject<T>({
+  async generateObject<T>(prompt: string, schema: ObjectPayload['schema'], options: Partial<Omit<ObjectPayload, 'prompt' | 'schema'>> = {}) {
+    const payload: ObjectPayload = {
       prompt,
       schema,
       ...options,
-    });
+    };
+    return this.sdk.ai.generateObject<T>(payload);
   }
 
   async executeAIGenerateObject<T = any>(payload: { 
     prompt: string, 
     schema: { 
-      type: "object", 
-      properties: Record<string, any> 
+      type: "object"; 
+      properties: Record<string, any>;
     } 
   }): Promise<T> {
     console.log("WebdrawService.ts executeAIGenerateObject called");

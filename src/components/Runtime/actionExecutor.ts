@@ -1,26 +1,5 @@
-import { ActionData, InputField } from '../../types/types';
+import { ActionData, InputField, WebdrawSDK } from '../../types/types';
 import { ExecutionContext } from './ExecutionContext';
-
-/**
- * Interface for the WebDraw SDK
- * This is a simplified interface for the actual SDK
- */
-interface WebDrawSDK {
-  generateImage: (config: any) => Promise<any>;
-  generateText: (config: any) => Promise<any>;
-  imageVariation: (config: any) => Promise<any>;
-  upscaleImage: (config: any) => Promise<any>;
-  removeBackground: (config: any) => Promise<any>;
-  fs: {
-    chmod: (filepath: string, mode: number) => Promise<void>;
-    exists: (filepath: string) => Promise<boolean>;
-    write: (filepath: string, text: string, options?: any) => Promise<void>;
-    read: (filepath: string, options?: any) => Promise<string | Uint8Array>;
-    readFile: (filepath: string, options?: any) => Promise<string | Uint8Array>;
-    mkdir: (filepath: string, options?: { recursive?: boolean; mode?: number }) => Promise<void>;
-  };
-  // Add other SDK methods as needed
-}
 
 /**
  * Interface for action execution result
@@ -36,8 +15,14 @@ export interface ActionExecutionResult {
  * @param sdk The WebDraw SDK instance
  * @param filePath The path to the file
  */
-async function makeFilePublic(sdk: WebDrawSDK, filePath: string): Promise<void> {
+async function makeFilePublic(sdk: WebdrawSDK, filePath: string): Promise<void> {
   try {
+    // Make sure chmod is available (some SDK versions may not have it)
+    if (typeof sdk.fs.chmod !== 'function') {
+      console.warn(`chmod method not available on SDK - file ${filePath} may not be publicly accessible`);
+      return;
+    }
+    
     // Make the file publicly accessible (typically takes ~100-200ms)
     // Note: chmod takes a number for mode
     await sdk.fs.chmod(filePath, 0o644); // 0o644 is octal notation for permissions
@@ -68,13 +53,19 @@ function getPublicFileUrl(filePath: string): string {
  * @returns The public URL when the file is available
  */
 async function waitForFileAvailability(
-  sdk: WebDrawSDK, 
+  sdk: WebdrawSDK, 
   filePath: string, 
   maxRetries = 10, 
   interval = 500
 ): Promise<string> {
   // Format the URL upfront
   const publicUrl = getPublicFileUrl(filePath);
+  
+  // Check if exists method is available
+  if (typeof sdk.fs.exists !== 'function') {
+    console.warn(`exists method not available on SDK - assuming file ${filePath} is available`);
+    return publicUrl;
+  }
   
   // Check file availability with retries
   let retries = 0;
@@ -110,7 +101,7 @@ async function waitForFileAvailability(
  * @param result The result from an SDK call containing a file path
  * @returns Processed result with public URL
  */
-async function processFileResult(sdk: WebDrawSDK, result: any): Promise<any> {
+async function processFileResult(sdk: WebdrawSDK, result: any): Promise<any> {
   // Check if this is a file path result
   if (typeof result === 'string' && (
     result.endsWith('.png') || 
@@ -224,7 +215,7 @@ interface ExtendedActionData extends ActionData {
 export async function executeAction(
   action: ActionData,
   executionContext: ExecutionContext,
-  sdk: WebDrawSDK
+  sdk: WebdrawSDK
 ): Promise<ActionExecutionResult> {
   try {
     // Create configuration by resolving input values from execution context
@@ -262,7 +253,12 @@ export async function executeAction(
       case 'txt2img':
       case 'generateImage':
         // Typically takes 2-10 seconds depending on the model and image size
-        result = await sdk.generateImage(config);
+        result = await sdk.ai.generateImage({
+          prompt: config.prompt,
+          model: config.model || 'SDXL',
+          size: config.size || '1024x1024',
+          n: config.n || 1
+        });
         // Process file paths in the result to make them publicly accessible
         result = await processFileResult(sdk, result);
         break;
@@ -270,7 +266,12 @@ export async function executeAction(
       case 'text_generation':
       case 'generateText':
         // Typically takes 1-5 seconds depending on prompt length and model
-        result = await sdk.generateText(config);
+        result = await sdk.ai.generateText({
+          prompt: config.prompt,
+          model: config.model || 'Best',
+          temperature: config.temperature || 0.7,
+          maxTokens: config.maxTokens || 1000
+        });
         // Process file paths in the result to make them publicly accessible
         result = await processFileResult(sdk, result);
         break;
@@ -278,6 +279,9 @@ export async function executeAction(
       case 'img_variation':
       case 'imageVariation':
         // Typically takes 2-8 seconds
+        if (!sdk.imageVariation) {
+          throw new Error('SDK method imageVariation is not available');
+        }
         result = await sdk.imageVariation(config);
         // Process file paths in the result to make them publicly accessible
         result = await processFileResult(sdk, result);
@@ -286,6 +290,9 @@ export async function executeAction(
       case 'upscale':
       case 'upscaleImage':
         // Typically takes 1-3 seconds depending on image size
+        if (!sdk.upscaleImage) {
+          throw new Error('SDK method upscaleImage is not available');
+        }
         result = await sdk.upscaleImage(config);
         // Process file paths in the result to make them publicly accessible
         result = await processFileResult(sdk, result);
@@ -294,6 +301,9 @@ export async function executeAction(
       case 'remove_bg':
       case 'removeBackground':
         // Typically takes 1-4 seconds depending on image complexity
+        if (!sdk.removeBackground) {
+          throw new Error('SDK method removeBackground is not available');
+        }
         result = await sdk.removeBackground(config);
         // Process file paths in the result to make them publicly accessible
         result = await processFileResult(sdk, result);

@@ -391,7 +391,22 @@ The app uses the Webdraw AI SDK to perform AI-driven actions and manage file sto
 - **Gerar Imagem**: Maps to generateImage() for image creation.
 - **Gerar Aúdio**: Maps to generateAudio() for audio production.
 
-### 6.1 AI Object Generation for Schema Creation
+### 6.1 WebdrawSDK Type Definitions
+
+The application uses two different WebdrawSDK type definitions:
+
+1. **src/types/types.ts**: Contains the complete WebdrawSDK interface with all methods including:
+   - `fs` for filesystem operations
+   - `ai` interface with `generateText`, `generateImage`, `generateObject`, `generateAudio`, and `generateVideo` methods
+   - Other utility methods like `getUser` and `redirectToLogin`
+
+2. **src/types/webdraw.ts**: Contains a similar but incomplete WebdrawSDK interface that is missing some methods in the `AIInterface` (specifically `generateAudio` and `generateVideo`).
+
+When integrating components that use the WebdrawSDK, it's important to use the complete interface from `types.ts` to ensure type compatibility. The `WebdrawService` class wraps the SDK and provides a `getSDK()` method that returns the complete WebdrawSDK interface.
+
+**Implementation Note**: In components like `RuntimeProvider` that require the WebdrawSDK, use the `getSDK()` method from the `WebdrawService` class and ensure you're importing the WebdrawSDK type from `types.ts`, not `webdraw.ts`.
+
+### 6.2 AI Object Generation for Schema Creation
 
 The application leverages the Webdraw SDK's Object Generation API to create JSON Schema definitions for JSON actions. This specialized implementation ensures that generated schemas are valid and properly structured.
 
