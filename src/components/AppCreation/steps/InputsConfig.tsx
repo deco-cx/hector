@@ -46,16 +46,45 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
   
   // Handle form values change
   const onValuesChange = (changedValues: any, allValues: any) => {
+    console.log("onValuesChange called with:", { 
+      changedValues: JSON.stringify(changedValues, null, 2), 
+      allValues: JSON.stringify(allValues, null, 2)
+    });
+    
+    // Check if a required field was changed
     if (changedValues.inputs) {
-      const updatedInputs = allValues.inputs?.map((input: any) => {
+      const changedRequiredField = changedValues.inputs.some((input: any, index: number) => {
+        if (input && input.required !== undefined) {
+          console.log(`Required field changed at index ${index}:`, input.required, typeof input.required);
+          return true;
+        }
+        return false;
+      });
+      
+      if (changedRequiredField) {
+        console.log("Required field was changed in this update");
+      }
+      
+      const updatedInputs = allValues.inputs?.map((input: any, index: number) => {
         if (input && input.title) {
+          // Log the required value for debugging
+          console.log(`Input ${index} required value before update:`, input.required, typeof input.required);
+          
+          // Make sure required is a boolean
+          const requiredValue = input.required === true || input.required === 'true' ? true : false;
+          console.log(`Input ${index} normalized required value:`, requiredValue, typeof requiredValue);
+          
           return {
             ...input,
+            required: requiredValue,
             filename: generateFilename(input.title)
           };
         }
         return input;
       }).filter(Boolean) || [];
+      
+      // Log the updated inputs
+      console.log("Updated inputs before form update:", JSON.stringify(updatedInputs, null, 2));
       
       // Update form and parent
       form.setFieldsValue({ inputs: updatedInputs });
@@ -64,10 +93,11 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
         inputs: updatedInputs
       });
       
-      console.log("Form values updated:", { 
-        inputsLength: updatedInputs.length,
-        inputs: updatedInputs
-      });
+      console.log("Form values updated - final inputs:", updatedInputs.map((input: any) => ({
+        title: getLocalizedValue(input.title, DEFAULT_LANGUAGE),
+        required: input.required,
+        type: input.type
+      })));
     }
   };
   
@@ -81,6 +111,8 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
       required: false,
       placeholder: createLocalizable(DEFAULT_LANGUAGE, '')
     };
+    
+    console.log("Adding new field with required=false:", newInput);
     
     // Update the form directly
     form.setFieldsValue({
@@ -119,13 +151,32 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
   // Initialize form with current values
   useEffect(() => {
     if (formData && Array.isArray(formData.inputs)) {
-      form.setFieldsValue({ inputs: formData.inputs });
-      console.log("Form initialized with inputs:", {
-        length: formData.inputs.length,
-        inputs: formData.inputs
+      console.log("InputsConfig useEffect - formData inputs:", JSON.stringify(formData.inputs, null, 2));
+      
+      // Log each input's required field value
+      formData.inputs.forEach((input, index) => {
+        console.log(`Input ${index} initial required value:`, input.required, typeof input.required);
       });
+      
+      form.setFieldsValue({ inputs: formData.inputs });
     }
   }, [formData, form]);
+  
+  // Add a new function to log values before form submission
+  const logFormValues = () => {
+    const values = form.getFieldsValue();
+    console.log("Current form values:", JSON.stringify(values, null, 2));
+    
+    // Check the required field specifically
+    if (values.inputs) {
+      values.inputs.forEach((input: any, index: number) => {
+        console.log(`Form input ${index} required value:`, input.required, typeof input.required);
+      });
+    }
+    
+    // Check what's actually in formData
+    console.log("Current formData.inputs:", JSON.stringify(formData.inputs, null, 2));
+  };
   
   return (
     <div>
@@ -133,6 +184,11 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
       <Paragraph className="text-gray-500 mb-4">
         Define the input fields that users will need to fill in before generating content.
       </Paragraph>
+      
+      {/* Add a button to log form values for debugging */}
+      <Button onClick={logFormValues} style={{ marginBottom: '16px' }}>
+        Debug: Log Form Values
+      </Button>
       
       <Form 
         form={form}
@@ -143,7 +199,13 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
         <Form.List name="inputs">
           {(fields) => (
             <div className="space-y-4">
-              {fields.map(({ key, name, ...restField }) => (
+              {fields.map(({ key, name, ...restField }) => {
+                // Log the current field values from the form for debugging
+                const currentField = form.getFieldValue(['inputs', name]);
+                const currentRequired = currentField ? currentField.required : undefined;
+                console.log(`Rendering field ${name}, required value:`, currentRequired, typeof currentRequired);
+                
+                return (
                 <Card 
                   key={key} 
                   className="input-field-card"
@@ -205,9 +267,21 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
                         {...restField}
                         name={[name, 'required']}
                         label="Required"
-                        valuePropName="checked"
+                        valuePropName="value"
                       >
-                        <Select>
+                        <Select
+                          onChange={(value) => {
+                            console.log(`Required value changed for field ${name}:`, value, typeof value);
+                            // Directly modify the form field to ensure it's set properly
+                            const currentInputs = form.getFieldValue('inputs');
+                            if (currentInputs && currentInputs[name]) {
+                              console.log('Before update, current value:', currentInputs[name].required);
+                              currentInputs[name].required = value === true || value === 'true';
+                              console.log('After update, new value:', currentInputs[name].required);
+                              form.setFieldsValue({ inputs: currentInputs });
+                            }
+                          }}
+                        >
                           <Select.Option value={true}>Yes</Select.Option>
                           <Select.Option value={false}>No</Select.Option>
                         </Select>
@@ -224,7 +298,7 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
                     <Input disabled />
                   </Form.Item>
                 </Card>
-              ))}
+              )})}
               
               <Button 
                 type="dashed" 

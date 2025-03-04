@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Tabs, message, Spin, Alert, Button, Input, Card, Space, Typography, Row, Col } from 'antd';
+import { Tabs, message, Spin, Alert, Button, Input, Card, Space, Typography, Row, Col, Radio } from 'antd';
 import { useWebdraw } from '../../context/WebdrawContext';
 import { StyleGuide } from './steps/StyleGuide';
 import { InputsConfig } from './steps/InputsConfig';
@@ -318,85 +318,101 @@ export const AppEditor: React.FC<AppEditorProps> = ({ tab }) => {
             marginTop: '20px', 
             marginBottom: '12px' 
           }}>
-            App ID: <code style={{ background: '#f3f4f6', padding: '2px 8px', borderRadius: '4px' }}>{formData.id}</code> 
+            File: <code style={{ background: '#f3f4f6', padding: '2px 8px', borderRadius: '4px' }}>~/Hector/apps/{formData.id}.json</code> 
             <span style={{ marginLeft: '12px' }}>(used for the file name, cannot be changed)</span>
           </div>
         </div>
       </Card>
       
       {/* Tabs Section */}
-      <div>
+      <div style={{ 
+        backgroundColor: '#fff', 
+        padding: '16px', 
+        borderRadius: '8px',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)'
+      }}>
         <Tabs
           activeKey={activeTab}
           onChange={handleTabChange}
           type="card"
           size="large"
-          tabBarGutter={16}
-          className="app-tabs"
+          style={{ marginBottom: 16 }}
           items={[
             {
               key: 'style',
               label: 'Style',
               children: (
-                <StyleGuide
-                  key="style-guide"
-                  formData={formData}
-                  setFormData={handleFormDataChange}
-                />
+                <div style={{ padding: '12px 4px' }}>
+                  <StyleGuide
+                    key="style-guide"
+                    formData={formData}
+                    setFormData={handleFormDataChange}
+                  />
+                </div>
               ),
             },
             {
               key: 'inputs',
               label: 'Inputs',
               children: (
-                <InputsConfig
-                  key={inputsKey}
-                  formData={formData}
-                  setFormData={handleFormDataChange}
-                />
+                <div style={{ padding: '12px 4px' }}>
+                  <InputsConfig
+                    key={inputsKey}
+                    formData={formData}
+                    setFormData={handleFormDataChange}
+                  />
+                </div>
               ),
             },
             {
               key: 'actions',
               label: 'Actions',
               children: (
-                <ActionsConfig
-                  key="actions-config"
-                  formData={formData}
-                  setFormData={handleFormDataChange}
-                />
+                <div style={{ padding: '12px 4px' }}>
+                  <ActionsConfig
+                    key="actions-config"
+                    formData={formData}
+                    setFormData={handleFormDataChange}
+                  />
+                </div>
               ),
             },
             {
               key: 'output',
               label: 'Output',
               children: (
-                <OutputConfig
-                  key="output-config"
-                  formData={formData}
-                  setFormData={handleFormDataChange}
-                />
+                <div style={{ padding: '12px 4px' }}>
+                  <OutputConfig
+                    key="output-config"
+                    formData={formData}
+                    setFormData={handleFormDataChange}
+                  />
+                </div>
               ),
             },
             {
               key: 'languages',
               label: 'Languages',
               children: (
-                <LanguageSettings
-                  key="language-settings"
-                  formData={languageSettingsData}
-                  setFormData={handleFormDataChange}
-                />
+                <div style={{ padding: '12px 4px' }}>
+                  <LanguageSettings
+                    key="language-settings"
+                    formData={languageSettingsData}
+                    setFormData={handleFormDataChange}
+                  />
+                </div>
               ),
             },
             {
               key: 'exports',
               label: 'Exports',
               children: (
-                <ExportsView
-                  key="exports-view"
-                  data={formData}
-                />
+                <div style={{ padding: '12px 4px' }}>
+                  <ExportsView
+                    key="exports-view"
+                    data={formData}
+                  />
+                </div>
               ),
             },
           ]}
