@@ -1,3 +1,5 @@
+import { Localizable } from './i18n';
+
 export interface WebdrawUser {
   username: string;
 }
@@ -56,48 +58,111 @@ export interface WebdrawSDK {
   ai: AIInterface;
   getUser(): Promise<{ username: string } | null>;
   redirectToLogin(options?: { appReturnUrl?: string }): void;
+  hello: () => string;
+  generateText: (params: GenerateTextParams) => Promise<string>;
+  generateImage: (params: GenerateImageParams) => Promise<string>;
+  generateAudio: (params: GenerateAudioParams) => Promise<string>;
+  generateVideo: (params: GenerateVideoParams) => Promise<string>;
+  generateObject: (params: GenerateObjectParams) => Promise<any>;
+}
+
+export interface FileSystem {
+  list: (path: string) => Promise<string[]>;
+  exists: (path: string) => Promise<boolean>;
+  mkdir: (path: string) => Promise<void>;
+  readFile: (path: string) => Promise<string>;
+  writeFile: (path: string, content: string) => Promise<void>;
+  delete: (path: string) => Promise<void>;
+}
+
+export interface GenerateTextParams {
+  prompt: string;
+  model?: string;
+  temperature?: number;
+  maxTokens?: number;
+  systemPrompt?: string;
+}
+
+export interface GenerateImageParams {
+  prompt: string;
+  model?: string;
+  width?: number;
+  height?: number;
+  negativePrompt?: string;
+}
+
+export interface GenerateAudioParams {
+  prompt: string;
+  model?: string;
+  voice?: string;
+  speed?: number;
+}
+
+export interface GenerateVideoParams {
+  prompt: string;
+  model?: string;
+  duration?: number;
+  width?: number;
+  height?: number;
+  fps?: number;
+}
+
+export interface GenerateObjectParams {
+  prompt: string;
+  schema: any;
+  model?: string;
+  temperature?: number;
+  maxTokens?: number;
+  systemPrompt?: string;
 }
 
 export interface AppConfig {
   id: string;
-  name: string;
+  name: Localizable<string>;
   template: string;
   style: string;
-  inputs: Array<{
-    name: string;
-    type: string;
-    label: string;
-    required: boolean;
-  }>;
-  actions: Array<{
-    name: string;
-    description: string;
-    type: string;
-    prompt: string;
-  }>;
-  output: {
-    format: string;
-    template?: string;
-    enableMarkdown?: boolean;
-    enableSyntaxHighlighting?: boolean;
-    maxLength?: number;
-    type: 'html' | 'json' | 'files';
-    files: string[];
-  };
+  inputs: InputField[];
+  actions: ActionData[];
+  output: OutputConfig;
+  supportedLanguages?: string[];
 }
 
 export interface InputField {
   filename: string;
   type: 'text' | 'image' | 'select' | 'file' | 'audio';
-  title: {
-    EN: string;
-    PT: string;
-  };
+  title: Localizable<string>;
   required: boolean;
+  placeholder?: Localizable<string>;
+  description?: Localizable<string>;
   multiValue?: boolean;
   cleanOnStartup?: boolean;
-  options?: string[];
+  options?: Array<{
+    value: string;
+    label: Localizable<string>;
+  }>;
   defaultValue?: unknown;
+}
+
+export interface ActionData {
+  id: string;
+  type: string;
+  title: Localizable<string>;
+  description?: Localizable<string>;
+  filename: string;
+  prompt: Localizable<string>;
+  config: Record<string, any>;
+}
+
+export interface OutputConfig {
+  format: string;
+  template?: string;
+  enableMarkdown?: boolean;
+  enableSyntaxHighlighting?: boolean;
+  maxLength?: number;
+  type: 'html' | 'json' | 'files';
+  title?: Localizable<string>;
+  description?: Localizable<string>;
+  files: string[];
 }
 
 export interface Action {
@@ -109,10 +174,4 @@ export interface Action {
   output_filename: string;
   model?: string;
   parameters?: Record<string, unknown>;
-}
-
-export interface OutputConfiguration {
-  type: 'html' | 'json' | 'files';
-  template?: string;
-  files: string[];
 } 

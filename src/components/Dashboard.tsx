@@ -1,18 +1,21 @@
-import React from 'react';
-import { Layout, Typography, Button, List, Card } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Layout, Typography, Button, List, Card, Spin } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import { useWebdraw } from '../contexts/WebdrawContext';
+import { useWebdraw } from '../context/WebdrawContext';
+import { useLanguage } from '../contexts/LanguageContext';
+import { getLocalizedValue } from '../types/i18n';
 import { AppConfig } from '../types/webdraw';
 
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
 
 export default function Dashboard() {
+  const [apps, setApps] = useState<AppConfig[]>([]);
+  const [loading, setLoading] = useState(true);
   const { service } = useWebdraw();
-  const [apps, setApps] = React.useState<AppConfig[]>([]);
-  const [loading, setLoading] = React.useState(true);
+  const { currentLanguage } = useLanguage();
 
-  React.useEffect(() => {
+  useEffect(() => {
     loadApps();
   }, []);
 
@@ -50,7 +53,7 @@ export default function Dashboard() {
           renderItem={(app) => (
             <List.Item>
               <Card
-                title={app.name}
+                title={getLocalizedValue(app.name, currentLanguage) || app.id}
                 actions={[
                   <Button key="edit" type="link">Edit</Button>,
                   <Button key="run" type="link">Run</Button>,

@@ -8,6 +8,9 @@ import { ActionsConfig } from './steps/ActionsConfig';
 import { OutputConfig } from './steps/OutputConfig';
 import { AppConfig } from '../../types/webdraw';
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons';
+import LanguageSettings from '../LanguageSettings/LanguageSettings';
+import { useLanguage } from '../../contexts/LanguageContext';
+import { getLocalizedValue } from '../../types/i18n';
 
 // Temporary type for component props until we can align the types
 interface FormDataType extends AppConfig {
@@ -25,13 +28,19 @@ interface FormDataType extends AppConfig {
   };
 }
 
-export function AppEditor() {
+interface AppEditorProps {
+  tab?: string;
+}
+
+export const AppEditor: React.FC<AppEditorProps> = ({ tab }) => {
   const { appName: appId } = useParams<{ appName: string }>();
   const navigate = useNavigate();
   const { service, isSDKAvailable } = useWebdraw();
+  const { currentLanguage } = useLanguage();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormDataType | null>(null);
-  const [activeTab, setActiveTab] = useState('style');
+  const [activeTab, setActiveTab] = useState(tab || 'style');
   const [inputsKey, setInputsKey] = useState(0); // Add a key to force refresh
   const [saving, setSaving] = useState(false); // Track save operation status
   
@@ -45,6 +54,13 @@ export function AppEditor() {
       setInputsKey(prev => prev + 1);
     }
   };
+  
+  // Update activeTab when tab prop changes
+  useEffect(() => {
+    if (tab) {
+      setActiveTab(tab);
+    }
+  }, [tab]);
   
   // Load app data
   useEffect(() => {
@@ -209,7 +225,7 @@ export function AppEditor() {
               borderRadius: '4px 4px 0 0'
             }}
           >
-            {formData.name}
+            {formData.name && getLocalizedValue(formData.name, currentLanguage)}
           </Typography.Title>
           
           <div className="text-gray-500 text-sm px-1 mt-3">
@@ -268,6 +284,17 @@ export function AppEditor() {
               children: (
                 <OutputConfig
                   key="output-config"
+                  formData={formData}
+                  setFormData={handleFormDataChange}
+                />
+              ),
+            },
+            {
+              key: 'languages',
+              label: 'Languages',
+              children: (
+                <LanguageSettings
+                  key="language-settings"
                   formData={formData}
                   setFormData={handleFormDataChange}
                 />

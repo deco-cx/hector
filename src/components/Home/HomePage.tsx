@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Typography, Row, Col, Card, Button, List, Spin, Empty, message, Alert, Steps } from 'antd';
-import { PlusOutlined, AppstoreOutlined, BookOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, AppstoreOutlined, BookOutlined, EditOutlined, DeleteOutlined, GlobalOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { CreateAppModal } from '../AppCreation/CreateAppModal';
 import { useWebdraw } from '../../context/WebdrawContext';
 import { AppConfig } from '../../types/webdraw';
+import { useLanguage } from '../../contexts/LanguageContext';
+import { getLocalizedValue } from '../../types/i18n';
 
 const { Title, Paragraph } = Typography;
 
 export function HomePage() {
   const navigate = useNavigate();
   const { service, isSDKAvailable } = useWebdraw();
+  const { currentLanguage } = useLanguage();
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [apps, setApps] = useState<AppConfig[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,6 +28,7 @@ export function HomePage() {
     try {
       setLoading(true);
       const appList = await service.listApps();
+      console.log('Fetched apps:', appList);
       setApps(appList);
     } catch (error) {
       console.error('Failed to fetch apps:', error);
@@ -48,18 +52,36 @@ export function HomePage() {
   
   const hideCreateModal = () => {
     setCreateModalVisible(false);
-    // Refresh the apps list after creating a new app
-    fetchApps();
   };
-
+  
+  const handleCreateApp = async (appData: Partial<AppConfig>) => {
+    try {
+      await service.saveApp(appData as AppConfig);
+      message.success('App created successfully!');
+      hideCreateModal();
+      fetchApps();
+    } catch (error) {
+      console.error('Failed to create app:', error);
+      message.error('Failed to create app');
+    }
+  };
+  
   const handleEditApp = (appId: string) => {
     if (!isSDKAvailable) {
       message.warning('SDK is not available in this environment. Please test on webdraw.com');
       return;
     }
-    navigate(`/edit/${appId}`);
+    navigate(`/app/${appId}`);
   };
-
+  
+  const handleLanguageSettings = (appId: string) => {
+    if (!isSDKAvailable) {
+      message.warning('SDK is not available in this environment. Please test on webdraw.com');
+      return;
+    }
+    navigate(`/settings/languages/${appId}`);
+  };
+  
   const handleDeleteApp = async (appId: string) => {
     if (!isSDKAvailable) {
       message.warning('SDK is not available in this environment. Please test on webdraw.com');
@@ -68,37 +90,172 @@ export function HomePage() {
     
     try {
       await service.deleteApp(appId);
-      message.success('App deleted successfully');
-      // Refresh the list
-      setApps(apps.filter(app => app.id !== appId));
+      message.success('App deleted successfully!');
+      fetchApps();
     } catch (error) {
       console.error('Failed to delete app:', error);
       message.error('Failed to delete app');
     }
   };
 
+  // Render app list
+  const renderAppList = () => {
+    if (loading) {
+      return (
+        <div style={{ 
+          display: 'flex',
+          justifyContent: 'center',
+          padding: '40px 0'
+        }}>
+          <Spin size="large" />
+        </div>
+      );
+    }
+    
+    if (apps.length === 0) {
+      return (
+        <Empty 
+          description="You don't have any apps yet" 
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          style={{ margin: '40px 0' }}
+        />
+      );
+    }
+    
+    return (
+      <List
+        grid={{ 
+          gutter: 24, 
+          xs: 1, 
+          sm: 2, 
+          md: 2, 
+          lg: 3, 
+          xl: 3, 
+          xxl: 4 
+        }}
+        dataSource={apps}
+        style={{ margin: '8px 0' }}
+        renderItem={(app) => (
+          <List.Item style={{ marginBottom: '20px' }}>
+            <Card 
+              title={getLocalizedValue(app.name, currentLanguage) || app.id}
+              hoverable
+              style={{
+                borderRadius: '10px',
+                overflow: 'hidden',
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                boxShadow: '0 3px 6px rgba(0, 0, 0, 0.1)',
+                transition: 'transform 0.2s, box-shadow 0.2s',
+              }}
+              styles={{
+                header: {
+                  backgroundColor: '#f5f7fa',
+                  borderBottom: '1px solid #e8e8e8',
+                  padding: '16px 20px',
+                },
+                body: {
+                  padding: '20px',
+                  flex: '1 1 auto'
+                }
+              }}
+              actions={[
+                <Button 
+                  key="edit" 
+                  type="text" 
+                  icon={<EditOutlined />}
+                  onClick={() => handleEditApp(app.id)}
+                  style={{ padding: '4px 8px' }}
+                >
+                  Edit
+                </Button>,
+                <Button 
+                  key="language" 
+                  type="text" 
+                  icon={<GlobalOutlined />}
+                  onClick={() => handleLanguageSettings(app.id)}
+                  style={{ padding: '4px 8px' }}
+                >
+                  Languages
+                </Button>,
+                <Button 
+                  key="delete" 
+                  type="text" 
+                  danger
+                  icon={<DeleteOutlined />}
+                  onClick={() => handleDeleteApp(app.id)}
+                  style={{ padding: '4px 8px' }}
+                >
+                  Delete
+                </Button>
+              ]}
+            >
+              <div style={{ 
+                padding: '4px 0 16px',
+                minHeight: '60px'
+              }}>
+                <Paragraph ellipsis={{ rows: 2 }} style={{ margin: 0 }}>
+                  <div style={{ marginBottom: '8px' }}>
+                    <span style={{ fontWeight: 'bold' }}>Template:</span> {app.template}
+                  </div>
+                  <div>
+                    <span style={{ fontWeight: 'bold' }}>Style:</span> {app.style}
+                  </div>
+                </Paragraph>
+              </div>
+            </Card>
+          </List.Item>
+        )}
+      />
+    );
+  };
+
   return (
-    <div className="home-container p-4">
-      <div className="text-center mb-12">
-        <Title>Hector</Title>
-        <div className="max-w-3xl mx-auto mt-8">
+    <div style={{ 
+      padding: '32px 24px', 
+      maxWidth: '1400px', 
+      margin: '0 auto',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '32px'
+    }}>
+      <div style={{ 
+        textAlign: 'center', 
+        marginBottom: '40px',
+        marginTop: '20px'
+      }}>
+        <Title style={{ 
+          fontSize: '3rem', 
+          fontWeight: '700',
+          marginBottom: '40px'
+        }}>Hector</Title>
+        <div style={{ 
+          maxWidth: '900px', 
+          margin: '0 auto',
+          background: '#f9f9fa',
+          padding: '32px',
+          borderRadius: '12px',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)'
+        }}>
           <Steps
             direction="vertical"
             current={3}
             status="finish"
             className="text-left"
+            style={{ padding: '0 16px' }}
             items={[
               {
-                title: <Title level={4} style={{ margin: 0 }}>Create No-Code AI Applications</Title>,
-                description: <Paragraph className="mt-2">Build sophisticated AI-powered applications without writing a single line of code.</Paragraph>,
+                title: <Title level={4} style={{ margin: 0, fontSize: '1.5rem' }}>Create No-Code AI Applications</Title>,
+                description: <Paragraph style={{ fontSize: '1rem', marginTop: '8px' }}>Build sophisticated AI-powered applications without writing a single line of code.</Paragraph>,
               },
               {
-                title: <Title level={4} style={{ margin: 0 }}>Design Interactive Experiences</Title>,
-                description: <Paragraph className="mt-2">Create forms, workflows, and interactive experiences with drag-and-drop simplicity.</Paragraph>,
+                title: <Title level={4} style={{ margin: 0, fontSize: '1.5rem' }}>Design Interactive Experiences</Title>,
+                description: <Paragraph style={{ fontSize: '1rem', marginTop: '8px' }}>Create forms, workflows, and interactive experiences with drag-and-drop simplicity.</Paragraph>,
               },
               {
-                title: <Title level={4} style={{ margin: 0 }}>Leverage Powerful AI Models</Title>,
-                description: <Paragraph className="mt-2">Connect to state-of-the-art AI models for text generation, image creation, and data analysis.</Paragraph>,
+                title: <Title level={4} style={{ margin: 0, fontSize: '1.5rem' }}>Leverage Powerful AI Models</Title>,
+                description: <Paragraph style={{ fontSize: '1rem', marginTop: '8px' }}>Connect to state-of-the-art AI models for text generation, image creation, and data analysis.</Paragraph>,
               },
             ]}
           />
@@ -116,95 +273,88 @@ export function HomePage() {
           }
           type="warning"
           showIcon
-          style={{ marginBottom: 24 }}
+          style={{ 
+            marginBottom: '32px',
+            marginTop: '16px' 
+          }}
         />
       )}
 
-      <Row justify="center" className="my-12">
-        <Col>
-          <Button
-            type="primary"
-            onClick={showCreateModal}
-            disabled={!isSDKAvailable}
-            icon={<PlusOutlined />}
-            style={{
-              padding: '0.75rem 2rem',
-              height: 'auto',
-              fontSize: '1.1rem',
-              backgroundColor: '#7B2CBF',
-              borderColor: '#7B2CBF'
-            }}
-            size="large"
-          >
-            New App
-          </Button>
-        </Col>
-      </Row>
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center',
+        margin: '32px 0'
+      }}>
+        <Button
+          type="primary"
+          onClick={showCreateModal}
+          disabled={!isSDKAvailable}
+          icon={<PlusOutlined />}
+          style={{
+            padding: '0.75rem 2rem',
+            height: 'auto',
+            fontSize: '1.1rem',
+            backgroundColor: '#7B2CBF',
+            borderColor: '#7B2CBF',
+            borderRadius: '8px',
+            boxShadow: '0 4px 12px rgba(123, 44, 191, 0.2)'
+          }}
+          size="large"
+        >
+          New App
+        </Button>
+      </div>
 
-      <Row justify="center">
-        <Col xs={24} md={20} lg={18} xl={16}>
-          <Card 
-            title="My Apps" 
-            className="h-full"
-            extra={<Button type="link" onClick={showCreateModal} disabled={!isSDKAvailable}>New App</Button>}
-          >
-            {loading ? (
-              <div className="flex justify-center items-center py-8">
-                <Spin size="large" />
-              </div>
-            ) : !isSDKAvailable ? (
-              <div className="flex flex-col items-center justify-center py-8">
-                <Empty 
-                  description="SDK not available - cannot load apps" 
-                  image={Empty.PRESENTED_IMAGE_SIMPLE}
-                />
-              </div>
-            ) : apps.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8">
-                <Empty 
-                  description="You don't have any apps yet" 
-                  image={Empty.PRESENTED_IMAGE_SIMPLE}
-                >
-                  <Button type="primary" onClick={showCreateModal}>Create Your First App</Button>
-                </Empty>
-              </div>
-            ) : (
-              <List
-                dataSource={apps}
-                renderItem={(app) => (
-                  <List.Item
-                    key={app.id}
-                    actions={[
-                      <Button 
-                        icon={<EditOutlined />} 
-                        onClick={() => handleEditApp(app.id)}
-                      >
-                        Edit
-                      </Button>,
-                      <Button 
-                        danger 
-                        icon={<DeleteOutlined />}
-                        onClick={() => handleDeleteApp(app.id)}
-                      >
-                        Delete
-                      </Button>
-                    ]}
-                  >
-                    <List.Item.Meta
-                      title={app.name.includes('/') ? app.name.split('/').pop()?.replace('.json', '') : app.name}
-                      description={`Template: ${app.template}, Style: ${app.style}`}
-                    />
-                  </List.Item>
-                )}
-              />
-            )}
-          </Card>
-        </Col>
-      </Row>
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center',
+        width: '100%'
+      }}>
+        <Card 
+          title={
+            <div style={{ padding: '8px 0', fontSize: '1.5rem' }}>
+              My Apps
+            </div>
+          }
+          style={{ 
+            width: '100%',
+            maxWidth: '1200px',
+            borderRadius: '12px',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)'
+          }}
+          styles={{ 
+            header: { 
+              backgroundColor: '#f5f5f5', 
+              borderBottom: '1px solid #e8e8e8',
+              padding: '16px 24px'
+            },
+            body: { 
+              padding: '24px' 
+            }
+          }}
+          extra={
+            <Button 
+              type="primary"
+              onClick={showCreateModal} 
+              disabled={!isSDKAvailable}
+              icon={<PlusOutlined />}
+              style={{
+                backgroundColor: '#7B2CBF',
+                borderColor: '#7B2CBF',
+              }}
+            >
+              New App
+            </Button>
+          }
+        >
+          {renderAppList()}
+        </Card>
+      </div>
       
       <CreateAppModal 
         visible={createModalVisible} 
-        onClose={hideCreateModal} 
+        onCancel={hideCreateModal} 
+        onCreate={handleCreateApp}
       />
     </div>
   );

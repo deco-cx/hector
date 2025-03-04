@@ -1,23 +1,34 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { ConfigProvider } from 'antd';
+import { ConfigProvider, theme } from 'antd';
+import { WebdrawProvider } from './context/WebdrawContext';
+import { LanguageProvider } from './contexts/LanguageContext';
 import { HomePage } from './components/Home/HomePage';
 import { AppEditor } from './components/AppCreation/AppEditor';
-import { MainLayout } from './components/Layout/MainLayout';
-import { WebdrawProvider } from './context/WebdrawContext';
 import SDK from './sdk/webdraw-sdk-client';
-import { theme } from './theme';
+import './index.css';
 
 function App() {
   return (
-    <ConfigProvider theme={theme}>
+    <ConfigProvider
+      theme={{
+        algorithm: theme.defaultAlgorithm,
+        token: {
+          colorPrimary: '#7c3aed',
+          borderRadius: 6,
+        },
+      }}
+    >
       <WebdrawProvider sdk={SDK}>
-        <Router>
-          <Routes>
-            <Route path="/" element={<MainLayout><HomePage /></MainLayout>} />
-            <Route path="/edit/:appName" element={<MainLayout><AppEditor /></MainLayout>} />
-          </Routes>
-        </Router>
+        <LanguageProvider>
+          <Router>
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/app/:appName" element={<AppEditor />} />
+              <Route path="/settings/languages/:appName" element={<AppEditor tab="languages" />} />
+            </Routes>
+          </Router>
+        </LanguageProvider>
       </WebdrawProvider>
     </ConfigProvider>
   );

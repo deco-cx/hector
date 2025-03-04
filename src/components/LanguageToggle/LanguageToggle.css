@@ -1,0 +1,53 @@
+.language-toggle {
+  display: inline-flex;
+  align-items: center;
+}
+
+.language-toggle-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  transition: all 0.3s;
+}
+
+.language-toggle-button.active {
+  font-weight: 500;
+}
+
+.language-toggle-button .language-flag {
+  font-size: 1.2em;
+  line-height: 1;
+  margin-right: 4px;
+}
+
+.language-toggle-button .language-name {
+  margin: 0 2px;
+}
+
+.language-toggle-button .language-check {
+  font-size: 0.8em;
+  margin-left: 4px;
+}
+
+/* Small size adjustments */
+.language-toggle-button.ant-btn-sm .language-flag {
+  font-size: 1em;
+  margin-right: 2px;
+}
+
+.language-toggle-button.ant-btn-sm .language-check {
+  font-size: 0.7em;
+  margin-left: 2px;
+}
+
+/* Make buttons more compact on mobile */
+@media (max-width: 768px) {
+  .language-toggle-button {
+    padding: 0 6px;
+  }
+  
+  .language-toggle-button .language-name {
+    display: none;
+  }
+} 

@@ -39,8 +39,14 @@ export class WebdrawService {
             const filenameWithoutExt = filename.replace('.json', '');
             
             // If the app name is a path or missing, replace it with the simplified filename
-            if (!appData.name || appData.name.includes('/')) {
-              appData.name = filenameWithoutExt;
+            if (!appData.name || typeof appData.name === 'string' || (typeof appData.name === 'object' && 'includes' in appData.name)) {
+              // Create a Localizable name
+              appData.name = { 'en-US': filenameWithoutExt };
+              
+              // Ensure supportedLanguages is initialized
+              if (!appData.supportedLanguages) {
+                appData.supportedLanguages = ['en-US'];
+              }
             }
             
             return appData;
@@ -52,7 +58,7 @@ export class WebdrawService {
             
             return {
               id: filenameWithoutExt,
-              name: filenameWithoutExt, // Simplified name
+              name: { 'en-US': filenameWithoutExt }, // Localizable name
               template: 'unknown',
               style: 'unknown',
               inputs: [],
@@ -61,7 +67,8 @@ export class WebdrawService {
                 type: 'html',
                 format: 'standard',
                 files: []
-              }
+              },
+              supportedLanguages: ['en-US'] // Add supported languages
             } as AppConfig;
           }
         })

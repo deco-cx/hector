@@ -1,0 +1,129 @@
+.language-settings {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.language-settings-card {
+  margin-bottom: 24px;
+}
+
+.current-language-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.supported-languages-section,
+.add-language-section,
+.translation-section {
+  margin: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.language-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.language-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background-color: #f5f5f5;
+  border-radius: 8px;
+}
+
+.language-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.language-flag {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.language-default-tag {
+  margin-left: 8px;
+  font-size: 12px;
+  background-color: #f0f0f0;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.language-options {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.add-language-modal {
+  padding: 8px 0;
+}
+
+.language-source-section {
+  margin-top: 16px;
+}
+
+.language-source-options {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.translation-options {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.translation-source {
+  margin-top: 8px;
+}
+
+.translation-targets {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.translation-progress {
+  padding: 16px 0;
+}
+
+.translation-languages {
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.translation-status {
+  margin-top: 16px;
+  text-align: center;
+}
+
+/* Mobile optimizations */
+@media (max-width: 576px) {
+  .language-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .language-actions {
+    align-self: stretch;
+    display: flex;
+    justify-content: flex-end;
+  }
+  
+  .translation-targets {
+    flex-direction: column;
+  }
+} 
