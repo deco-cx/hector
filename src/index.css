@@ -269,3 +269,29 @@ button:focus-visible {
   }
 }
 
+/* App card hover effects */
+.app-card {
+  transition: all 0.3s ease !important;
+}
+
+.app-card:hover {
+  transform: translateY(-4px) !important;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.12) !important;
+}
+
+/* Make app card action buttons more responsive */
+@media (max-width: 576px) {
+  .app-card .ant-card-body {
+    padding: 16px 12px !important;
+  }
+  
+  .app-card .ant-btn {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+  
+  .app-card .ant-btn .anticon {
+    font-size: 14px;
+  }
+}
+

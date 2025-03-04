@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Typography, Row, Col, Card, Button, List, Spin, Empty, message, Alert, Steps, Space } from 'antd';
-import { PlusOutlined, AppstoreOutlined, BookOutlined, EditOutlined, DeleteOutlined, GlobalOutlined, ReloadOutlined } from '@ant-design/icons';
+import { PlusOutlined, AppstoreOutlined, BookOutlined, EditOutlined, DeleteOutlined, GlobalOutlined, ReloadOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { CreateAppModal } from '../AppCreation/CreateAppModal';
 import { useWebdraw } from '../../context/WebdrawContext';
@@ -98,6 +98,14 @@ export function HomePage() {
     }
   };
 
+  // Handle Play button click
+  const handlePlayApp = (appId: string) => {
+    // In a real app, this would navigate to the app runner or execution page
+    message.success(`Playing app: ${appId}`);
+    // Navigate to a hypothetical play route
+    // navigate(`/play/${appId}`);
+  };
+
   // Render app list
   const renderAppList = () => {
     if (loading) {
@@ -125,84 +133,130 @@ export function HomePage() {
     return (
       <List
         grid={{ 
-          gutter: 24, 
+          gutter: 32, 
           xs: 1, 
-          sm: 2, 
+          sm: 1, 
           md: 2, 
           lg: 3, 
           xl: 3, 
           xxl: 4 
         }}
         dataSource={apps}
-        style={{ margin: '8px 0' }}
+        style={{ margin: '16px 0' }}
         renderItem={(app) => (
-          <List.Item style={{ marginBottom: '20px' }}>
+          <List.Item style={{ marginBottom: '32px' }}>
             <Card 
-              title={getLocalizedValue(app.name, currentLanguage) || app.id}
+              className="app-card"
+              title={
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
+                }}>
+                  <AppstoreOutlined style={{ color: '#7B2CBF' }} />
+                  <span style={{ color: '#333' }}>{getLocalizedValue(app.name, currentLanguage) || app.id}</span>
+                </div>
+              }
               hoverable
               style={{
-                borderRadius: '10px',
+                borderRadius: '12px',
                 overflow: 'hidden',
                 height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
-                boxShadow: '0 3px 6px rgba(0, 0, 0, 0.1)',
-                transition: 'transform 0.2s, box-shadow 0.2s',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+                transition: 'all 0.3s ease',
               }}
               styles={{
                 header: {
-                  backgroundColor: '#f5f7fa',
-                  borderBottom: '1px solid #e8e8e8',
+                  backgroundColor: '#f9f9fc',
+                  borderBottom: '1px solid #eaeaea',
                   padding: '16px 20px',
                 },
                 body: {
-                  padding: '20px',
-                  flex: '1 1 auto'
+                  padding: '24px 20px',
+                  flex: '1 1 auto',
+                  display: 'flex',
+                  flexDirection: 'column'
                 }
               }}
-              actions={[
+            >
+              <div style={{ 
+                padding: '0 0 16px',
+                minHeight: '60px',
+                flex: '1 1 auto'
+              }}>
+                <div style={{ 
+                  display: 'flex', 
+                  flexDirection: 'column',
+                  gap: '12px',
+                  marginBottom: '20px'
+                }}>
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    <span style={{ fontWeight: '600', color: '#555', minWidth: '80px' }}>Template:</span> 
+                    <span style={{ color: '#333' }}>{app.template}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    <span style={{ fontWeight: '600', color: '#555', minWidth: '80px' }}>Style:</span> 
+                    <span style={{ color: '#333' }}>{app.style}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    <span style={{ fontWeight: '600', color: '#555', minWidth: '80px' }}>Created:</span> 
+                    <span style={{ color: '#666', fontSize: '14px' }}>{new Date().toLocaleDateString()}</span>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Action buttons in horizontal layout */}
+              <div style={{ 
+                marginTop: 'auto', 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
+                gap: '8px'
+              }}>
+                <Button
+                  type="primary"
+                  icon={<PlayCircleOutlined />}
+                  onClick={() => handlePlayApp(app.id)}
+                  style={{ 
+                    backgroundColor: '#52c41a', 
+                    borderColor: '#52c41a'
+                  }}
+                >
+                  Play
+                </Button>
+                
                 <Button 
-                  key="edit" 
-                  type="text" 
+                  type="primary"
                   icon={<EditOutlined />}
                   onClick={() => handleEditApp(app.id)}
-                  style={{ padding: '4px 8px' }}
+                  style={{ 
+                    backgroundColor: '#7B2CBF',
+                    borderColor: '#7B2CBF'
+                  }}
                 >
                   Edit
-                </Button>,
+                </Button>
+                
                 <Button 
-                  key="language" 
-                  type="text" 
                   icon={<GlobalOutlined />}
                   onClick={() => handleLanguageSettings(app.id)}
-                  style={{ padding: '4px 8px' }}
                 >
                   Languages
-                </Button>,
+                </Button>
+                
                 <Button 
-                  key="delete" 
-                  type="text" 
                   danger
                   icon={<DeleteOutlined />}
                   onClick={() => handleDeleteApp(app.id)}
-                  style={{ padding: '4px 8px' }}
                 >
                   Delete
                 </Button>
-              ]}
-            >
-              <div style={{ 
-                padding: '4px 0 16px',
-                minHeight: '60px'
-              }}>
-                <Paragraph ellipsis={{ rows: 2 }} style={{ margin: 0 }}>
-                  <div style={{ marginBottom: '8px' }}>
-                    <span style={{ fontWeight: 'bold' }}>Template:</span> {app.template}
-                  </div>
-                  <div>
-                    <span style={{ fontWeight: 'bold' }}>Style:</span> {app.style}
-                  </div>
-                </Paragraph>
               </div>
             </Card>
           </List.Item>
