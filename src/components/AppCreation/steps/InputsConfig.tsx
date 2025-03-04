@@ -1,20 +1,37 @@
 import React, { useEffect } from 'react';
 import { Typography, Button, Form, Input, Select, Card, Tooltip, Row, Col } from 'antd';
 import { PlusOutlined, MinusCircleOutlined } from '@ant-design/icons';
+import { Localizable, DEFAULT_LANGUAGE, createLocalizable, getLocalizedValue } from '../../../types/i18n';
+import LocalizableInput from '../../../components/LocalizableInput/LocalizableInput';
 
 const { Title, Paragraph } = Typography;
 
+// Our internal InputField type for the editor
 interface InputField {
   name: string;
   type: string;
-  label: string;
+  label: Localizable<string>;
   required: boolean;
-  placeholder?: string;
+  placeholder?: Localizable<string>;
+  [key: string]: any;
+}
+
+// Import type that handles both string and Localizable<string> for compatibility
+type MixedValue = string | Localizable<string>;
+
+// Mixed field type for incoming data
+interface MixedInputField {
+  name: string;
+  type: string;
+  label: MixedValue;
+  required: boolean;
+  placeholder?: MixedValue;
+  [key: string]: any;
 }
 
 interface InputsConfigProps {
   formData: {
-    inputs: InputField[];
+    inputs: Array<MixedInputField>;
     [key: string]: any;
   };
   setFormData: React.Dispatch<React.SetStateAction<any>>;
@@ -29,23 +46,42 @@ const inputTypes = [
   { label: 'Select', value: 'select' },
 ];
 
+// Helper function to ensure a value is a Localizable object
+const ensureLocalizable = (value: MixedValue): Localizable<string> => {
+  if (typeof value === 'string') {
+    return createLocalizable(DEFAULT_LANGUAGE, value);
+  }
+  return value || createLocalizable(DEFAULT_LANGUAGE, '');
+};
+
+// Convert mixed fields to proper InputField
+const normalizeMixedField = (input: MixedInputField): InputField => ({
+  ...input,
+  label: ensureLocalizable(input.label),
+  placeholder: ensureLocalizable(input.placeholder || '')
+});
+
 export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
   const [form] = Form.useForm();
   
   // Initialize form with formData when it changes
   useEffect(() => {
     if (Array.isArray(formData.inputs)) {
-      form.setFieldsValue({ inputs: formData.inputs });
+      const normalizedInputs = formData.inputs.map(normalizeMixedField);
+      form.setFieldsValue({ inputs: normalizedInputs });
     } else {
       form.setFieldsValue({ inputs: [] });
     }
   }, [form, formData.inputs]);
   
   // Function to generate a unique filename based on label
-  const generateFilename = (label: string) => {
+  const generateFilename = (label: Localizable<string>) => {
     if (!label) return '';
     
-    const baseFilename = label
+    // Use the default language value for the filename
+    const labelText = label[DEFAULT_LANGUAGE] || Object.values(label)[0] || '';
+    
+    const baseFilename = labelText
       .toLowerCase()
       .replace(/\s+/g, '_')
       .replace(/[^a-z0-9_]/g, '')
@@ -81,13 +117,13 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
   // Add a new field
   const handleAddField = () => {
     const newInputs = [
-      ...(Array.isArray(formData.inputs) ? formData.inputs : []),
+      ...(Array.isArray(formData.inputs) ? formData.inputs.map(normalizeMixedField) : []),
       {
-        label: '',
+        label: createLocalizable(DEFAULT_LANGUAGE, ''),
         name: '',
         type: 'text',
         required: false,
-        placeholder: ''
+        placeholder: createLocalizable(DEFAULT_LANGUAGE, '')
       }
     ];
     
@@ -98,7 +134,7 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
   const handleRemoveField = (index: number) => {
     if (!Array.isArray(formData.inputs)) return;
     
-    const newInputs = [...formData.inputs];
+    const newInputs = [...formData.inputs].map(normalizeMixedField);
     newInputs.splice(index, 1);
     updateInputs(newInputs);
   };
@@ -130,7 +166,7 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
                       name={[name, 'label']}
                       noStyle
                     >
-                      <Input 
+                      <LocalizableInput 
                         placeholder="Field Label" 
                         style={{ fontWeight: 'bold' }}
                         bordered={false}
@@ -159,7 +195,7 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
                         name={[name, 'label']}
                         rules={[{ required: true, message: 'Please enter a label' }]}
                       >
-                        <Input placeholder="Display Label (e.g., Child's Name)" />
+                        <LocalizableInput placeholder="Display Label (e.g., Child's Name)" />
                       </Form.Item>
                     </Col>
                     <Col span={12}>
@@ -184,7 +220,7 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
                         label="Placeholder Text"
                         name={[name, 'placeholder']}
                       >
-                        <Input placeholder="Enter placeholder text" />
+                        <LocalizableInput placeholder="Enter placeholder text" />
                       </Form.Item>
                     </Col>
                     <Col span={12}>

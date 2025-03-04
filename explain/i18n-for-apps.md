@@ -226,6 +226,11 @@ The i18n system has been implemented across the following files and components:
   - `LanguageToggle` for switching between languages in the editor
   - `AppLanguageToggle` for changing the user's application language
   - Shows flag icons with language codes
+- **src/components/LocalizableInput/LocalizableInput.tsx**: New field-level localizable input component
+  - Independent language selection for each text field
+  - Displays language toggle buttons within each input field
+  - Allows editing content in different languages without affecting the global editor language
+  - Shows visual indicators for the active language
 
 #### Language Management
 - **src/components/LanguageSettings/LanguageSettings.tsx**: Complete language management interface
@@ -234,8 +239,32 @@ The i18n system has been implemented across the following files and components:
   - Initiating translations between languages
   - Manages app-specific language settings
 
+#### Form Components 
+- **src/components/AppCreation/steps/InputsConfig.tsx**: Updated to use LocalizableInput
+  - All text fields (`label`, `placeholder`) now use `Localizable<string>` type
+  - Each field has its own language toggle independent of the global language setting
+  - Auto-generates filenames from the default language's label
+
 This structured approach ensures separation of concerns:
 - Type definitions are centralized
 - State management is handled by the context
 - UI components are reusable across the application
-- App-specific language management is consolidated in one place 
+- App-specific language management is consolidated in one place
+- Field-level language toggling provides a more intuitive editing experience
+
+### 7.6 Field-Level Language Toggling
+
+The enhanced i18n implementation introduces field-level language toggling through the `LocalizableInput` component:
+
+- Each localizable text field has its own language selector
+- Users can edit different fields in different languages simultaneously
+- Language selection for a field is independent from the global editor language
+- Visual indicators show which language is currently being edited for each field
+- Empty language fields are automatically initialized when first edited
+
+This implementation provides several advantages:
+1. More intuitive editing experience for multilingual content
+2. No need to switch the entire form between languages
+3. Better visibility of which fields have content in which languages
+4. Easier comparison between languages during content creation
+5. Improved workflow for translators working on specific fields 

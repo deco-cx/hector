@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, Typography, Button, Space, Modal, Progress, message, Alert, Divider, Tooltip } from 'antd';
 import { TranslationOutlined, GlobalOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -36,18 +36,42 @@ const LanguageSettings: React.FC<LanguageSettingsProps> = ({
   const [translationProgress, setTranslationProgress] = useState(0);
   const [isTranslating, setIsTranslating] = useState(false);
   
-  // Get the current supported languages from the app config
-  const supportedLanguages = formData.supportedLanguages || [DEFAULT_LANGUAGE];
+  // Refs to track previous values and avoid infinite loops
+  const prevSupportedLanguagesRef = useRef<string[]>([]);
+  const initialSetupDoneRef = useRef(false);
   
-  // Sync the supported languages to the context
+  // Get the current supported languages from the app config (with null safety)
+  const supportedLanguages = formData?.supportedLanguages || [DEFAULT_LANGUAGE];
+  
+  // Run once on initial mount and when supportedLanguages actually changes
   useEffect(() => {
-    setAvailableLanguages(supportedLanguages);
+    // Skip if nothing changed (strict array equality check)
+    const prevSupported = prevSupportedLanguagesRef.current;
+    const supported = supportedLanguages;
     
-    // If the current language is not in supported languages, switch to default
-    if (!supportedLanguages.includes(currentLanguage)) {
+    const areEqual = 
+      prevSupported.length === supported.length && 
+      prevSupported.every((lang, i) => lang === supported[i]);
+    
+    if (areEqual && initialSetupDoneRef.current) {
+      return; // Skip if languages haven't changed and initial setup is done
+    }
+    
+    // Set available languages and update refs
+    console.log('Updating language settings with supported languages:', supported);
+    setAvailableLanguages(supported);
+    prevSupportedLanguagesRef.current = [...supported];
+    
+    // Check if current language needs to be changed
+    if (!supported.includes(currentLanguage)) {
+      console.log('Current language not supported, switching to default:', DEFAULT_LANGUAGE);
       setCurrentLanguage(DEFAULT_LANGUAGE);
     }
-  }, [supportedLanguages, setAvailableLanguages, currentLanguage, setCurrentLanguage]);
+    
+    // Mark initial setup as complete
+    initialSetupDoneRef.current = true;
+    
+  }, [supportedLanguages, currentLanguage, setCurrentLanguage, setAvailableLanguages]);
   
   const startTranslation = async (sourceLang: string, targetLang: string) => {
     setIsTranslating(true);
@@ -388,4 +412,5 @@ const LanguageSettings: React.FC<LanguageSettingsProps> = ({
   );
 };
 
-export default LanguageSettings; 
+// Export a memoized version of the component to prevent unnecessary re-renders
+export default React.memo(LanguageSettings); 

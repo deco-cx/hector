@@ -1,0 +1,16 @@
+.json-viewer-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.json-viewer-container pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+@media (max-width: 768px) {
+  .json-viewer-container pre {
+    font-size: 12px;
+    padding: 12px;
+  }
+} 

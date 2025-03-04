@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Tabs, message, Spin, Alert, Button, Input, Card, Space, Typography, Row, Col } from 'antd';
 import { useWebdraw } from '../../context/WebdrawContext';
 import { StyleGuide } from './steps/StyleGuide';
@@ -9,8 +9,9 @@ import { OutputConfig } from './steps/OutputConfig';
 import { AppConfig } from '../../types/webdraw';
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons';
 import LanguageSettings from '../LanguageSettings/LanguageSettings';
+import JSONViewer from '../JSONViewer/JSONViewer';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { getLocalizedValue } from '../../types/i18n';
+import { getLocalizedValue, DEFAULT_LANGUAGE } from '../../types/i18n';
 
 // Temporary type for component props until we can align the types
 interface FormDataType extends AppConfig {
@@ -35,12 +36,15 @@ interface AppEditorProps {
 export const AppEditor: React.FC<AppEditorProps> = ({ tab }) => {
   const { appName: appId } = useParams<{ appName: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { service, isSDKAvailable } = useWebdraw();
   const { currentLanguage } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormDataType | null>(null);
-  const [activeTab, setActiveTab] = useState(tab || 'style');
+  const [activeTab, setActiveTab] = useState(
+    tab || (location.state as any)?.activeTab || 'style'
+  );
   const [inputsKey, setInputsKey] = useState(0); // Add a key to force refresh
   const [saving, setSaving] = useState(false); // Track save operation status
   
@@ -55,12 +59,14 @@ export const AppEditor: React.FC<AppEditorProps> = ({ tab }) => {
     }
   };
   
-  // Update activeTab when tab prop changes
+  // Update activeTab when tab prop or location state changes
   useEffect(() => {
     if (tab) {
       setActiveTab(tab);
+    } else if ((location.state as any)?.activeTab) {
+      setActiveTab((location.state as any).activeTab);
     }
-  }, [tab]);
+  }, [tab, location.state]);
   
   // Load app data
   useEffect(() => {
@@ -135,10 +141,20 @@ export const AppEditor: React.FC<AppEditorProps> = ({ tab }) => {
       if (!prevData) return newData;
       
       // Create a merged version with the new data
-      return {
+      const mergedData = {
         ...prevData,
         ...newData
       };
+      
+      // Only update if something has actually changed
+      // We do a shallow comparison of stringified versions to avoid insignificant changes
+      if (JSON.stringify(mergedData) === JSON.stringify(prevData)) {
+        console.log('Form data unchanged, skipping update');
+        return prevData; // Return previous data to avoid re-render
+      }
+      
+      console.log('Form data changed, updating state');
+      return mergedData;
     });
   }, []);
   
@@ -153,6 +169,16 @@ export const AppEditor: React.FC<AppEditorProps> = ({ tab }) => {
       });
     }
   }, [formData]);
+  
+  // Create a memoized version of the language settings data to prevent unnecessary re-renders
+  const languageSettingsData = useMemo(() => {
+    // Always return a valid object even if formData is null
+    return {
+      ...(formData || {}),
+      // Ensure supportedLanguages is always a valid array
+      supportedLanguages: formData?.supportedLanguages || [DEFAULT_LANGUAGE]
+    };
+  }, [formData?.supportedLanguages]);
   
   if (!isSDKAvailable) {
     return (
@@ -295,8 +321,18 @@ export const AppEditor: React.FC<AppEditorProps> = ({ tab }) => {
               children: (
                 <LanguageSettings
                   key="language-settings"
-                  formData={formData}
+                  formData={languageSettingsData}
                   setFormData={handleFormDataChange}
+                />
+              ),
+            },
+            {
+              key: 'json',
+              label: 'JSON',
+              children: (
+                <JSONViewer
+                  key="json-viewer"
+                  data={formData}
                 />
               ),
             },
