@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { Typography, Card, Button, Space, Empty, Tabs, Tooltip, Modal } from 'antd';
+import { Typography, Card, Button, Space, Empty, Tabs, Tooltip, Modal, Form, Row, Col, Input } from 'antd';
 import { InfoCircleOutlined, PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
-import { OutputTemplate, OutputTemplateType } from '../../../types/types';
+import { OutputTemplate, OutputTemplateType, getLocalizedValue, DEFAULT_LANGUAGE } from '../../../types/types';
 import { availableOutputTemplates, createOutputTemplate, templateFieldFileTypes } from '../../../config/outputsConfig';
 import RJSFForm from '@rjsf/antd';
 import { RJSFSchema } from '@rjsf/utils';
 import validator from '@rjsf/validator-ajv8';
 import FileReferenceField from '../components/FileReferenceField';
+import LocalizableInput from '../../../components/LocalizableInput/LocalizableInput';
+import FileSelector from '../components/FileSelector';
 
 const { Title, Paragraph } = Typography;
 const { TabPane } = Tabs;
@@ -35,30 +37,62 @@ export function OutputConfig({ formData, setFormData }: OutputConfigProps) {
 
   // Update outputs in the parent state
   const updateOutputs = (newOutputs: OutputTemplate[]) => {
-    setFormData((prev: any) => ({
-      ...prev,
-      output: newOutputs,
-    }));
+    console.log('updateOutputs called with:', newOutputs);
+    setFormData((prev: any) => {
+      console.log('Previous formData:', prev);
+      const updated = {
+        ...prev,
+        output: newOutputs,
+      };
+      console.log('Updated formData:', updated);
+      return updated;
+    });
   };
 
   // Handle template selection in modal
   const handleAddTemplate = (type: OutputTemplateType) => {
-    // Create a new template
-    const newTemplate = createOutputTemplate(type);
+    console.log('Adding template of type:', type);
     
-    // Add to outputs array
-    const newOutputs = [...outputs, newTemplate];
-    updateOutputs(newOutputs);
-    
-    // Close modal and set active tab to the new template
-    setIsAddTemplateModalVisible(false);
-    setActiveTab(type);
+    try {
+      // Create a new template
+      const newTemplate = createOutputTemplate(type);
+      console.log('Created new template:', newTemplate);
+      
+      // Add to outputs array
+      const newOutputs = [...outputs, newTemplate];
+      console.log('New outputs array:', newOutputs);
+      
+      // First close the modal
+      setIsAddTemplateModalVisible(false);
+      
+      // Update parent state with a direct object rather than a function
+      const updatedFormData = {
+        output: newOutputs
+      };
+      console.log('Passing to setFormData:', updatedFormData);
+      setFormData(updatedFormData);
+      
+      // Finally set the active tab
+      setTimeout(() => {
+        setActiveTab(type);
+        console.log('Set active tab to:', type);
+      }, 0);
+    } catch (error) {
+      console.error('Error adding template:', error);
+      // You can add an alert or message here to inform the user
+    }
   };
 
   // Handle template deletion
   const handleDeleteTemplate = (type: OutputTemplateType) => {
     const newOutputs = outputs.filter(output => output.type !== type);
-    updateOutputs(newOutputs);
+    
+    // Update parent state with a direct object rather than a function
+    const updatedFormData = {
+      output: newOutputs
+    };
+    console.log('Deleting template, new outputs:', newOutputs);
+    setFormData(updatedFormData);
     
     // Reset active tab if deleted
     if (activeTab === type) {
@@ -68,13 +102,31 @@ export function OutputConfig({ formData, setFormData }: OutputConfigProps) {
 
   // Update template configuration
   const handleConfigChange = (type: OutputTemplateType, formData: any) => {
+    console.log('handleConfigChange called with:', formData);
+    
+    // Handle the case where Ant Form returns values with different structure than our template
+    const updatedTemplate = { 
+      ...formData,
+      // Ensure we preserve the template type
+      type
+    };
+    
+    // FileSelector already handles the @ prefix, so we don't need the prefix logic anymore
+    
+    // Update the outputs array
     const newOutputs = outputs.map(output => {
       if (output.type === type) {
-        return { ...output, ...formData };
+        return updatedTemplate;
       }
       return output;
     });
-    updateOutputs(newOutputs);
+    
+    // Update parent state with a direct object
+    const updatedFormData = {
+      output: newOutputs
+    };
+    console.log('Updating template, new outputs:', newOutputs);
+    setFormData(updatedFormData);
   };
 
   // Show preview of the template
@@ -86,9 +138,14 @@ export function OutputConfig({ formData, setFormData }: OutputConfigProps) {
   // Get available template types that haven't been added yet
   const getAvailableTemplateTypes = () => {
     const existingTypes = new Set(outputs.map(output => output.type));
-    return Object.keys(availableOutputTemplates).filter(
+    const availableTypes = Object.keys(availableOutputTemplates).filter(
       type => !existingTypes.has(type as OutputTemplateType)
     ) as OutputTemplateType[];
+    
+    console.log('Available template types:', availableTypes);
+    console.log('Available templates object:', availableOutputTemplates);
+    
+    return availableTypes;
   };
 
   // Get template by type
@@ -155,40 +212,97 @@ export function OutputConfig({ formData, setFormData }: OutputConfigProps) {
     if (!template) return null;
 
     const templateConfig = availableOutputTemplates[type];
-    const uiSchema = createUiSchema(type);
-
+    
     return (
       <div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
-          <Space>
-            <Tooltip title="Preview Output">
-              <Button 
-                icon={<EyeOutlined />} 
-                onClick={() => handleShowPreview(template)}
-              >
-                Preview
-              </Button>
-            </Tooltip>
-            <Tooltip title="Delete Template">
-              <Button 
-                danger 
-                icon={<DeleteOutlined />} 
-                onClick={() => handleDeleteTemplate(type)}
-              >
-                Delete
-              </Button>
-            </Tooltip>
-          </Space>
-        </div>
-
-        <RJSFForm
-          schema={templateConfig.schema as RJSFSchema}
-          formData={template}
-          validator={validator}
-          onChange={(e) => handleConfigChange(type, e.formData)}
-          widgets={widgets}
-          uiSchema={uiSchema}
-        />
+        <Card 
+          className="output-template-card"
+          title={template.title && getLocalizedValue(template.title, DEFAULT_LANGUAGE) || 'Output Template'}
+          extra={
+            <Space>
+              <Tooltip title="Preview Output">
+                <Button 
+                  icon={<EyeOutlined />} 
+                  onClick={() => handleShowPreview(template)}
+                >
+                  Preview
+                </Button>
+              </Tooltip>
+              <Tooltip title="Delete Template">
+                <Button 
+                  danger 
+                  icon={<DeleteOutlined />} 
+                  onClick={() => handleDeleteTemplate(type)}
+                >
+                  Delete
+                </Button>
+              </Tooltip>
+            </Space>
+          }
+        >
+          <Form
+            layout="vertical"
+            initialValues={{
+              ...template,
+              // No need to remove @ from file references - the FileSelector handles this
+            }}
+            onValuesChange={(changedValues, allValues) => handleConfigChange(type, allValues)}
+          >
+            <Row gutter={16}>
+              <Col span={24}>
+                <Form.Item
+                  name={['title']}
+                  label="Title"
+                  rules={[{ required: true, message: 'Title is required' }]}
+                >
+                  <LocalizableInput placeholder="Enter template title" />
+                </Form.Item>
+              </Col>
+            </Row>
+            
+            <Row gutter={16} className="mb-4">
+              <Col xs={24} sm={24} md={12}>
+                <Form.Item
+                  name="backgroundImage"
+                  label="Background Image"
+                  extra="Select an image file for the background"
+                >
+                  <FileSelector 
+                    placeholder="Select an image file" 
+                    fileType="image"
+                    appData={formData as any}
+                  />
+                </Form.Item>
+              </Col>
+              
+              <Col xs={24} sm={24} md={12}>
+                <Form.Item
+                  name="audio"
+                  label="Audio Narration"
+                  extra="Select an audio file for narration"
+                >
+                  <FileSelector 
+                    placeholder="Select an audio file" 
+                    fileType="audio"
+                    appData={formData as any}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+            
+            <Form.Item
+              name="content"
+              label="Content"
+              extra="Select a markdown or text file for the story content"
+            >
+              <FileSelector 
+                placeholder="Select a content file" 
+                fileType="text"
+                appData={formData as any}
+              />
+            </Form.Item>
+          </Form>
+        </Card>
       </div>
     );
   };
@@ -200,7 +314,14 @@ export function OutputConfig({ formData, setFormData }: OutputConfigProps) {
         Define how the AI's responses should be formatted and displayed in your application.
         Select a template type to configure your output.
       </Paragraph>
-
+      
+      {(() => { 
+        console.log('Rendering OutputConfig with outputs:', outputs); 
+        console.log('Is add template modal visible:', isAddTemplateModalVisible);
+        console.log('Active tab:', activeTab);
+        return null; 
+      })()}
+      
       <Card>
         {outputs.length === 0 ? (
           <Empty
@@ -252,13 +373,31 @@ export function OutputConfig({ formData, setFormData }: OutputConfigProps) {
         onCancel={() => setIsAddTemplateModalVisible(false)}
         footer={null}
       >
+        {(() => {
+          const availableTypes = getAvailableTemplateTypes();
+          console.log('Rendering modal content, available types:', availableTypes);
+          
+          if (availableTypes.length === 0) {
+            return (
+              <div style={{ padding: '20px', textAlign: 'center' }}>
+                <Typography.Text>All available template types have been added.</Typography.Text>
+              </div>
+            );
+          }
+          
+          return null;
+        })()}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {getAvailableTemplateTypes().map(type => (
             <Card 
               key={type}
               hoverable
-              style={{ marginBottom: '8px' }}
-              onClick={() => handleAddTemplate(type)}
+              style={{ marginBottom: '8px', cursor: 'pointer' }}
+              onClick={() => {
+                console.log('Card clicked for template type:', type);
+                debugger; // This will pause execution in browser dev tools
+                handleAddTemplate(type);
+              }}
             >
               <div style={{ display: 'flex', alignItems: 'center' }}>
                 <div style={{ marginRight: '12px' }}>

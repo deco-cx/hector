@@ -156,21 +156,38 @@ export const AppEditor: React.FC<AppEditorProps> = ({ tab }) => {
   
   // Handle form data changes - this only updates the React state
   const handleFormDataChange = useCallback((newData: Partial<ExtendedAppConfig>) => {
+    console.log('handleFormDataChange called with:', newData);
+    
     setFormData(prevData => {
-      if (!prevData) return newData as ExtendedAppConfig;
+      if (!prevData) {
+        console.log('No previous data, returning new data');
+        return newData as ExtendedAppConfig;
+      }
       
       // Create a merged version with the new data
       const mergedData = {
         ...prevData,
-        ...newData
+        ...newData,
+        // Ensure output is properly merged if it exists in newData
+        ...(newData.output ? { output: [...newData.output] } : {})
       };
+      
+      console.log('Merged data:', mergedData);
+      
+      // Skip the comparison for output updates - always update
+      if (newData.output) {
+        console.log('Output data detected, forcing update');
+        return mergedData;
+      }
       
       // Only update if something has actually changed
       // We do a shallow comparison of stringified versions to avoid insignificant changes
       if (JSON.stringify(mergedData) === JSON.stringify(prevData)) {
+        console.log('No changes detected, returning previous data');
         return prevData;
       }
       
+      console.log('Changes detected, returning merged data');
       return mergedData;
     });
   }, []);
