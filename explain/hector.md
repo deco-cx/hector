@@ -564,6 +564,679 @@ const user = await SDK.getUser(); // Returns { username: string } if user is log
 - **Export Format**:
   - The export functionality will be implemented in a future version, with a placeholder function that will call AI for this purpose.
 
+## 11. Exporting Apps as HTML with Vue
+
+The Export functionality in Hector allows users to export their app configurations as standalone HTML files with embedded Vue.js, enabling the app to be hosted anywhere and function independently of the Hector platform.
+
+### 11.1 Overview of HTML+Vue Export
+
+The exported HTML file contains everything needed to run the app:
+- A complete copy of the app configuration in JSON format
+- Embedded Vue.js for interactivity
+- Direct integration with the Webdraw SDK
+- All necessary styling and UI components via CDN links
+
+### 11.2 Export Structure
+
+Each exported HTML app follows this structure:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Exported Hector App</title>
+  <!-- Import Vue.js -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <!-- Import Ant Design Vue -->
+  <link rel="stylesheet" href="https://unpkg.com/ant-design-vue@3.2.20/dist/antd.min.css">
+  <script src="https://unpkg.com/ant-design-vue@3.2.20/dist/antd.min.js"></script>
+  <!-- Import Webdraw SDK -->
+  <script type="module">
+    import { SDK } from "https://webdraw.com/webdraw-sdk@v1";
+    window.SDK = SDK;
+  </script>
+  <style>
+    /* App styling based on the selected styleguide */
+    /* ... */
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- Vue application template -->
+    <!-- ... -->
+  </div>
+  
+  <script type="module">
+    // App configuration
+    const appConfig = {/* Full app configuration in JSON */};
+    
+    // Vue application
+    const app = Vue.createApp({
+      data() {
+        return {
+          // App state
+          // ...
+        }
+      },
+      methods: {
+        // Methods to execute actions
+        // ...
+      },
+      mounted() {
+        // Initialize the app
+        // ...
+      }
+    });
+    
+    app.use(antd);
+    app.mount('#app');
+  </script>
+</body>
+</html>
+```
+
+### 11.3 Action Mapping: Hector to Webdraw SDK
+
+Below is a detailed mapping between Hector actions and their direct implementations using the Webdraw SDK:
+
+#### Text Generation Actions
+
+**Hector Configuration:**
+```json
+{
+  "type": "generateText",
+  "output_filename": "story.md",
+  "prompt": {
+    "EN": "Write a story about @character_name.md",
+    "PT": "Escreva uma história sobre @character_name.md"
+  },
+  "config": {
+    "model": "Best",
+    "temperature": 0.7,
+    "maxTokens": 1000
+  }
+}
+```
+
+**Direct SDK Implementation:**
+```javascript
+async function generateText(prompt, inputs, previousOutputs, config) {
+  // Process references in the prompt
+  const processedPrompt = prompt.replace(/@([a-zA-Z0-9_-]+\.[a-zA-Z0-9]+)/g, (match, filename) => {
+    return inputs[filename] || previousOutputs[filename] || match;
+  });
+  
+  // Call the SDK
+  const result = await SDK.ai.generateText({
+    prompt: processedPrompt,
+    model: config.model || "Best",
+    temperature: config.temperature || 0.7,
+    maxTokens: config.maxTokens || 1000
+  });
+  
+  return result.text;
+}
+```
+
+#### JSON Generation Actions
+
+**Hector Configuration:**
+```json
+{
+  "type": "generateJSON",
+  "output_filename": "products.json",
+  "prompt": {
+    "EN": "Generate a product catalog for @store_name.md",
+    "PT": "Gere um catálogo de produtos para @store_name.md"
+  },
+  "config": {
+    "model": "anthropic:claude-3-7-sonnet-latest",
+    "temperature": 0.5,
+    "schema": "{\"type\":\"object\",\"properties\":{\"products\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"},\"price\":{\"type\":\"number\"},\"category\":{\"type\":\"string\"}}}}}}"
+  }
+}
+```
+
+**Direct SDK Implementation:**
+```javascript
+async function generateJSON(prompt, inputs, previousOutputs, config) {
+  // Process references in the prompt
+  const processedPrompt = prompt.replace(/@([a-zA-Z0-9_-]+\.[a-zA-Z0-9]+)/g, (match, filename) => {
+    return inputs[filename] || previousOutputs[filename] || match;
+  });
+  
+  // Parse the schema
+  let schema;
+  try {
+    schema = JSON.parse(config.schema);
+  } catch (error) {
+    console.error("Error parsing schema:", error);
+    throw new Error("Invalid schema format");
+  }
+  
+  // Call the SDK
+  const result = await SDK.ai.generateObject({
+    prompt: processedPrompt,
+    model: config.model || "Best",
+    temperature: config.temperature || 0.7,
+    schema: schema
+  });
+  
+  return result.object;
+}
+```
+
+#### Image Generation Actions
+
+**Hector Configuration:**
+```json
+{
+  "type": "generateImage",
+  "output_filename": "cover.png",
+  "prompt": "Create a cover image for a story about @character_name.md",
+  "config": {
+    "model": "SDXL",
+    "size": "1024x1024",
+    "n": 1
+  }
+}
+```
+
+**Direct SDK Implementation:**
+```javascript
+async function generateImage(prompt, inputs, previousOutputs, config) {
+  // Process references in the prompt
+  const processedPrompt = prompt.replace(/@([a-zA-Z0-9_-]+\.[a-zA-Z0-9]+)/g, (match, filename) => {
+    return inputs[filename] || previousOutputs[filename] || match;
+  });
+  
+  // Call the SDK
+  const result = await SDK.ai.generateImage({
+    prompt: processedPrompt,
+    model: config.model || "SDXL",
+    size: config.size || "1024x1024",
+    n: config.n || 1
+  });
+  
+  return result.images[0]; // Return the first image URL
+}
+```
+
+#### Audio Generation Actions
+
+**Hector Configuration:**
+```json
+{
+  "type": "generateAudio",
+  "output_filename": "narration.mp3",
+  "prompt": "Create a narration for the story @story.md",
+  "config": {
+    "model": "elevenlabs"
+  }
+}
+```
+
+**Direct SDK Implementation:**
+```javascript
+async function generateAudio(prompt, inputs, previousOutputs, config) {
+  // Process references in the prompt
+  const processedPrompt = prompt.replace(/@([a-zA-Z0-9_-]+\.[a-zA-Z0-9]+)/g, (match, filename) => {
+    return inputs[filename] || previousOutputs[filename] || match;
+  });
+  
+  // Call the SDK
+  const result = await SDK.ai.generateAudio({
+    prompt: processedPrompt,
+    model: config.model || "elevenlabs"
+  });
+  
+  return result.audios[0]; // Return the first audio URL
+}
+```
+
+### 11.4 Complete Example: HTML Export with Vue Implementation
+
+Below is a complete example of an exported app as HTML with inline Vue:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Story Generator App</title>
+  <!-- Import Vue.js -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <!-- Import Ant Design Vue -->
+  <link rel="stylesheet" href="https://unpkg.com/ant-design-vue@3.2.20/dist/antd.min.css">
+  <script src="https://unpkg.com/ant-design-vue@3.2.20/dist/antd.min.js"></script>
+  <!-- Import Webdraw SDK -->
+  <script type="module">
+    import { SDK } from "https://webdraw.com/webdraw-sdk@v1";
+    window.SDK = SDK;
+  </script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f0f2f5;
+    }
+    
+    .app-container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    
+    .input-section {
+      background-color: white;
+      padding: 24px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+    }
+    
+    .output-section {
+      background-color: white;
+      padding: 24px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .content {
+      white-space: pre-line;
+      line-height: 1.6;
+    }
+    
+    .story-image {
+      max-width: 100%;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    
+    .loading-container {
+      text-align: center;
+      padding: 40px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="app-container">
+      <div class="header">
+        <h1>{{ appConfig.name }}</h1>
+        <p>Create personalized stories with AI</p>
+      </div>
+      
+      <div class="input-section">
+        <h2>Story Information</h2>
+        <p>Fill in the details to generate your story</p>
+        
+        <a-form :model="formState" layout="vertical">
+          <a-form-item 
+            v-for="(input, index) in appConfig.inputs" 
+            :key="index"
+            :label="input.title.EN"
+            :name="input.filename"
+            :rules="[{ required: input.required, message: 'This field is required' }]"
+          >
+            <a-input 
+              v-if="input.type === 'text'"
+              v-model:value="formState[input.filename]"
+              :placeholder="input.placeholder?.EN || ''"
+            />
+            <a-textarea
+              v-if="input.type === 'textarea'"
+              v-model:value="formState[input.filename]"
+              :placeholder="input.placeholder?.EN || ''"
+              :rows="4"
+            />
+            <a-upload
+              v-if="input.type === 'image'"
+              list-type="picture-card"
+              :before-upload="beforeUpload"
+              @change="handleChange"
+            >
+              <div v-if="!formState[input.filename]">
+                <div style="margin-top: 8px">Upload</div>
+              </div>
+            </a-upload>
+          </a-form-item>
+          
+          <a-form-item>
+            <a-button 
+              type="primary" 
+              :loading="loading"
+              @click="generateContent"
+              block
+            >
+              Generate Story
+            </a-button>
+          </a-form-item>
+        </a-form>
+      </div>
+      
+      <div v-if="loading" class="loading-container">
+        <a-spin tip="Generating your story...">
+          <div class="content" />
+        </a-spin>
+      </div>
+      
+      <div v-if="output && !loading" class="output-section">
+        <h2>{{ output.title }}</h2>
+        
+        <img 
+          v-if="output.backgroundImage" 
+          :src="output.backgroundImage" 
+          class="story-image" 
+          alt="Story illustration"
+        />
+        
+        <div class="content" v-html="output.content"></div>
+        
+        <div v-if="output.audio" style="margin-top: 20px">
+          <h3>Listen to the story</h3>
+          <audio controls style="width: 100%">
+            <source :src="output.audio" type="audio/mpeg">
+            Your browser does not support the audio element.
+          </audio>
+        </div>
+        
+        <div style="margin-top: 20px; display: flex; justify-content: center;">
+          <a-button @click="downloadStory" type="primary">
+            Download Story
+          </a-button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script type="module">
+    // App configuration - this would be replaced with the actual exported configuration
+    const appConfig = {
+      "id": "story-generator",
+      "name": "AI Story Generator",
+      "template": "form",
+      "style": "minimalistic",
+      "inputs": [
+        {
+          "filename": "character_name.md",
+          "type": "text",
+          "title": {
+            "EN": "Main Character Name",
+            "PT": "Nome do Personagem Principal"
+          },
+          "required": true,
+          "placeholder": {
+            "EN": "Enter the main character's name",
+            "PT": "Digite o nome do personagem principal"
+          }
+        },
+        {
+          "filename": "story_setting.md",
+          "type": "text",
+          "title": {
+            "EN": "Story Setting",
+            "PT": "Cenário da História"
+          },
+          "required": true,
+          "placeholder": {
+            "EN": "Enter the setting (e.g. forest, space, underwater)",
+            "PT": "Digite o cenário (ex: floresta, espaço, submarino)"
+          }
+        }
+      ],
+      "actions": [
+        {
+          "type": "generateText",
+          "output_filename": "story.md",
+          "prompt": {
+            "EN": "Write a short story about a character named @character_name.md who goes on an adventure in @story_setting.md. The story should be suitable for children.",
+            "PT": "Escreva uma história curta sobre um personagem chamado @character_name.md que vai em uma aventura em @story_setting.md. A história deve ser adequada para crianças."
+          },
+          "config": {
+            "model": "Best",
+            "temperature": 0.7,
+            "maxTokens": 1000
+          }
+        },
+        {
+          "type": "generateImage",
+          "output_filename": "cover.png",
+          "prompt": "Create a colorful, child-friendly illustration for a story about @character_name.md in @story_setting.md. The style should be cute and appealing to children.",
+          "config": {
+            "model": "SDXL",
+            "size": "1024x1024",
+            "n": 1
+          }
+        },
+        {
+          "type": "generateAudio",
+          "output_filename": "narration.mp3",
+          "prompt": "Narrate this children's story in a warm, friendly voice: @story.md",
+          "config": {
+            "model": "elevenlabs"
+          }
+        }
+      ],
+      "output": [
+        {
+          "type": "Story",
+          "title": {
+            "EN": "Adventure Story",
+            "PT": "História de Aventura"
+          },
+          "backgroundImage": "@cover.png",
+          "content": "@story.md",
+          "audio": "@narration.mp3"
+        }
+      ]
+    };
+    
+    // Vue application
+    const app = Vue.createApp({
+      data() {
+        return {
+          appConfig: appConfig,
+          formState: {},
+          output: null,
+          loading: false,
+          results: {}
+        };
+      },
+      methods: {
+        // Initialize form state with empty values for each input
+        initializeForm() {
+          this.appConfig.inputs.forEach(input => {
+            this.formState[input.filename] = '';
+          });
+        },
+        
+        // Handle image upload
+        beforeUpload(file) {
+          return false;
+        },
+        
+        handleChange({ file, fileList }) {
+          if (file.status !== 'uploading') {
+            // Handle the file upload here
+          }
+        },
+        
+        // Process references in prompts
+        processReferences(text) {
+          return text.replace(/@([a-zA-Z0-9_-]+\.[a-zA-Z0-9]+)/g, (match, filename) => {
+            return this.formState[filename] || this.results[filename] || match;
+          });
+        },
+        
+        // Generate content based on inputs
+        async generateContent() {
+          this.loading = true;
+          this.output = null;
+          this.results = {};
+          
+          try {
+            // Execute each action in sequence
+            for (const action of this.appConfig.actions) {
+              const result = await this.executeAction(action);
+              this.results[action.output_filename] = result;
+            }
+            
+            // Process the output
+            if (this.appConfig.output && this.appConfig.output.length > 0) {
+              const outputTemplate = this.appConfig.output[0];
+              
+              this.output = {
+                title: outputTemplate.title.EN,
+                content: this.results[outputTemplate.content.replace('@', '')],
+                backgroundImage: this.results[outputTemplate.backgroundImage.replace('@', '')],
+                audio: this.results[outputTemplate.audio.replace('@', '')]
+              };
+            }
+          } catch (error) {
+            console.error('Error generating content:', error);
+            this.$message.error('Failed to generate content. Please try again.');
+          } finally {
+            this.loading = false;
+          }
+        },
+        
+        // Execute a single action
+        async executeAction(action) {
+          const prompt = action.prompt.EN;
+          const processedPrompt = this.processReferences(prompt);
+          
+          switch (action.type) {
+            case 'generateText':
+              const textResult = await window.SDK.ai.generateText({
+                prompt: processedPrompt,
+                model: action.config.model || "Best",
+                temperature: action.config.temperature || 0.7,
+                maxTokens: action.config.maxTokens || 1000
+              });
+              return textResult.text;
+              
+            case 'generateImage':
+              const imageResult = await window.SDK.ai.generateImage({
+                prompt: processedPrompt,
+                model: action.config.model || "SDXL",
+                size: action.config.size || "1024x1024",
+                n: action.config.n || 1
+              });
+              return imageResult.images[0];
+              
+            case 'generateAudio':
+              const audioResult = await window.SDK.ai.generateAudio({
+                prompt: processedPrompt,
+                model: action.config.model || "elevenlabs"
+              });
+              return audioResult.audios[0];
+              
+            case 'generateJSON':
+              const jsonResult = await window.SDK.ai.generateObject({
+                prompt: processedPrompt,
+                model: action.config.model || "Best",
+                schema: JSON.parse(action.config.schema),
+                temperature: action.config.temperature || 0.7
+              });
+              return jsonResult.object;
+              
+            default:
+              throw new Error(`Unsupported action type: ${action.type}`);
+          }
+        },
+        
+        // Download the story as HTML
+        downloadStory() {
+          const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>${this.output.title}</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+    img { max-width: 100%; border-radius: 8px; margin: 20px 0; }
+    .content { line-height: 1.6; white-space: pre-line; }
+  </style>
+</head>
+<body>
+  <h1>${this.output.title}</h1>
+  ${this.output.backgroundImage ? `<img src="${this.output.backgroundImage}" alt="Story illustration">` : ''}
+  <div class="content">${this.output.content}</div>
+  ${this.output.audio ? `
+  <div style="margin-top: 20px">
+    <h3>Listen to the story</h3>
+    <audio controls style="width: 100%">
+      <source src="${this.output.audio}" type="audio/mpeg">
+      Your browser does not support the audio element.
+    </audio>
+  </div>` : ''}
+  <div style="margin-top: 20px; font-size: 12px; color: #888;">
+    Generated with AI Story Generator
+  </div>
+</body>
+</html>`;
+          
+          const blob = new Blob([htmlContent], { type: 'text/html' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${this.output.title.replace(/\s+/g, '-').toLowerCase()}.html`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }
+      },
+      mounted() {
+        this.initializeForm();
+      }
+    });
+    
+    app.use(antd);
+    app.mount('#app');
+  </script>
+</body>
+</html>
+```
+
+### 11.5 Implementing the Export Functionality
+
+To implement the HTML+Vue export in Hector, follow these steps:
+
+1. **Create an Export Template**: Develop a template HTML file with placeholders for app-specific configuration.
+
+2. **Generate App-Specific Code**:
+   - Convert the app configuration to a JavaScript object
+   - Map each action to its corresponding SDK implementation
+   - Generate the Vue component structure based on inputs and outputs
+
+3. **Inject Dependencies**:
+   - Include Vue.js and Ant Design Vue via CDN
+   - Import the Webdraw SDK
+   - Add appropriate styling based on the app's chosen style guide
+
+4. **Add Download Functionality**:
+   - Provide a button to download the generated HTML file
+   - Include options to download just the configuration as JSON
+
+5. **Testing and Validation**:
+   - Validate that the exported app works correctly when opened in a browser
+   - Ensure all SDK dependencies are properly loaded
+   - Test with various input combinations
+
+By following this approach, Hector apps can be exported as standalone HTML+Vue applications that maintain all the functionality of the original app but can run independently of the Hector platform.
+
 ---
 
 This design document provides a complete specification for "Hector," the AI App Builder, covering user flows, UI components, data structures, and integrations. It ensures the platform is intuitive, scalable, and ready for implementation.
