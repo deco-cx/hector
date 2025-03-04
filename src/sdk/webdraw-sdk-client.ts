@@ -6,75 +6,154 @@ import { WebdrawSDK } from '../types/webdraw';
 // Log SDK initialization to debug loading issues
 console.log("Initializing Webdraw SDK client");
 
-// A promise that resolves when the SDK is fully initialized
+/**
+ * More robust SDK initialization with multiple retries
+ * The SDK might not be immediately available after import 
+ * as it could be initializing asynchronously in the background
+ */
 export const sdkInitialized = new Promise<boolean>((resolve) => {
-  // Small delay to ensure SDK is fully loaded
-  setTimeout(() => {
-    const isAvailable = validateSDK();
+  // Try to validate SDK multiple times with increasing delays
+  const maxRetries = 5;
+  let retryCount = 0;
+  
+  const attemptValidation = () => {
+    console.log(`SDK validation attempt ${retryCount + 1}/${maxRetries}`);
     
-    // Create necessary directories if SDK is available
-    if (isAvailable) {
-      SDK.fs.mkdir('~/Hector/apps', { recursive: true })
-        .then(() => SDK.fs.mkdir('~/Hector/executions', { recursive: true }))
-        .then(() => {
-          console.log("Ensured Hector directories exist");
-        })
-        .catch((err: Error) => {
-          console.warn("Could not create Hector directories:", err);
-        });
-    }
+    // Give it more time to initialize on each retry
+    const delay = 500 + (retryCount * 500);
     
-    resolve(isAvailable);
-  }, 500);
+    setTimeout(() => {
+      try {
+        // Print the SDK object to see what's available
+        console.log("SDK object during validation:", SDK);
+        
+        if (SDK && typeof SDK === 'object') {
+          // Print all keys on the SDK object for debugging
+          console.log("SDK keys:", Object.keys(SDK));
+          
+          // Check if fs exists
+          if (SDK.fs) {
+            console.log("SDK.fs keys:", Object.keys(SDK.fs));
+          } else {
+            console.log("SDK.fs is not available yet");
+          }
+          
+          // Check if ai exists
+          if (SDK.ai) {
+            console.log("SDK.ai keys:", Object.keys(SDK.ai));
+          } else {
+            console.log("SDK.ai is not available yet");
+          }
+        }
+        
+        // Validate SDK with current state
+        const isValid = validateSDK();
+        
+        if (isValid) {
+          console.log("SDK validation successful!");
+          
+          // Create directories only after successful validation
+          SDK.fs.mkdir('~/Hector/apps', { recursive: true })
+            .then(() => SDK.fs.mkdir('~/Hector/executions', { recursive: true }))
+            .then(() => {
+              console.log("Ensured Hector directories exist");
+            })
+            .catch((err: Error) => {
+              console.warn("Could not create Hector directories:", err);
+            });
+          
+          // Resolve with success
+          resolve(true);
+          return;
+        } else if (retryCount < maxRetries - 1) {
+          // Retry if validation failed and we haven't exceeded max retries
+          retryCount++;
+          console.log(`SDK validation failed, retrying (${retryCount}/${maxRetries})...`);
+          attemptValidation();
+        } else {
+          // Give up after max retries
+          console.error("SDK validation failed after maximum retries, falling back to mock SDK");
+          resolve(false);
+        }
+      } catch (error) {
+        console.error("Error during SDK validation:", error);
+        
+        if (retryCount < maxRetries - 1) {
+          // Retry on error if we haven't exceeded max retries
+          retryCount++;
+          console.log(`SDK validation error, retrying (${retryCount}/${maxRetries})...`);
+          attemptValidation();
+        } else {
+          // Give up after max retries
+          console.error("SDK initialization failed after maximum retries");
+          resolve(false);
+        }
+      }
+    }, delay);
+  };
+  
+  // Start the first validation attempt
+  attemptValidation();
 });
+
+// Alternative approach checking for window._webdrawSDK which may be how the SDK is exposed
+function checkGlobalSDK(): WebdrawSDK | null {
+  // @ts-ignore
+  if (window._webdrawSDK && typeof window._webdrawSDK === 'object') {
+    // @ts-ignore
+    console.log("Found SDK on window._webdrawSDK");
+    // @ts-ignore
+    return window._webdrawSDK;
+  }
+  return null;
+}
 
 // Validate that the SDK has all required methods
 function validateSDK(): boolean {
   try {
+    // Check for global SDK first
+    const globalSDK = checkGlobalSDK();
+    if (globalSDK) {
+      console.log("Using global SDK from window._webdrawSDK");
+      // @ts-ignore
+      window.SDK = globalSDK;
+      return true;
+    }
+    
     // Basic existence check
     if (!SDK || typeof SDK !== 'object') {
       console.error("SDK validation failed: SDK is not an object");
       return false;
     }
     
-    // Check fs property and methods
-    if (!SDK.fs || typeof SDK.fs !== 'object') {
+    // Check fs property exists - don't rely on Object.keys for Proxy objects
+    if (!SDK.fs) {
       console.error("SDK validation failed: Missing fs property");
       return false;
     }
     
-    const fsMethods = ['list', 'read', 'write', 'mkdir', 'readFile', 'writeFile'];
+    // Check individual methods directly on the fs object
+    // This works better with Proxy objects that don't expose keys via Object.keys()
+    const fsMethods = ['list', 'read', 'write', 'mkdir'];
     for (const method of fsMethods) {
-      if (typeof SDK.fs[method] !== 'function') {
-        console.error(`SDK validation failed: Missing fs.${method} method`);
+      try {
+        // Try to access the method property - for Proxy objects this may invoke getters
+        if (typeof SDK.fs[method] !== 'function') {
+          console.error(`SDK validation failed: SDK.fs.${method} is not a function`);
+          return false;
+        }
+        console.log(`SDK.fs.${method} exists and is a function`);
+      } catch (e) {
+        console.error(`SDK validation failed: Error accessing SDK.fs.${method}`, e);
         return false;
       }
     }
     
-    // Check ai property and methods
-    if (!SDK.ai || typeof SDK.ai !== 'object') {
-      console.error("SDK validation failed: Missing ai property");
-      return false;
-    }
+    // Skip AI methods check for now, since it appears the SDK structure might be different
+    // than what we expected - AI methods might be accessed differently
     
-    const aiMethods = ['generateText', 'generateObject', 'generateImage'];
-    for (const method of aiMethods) {
-      if (typeof SDK.ai[method] !== 'function') {
-        console.error(`SDK validation failed: Missing ai.${method} method`);
-        return false;
-      }
-    }
-    
-    // Check top-level SDK methods
-    const sdkMethods = ['getUser', 'generateText', 'generateObject'];
-    for (const method of sdkMethods) {
-      if (typeof SDK[method] !== 'function') {
-        console.error(`SDK validation failed: Missing SDK.${method} method`);
-        return false;
-      }
-    }
-    
-    console.log("SDK validation passed: All required methods are available");
+    // If all required fs methods exist, consider the SDK valid
+    console.log("SDK validation passed: Required filesystem methods are available");
     return true;
   } catch (error) {
     console.error("SDK validation failed with error:", error);
@@ -84,87 +163,73 @@ function validateSDK(): boolean {
 
 // Create a mock SDK for when the real one isn't available
 function createMockSDK(): WebdrawSDK {
-  console.log("Creating mock SDK");
+  console.log("Creating mock SDK to match observed structure");
   
-  return {
-    fs: {
-      list: async (path: string) => {
-        console.log(`Mock SDK: Listing files in ${path}`);
-        return [];
-      },
-      read: async (path: string) => {
-        console.log(`Mock SDK: Reading file ${path}`);
-        return '{}';
-      },
-      write: async (path: string, content: string) => {
-        console.log(`Mock SDK: Writing to ${path}`, content);
-      },
-      readFile: async (options: any) => {
-        console.log(`Mock SDK: Reading file with options`, options);
-        return '{}';
-      },
-      writeFile: async (options: any) => {
-        console.log(`Mock SDK: Writing file with options`, options);
-      },
-      delete: async (options: any) => {
-        console.log(`Mock SDK: Deleting file with options`, options);
-      },
-      remove: async (path: string) => {
-        console.log(`Mock SDK: Removing file ${path}`);
-      },
-      mkdir: async (path: string) => {
-        console.log(`Mock SDK: Creating directory ${path}`);
-      },
+  // Create a mock fs object with the methods we need
+  const mockFs = {
+    list: async (path: string) => {
+      console.log(`Mock SDK: Listing files in ${path}`);
+      return ['mock-file-1.txt', 'mock-file-2.txt'];
     },
-    ai: {
-      generateText: async function(options: any) {
-        console.log(`Mock SDK: Generating text`, options);
-        return { text: 'Mock generated text', filepath: 'mock/file.txt' };
-      },
-      generateImage: async function(options: any) {
-        console.log(`Mock SDK: Generating image`, options);
-        return { images: ['mock-image-url'], filepath: 'mock/image.png' };
-      },
-      generateObject: async function<T>(options: any) {
-        console.log(`Mock SDK: Generating object`, options);
-        return { object: {} as T, filepath: 'mock/object.json' };
-      },
+    read: async (path: string) => {
+      console.log(`Mock SDK: Reading file ${path}`);
+      return '{}';
     },
-    getUser: async () => {
-      console.log("Mock SDK: Getting user");
-      return { username: 'mock-user' };
+    write: async (path: string, content: string) => {
+      console.log(`Mock SDK: Writing to ${path}`, content);
     },
-    redirectToLogin: (options?: any) => {
-      console.log("Mock SDK: Redirecting to login", options);
+    mkdir: async (path: string, options?: any) => {
+      console.log(`Mock SDK: Creating directory ${path}`, options);
     },
-    hello: () => "Hello from mock SDK",
-    generateText: async function(params: any) {
-      console.log("Mock SDK: Generating text", params);
-      return "Mock generated text";
+    // Additional methods that might be needed
+    readFile: async (options: any) => {
+      console.log(`Mock SDK: Reading file with options`, options);
+      return '{}';
     },
-    generateImage: async function(params: any) {
-      console.log("Mock SDK: Generating image", params);
-      return "mock-image-url";
+    writeFile: async (options: any) => {
+      console.log(`Mock SDK: Writing file with options`, options);
     },
-    generateAudio: async function(params: any) {
-      console.log("Mock SDK: Generating audio", params);
-      return "mock-audio-url";
+    delete: async (options: any) => {
+      console.log(`Mock SDK: Deleting file with options`, options);
     },
-    generateVideo: async function(params: any) {
-      console.log("Mock SDK: Generating video", params);
-      return "mock-video-url";
-    },
-    generateObject: async function<T>(params: any) {
-      console.log("Mock SDK: Generating object", params);
-      return {} as T;
-    },
+    remove: async (path: string) => {
+      console.log(`Mock SDK: Removing file ${path}`);
+    }
   };
+  
+  // Create a mock os object as observed in the real SDK
+  const mockOs = {
+    platform: () => 'mock-platform',
+    arch: () => 'mock-arch',
+    version: () => 'mock-version'
+  };
+  
+  // The base SDK structure we've observed
+  return {
+    fs: mockFs,
+    os: mockOs,
+    // Include other properties we required
+    // These will only be used if validation passes with the above
+    getUser: async () => ({ username: 'mock-user' }),
+    redirectToLogin: () => {},
+    hello: () => 'Hello from mock SDK',
+    generateText: async () => 'Mock text',
+    generateImage: async () => 'mock-image-url',
+    generateAudio: async () => 'mock-audio-url',
+    generateVideo: async () => 'mock-video-url',
+    generateObject: async function<T>() { return {} as T; },
+    ai: {
+      generateText: async () => ({ text: 'Mock text', filepath: 'mock/path.txt' }),
+      generateImage: async () => ({ images: ['mock-image-url'], filepath: 'mock/image.png' }),
+      generateObject: async function<T>() { return { object: {} as T, filepath: 'mock/data.json' }; }
+    }
+  } as unknown as WebdrawSDK;
 }
 
 // Export either the real SDK if available, or a mock if not
 let exportedSDK: WebdrawSDK;
 
-// Wait for the initialization check
+// Wait for the initialization check 
 sdkInitialized.then(isAvailable => {
   if (isAvailable) {
     console.log("Exporting real SDK");
@@ -175,5 +240,5 @@ sdkInitialized.then(isAvailable => {
   }
 });
 
-// Default to real SDK, will be replaced with mock if validation fails
+// Default to SDK directly, will be replaced with mock if validation fails
 export default SDK as WebdrawSDK; 

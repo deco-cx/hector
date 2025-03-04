@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Typography, Row, Col, Card, Button, List, Spin, Empty, message, Alert, Steps } from 'antd';
-import { PlusOutlined, AppstoreOutlined, BookOutlined, EditOutlined, DeleteOutlined, GlobalOutlined } from '@ant-design/icons';
+import { Typography, Row, Col, Card, Button, List, Spin, Empty, message, Alert, Steps, Space } from 'antd';
+import { PlusOutlined, AppstoreOutlined, BookOutlined, EditOutlined, DeleteOutlined, GlobalOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { CreateAppModal } from '../AppCreation/CreateAppModal';
 import { useWebdraw } from '../../context/WebdrawContext';
@@ -12,7 +12,7 @@ const { Title, Paragraph } = Typography;
 
 export function HomePage() {
   const navigate = useNavigate();
-  const { service, isSDKAvailable } = useWebdraw();
+  const { service, isSDKAvailable, reloadSDK } = useWebdraw();
   const { currentLanguage } = useLanguage();
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [apps, setApps] = useState<AppConfig[]>([]);
@@ -268,14 +268,28 @@ export function HomePage() {
           description={
             <div>
               <p>The WebdrawSDK is not available in this environment.</p>
-              <p>Please test this application at <a href="https://webdraw.com/apps/browser" target="_blank" rel="noopener noreferrer">https://webdraw.com/apps/browser</a></p>
+              <p>Some features will be limited or use mock data.</p>
+              <div style={{ marginTop: '16px' }}>
+                <Button 
+                  type="primary" 
+                  icon={<ReloadOutlined />} 
+                  onClick={reloadSDK}
+                  style={{ marginRight: '12px' }}
+                >
+                  Retry SDK Connection
+                </Button>
+                <Button href="https://webdraw.com/apps/browser" target="_blank">
+                  Open in Webdraw
+                </Button>
+              </div>
             </div>
           }
           type="warning"
           showIcon
           style={{ 
             marginBottom: '32px',
-            marginTop: '16px' 
+            marginTop: '16px',
+            padding: '16px'
           }}
         />
       )}
