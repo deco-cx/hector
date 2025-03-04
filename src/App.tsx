@@ -16,6 +16,7 @@ function App() {
         token: {
           colorPrimary: '#7c3aed',
           borderRadius: 6,
+          fontFamily: "'Merriweather', serif",
         },
       }}
     >

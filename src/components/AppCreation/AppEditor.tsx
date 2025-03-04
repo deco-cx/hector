@@ -10,6 +10,7 @@ import { AppConfig, getLocalizedValue, DEFAULT_LANGUAGE, OutputTemplate, createD
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons';
 import LanguageSettings from '../LanguageSettings/LanguageSettings';
 import JSONViewer from '../JSONViewer/JSONViewer';
+import ExportsView from '../Exports/ExportsView';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { createOutputTemplate } from '../../config/outputsConfig';
 
@@ -260,13 +261,25 @@ export const AppEditor: React.FC<AppEditorProps> = ({ tab }) => {
         className="mb-6 border-b shadow-sm rounded-lg" 
         bodyStyle={{ padding: '24px 20px' }}
       >
-        {/* Back to Home Link */}
-        <div className="flex justify-between items-center">
+        {/* Back to Home Link and Save Button */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          marginBottom: '32px',
+          gap: '16px'
+        }}>
           <Button 
             type="link" 
             icon={<ArrowLeftOutlined />} 
             onClick={() => navigate('/')}
-            className="text-purple-700 hover:text-purple-500 p-0 flex items-center text-base mb-6"
+            style={{
+              color: '#7c3aed',
+              padding: 0,
+              display: 'flex',
+              alignItems: 'center',
+              fontSize: '16px'
+            }}
           >
             Back to Home
           </Button>
@@ -276,28 +289,37 @@ export const AppEditor: React.FC<AppEditorProps> = ({ tab }) => {
             onClick={saveApp}
             loading={saving}
             icon={<SaveOutlined />}
+            size="large"
           >
             Save Changes
           </Button>
         </div>
         
         {/* App Information */}
-        <div className="mt-2">
+        <div style={{ marginTop: '24px' }}>
           <Typography.Title 
             level={2}
-            className="mb-3 py-3 px-4"
             style={{ 
+              marginBottom: '24px',
+              padding: '20px 24px',
               background: '#f5f3ff', 
               borderBottom: '2px solid #7c3aed',
-              borderRadius: '4px 4px 0 0'
+              borderRadius: '4px 4px 0 0',
+              fontFamily: "'Merriweather', serif",
             }}
           >
             {formData.name && getLocalizedValue(formData.name, currentLanguage)}
           </Typography.Title>
           
-          <div className="text-gray-500 text-sm px-1 mt-3">
-            App ID: <code className="bg-gray-100 px-2 py-1 rounded">{formData.id}</code> 
-            <span className="ml-3">(used for the file name, cannot be changed)</span>
+          <div style={{ 
+            color: '#6b7280', 
+            fontSize: '14px', 
+            padding: '0 12px', 
+            marginTop: '20px', 
+            marginBottom: '12px' 
+          }}>
+            App ID: <code style={{ background: '#f3f4f6', padding: '2px 8px', borderRadius: '4px' }}>{formData.id}</code> 
+            <span style={{ marginLeft: '12px' }}>(used for the file name, cannot be changed)</span>
           </div>
         </div>
       </Card>
@@ -368,11 +390,11 @@ export const AppEditor: React.FC<AppEditorProps> = ({ tab }) => {
               ),
             },
             {
-              key: 'json',
-              label: 'JSON',
+              key: 'exports',
+              label: 'Exports',
               children: (
-                <JSONViewer
-                  key="json-viewer"
+                <ExportsView
+                  key="exports-view"
                   data={formData}
                 />
               ),

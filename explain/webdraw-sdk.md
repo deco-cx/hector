@@ -1,6 +1,18 @@
 WebdrawSDK Documentation
 The WebdrawSDK is a comprehensive interface for interacting with the Webdraw platform, providing capabilities for file system operations, AI-powered content generation, canvas drawing, user authentication, and more. This document outlines the SDK's structure, methods, and usage patterns.
 
+The generated code will use AI APIs using Webdraw SDK
+
+To use the SDK, import it like this.
+
+import { SDK } from "https://webdraw.com/webdraw-sdk@v1"
+
+if used in inline code, 
+import  inside of a <script type="module"
+
+instantiates like this: const sdk = SDK
+
+
 Core SDK Interface
 export interface WebdrawSDK {
   fs: FileSystemInterface;
@@ -247,3 +259,34 @@ posthogEvent(
   eventId: PosthogEvent["name"],
   properties: Record<string, unknown>,
 ): void;
+
+Example Usage
+
+// Import the SDK
+import { SDK } from "https://webdraw.com/webdraw-sdk@v1";
+
+// Initialize the SDK
+const sdk = SDK;
+
+// Example: Generate text using AI
+async function generateStory() {
+  try {
+    const result = await sdk.ai.generateText({
+      prompt: "Write a short story about a magical forest"
+    });
+    console.log(result.text);
+    console.log('Saved to:', result.filepath);
+  } catch (error) {
+    console.error('Error:', error);
+  }
+}
+
+// Example: Read a file
+async function readFile() {
+  try {
+    const content = await sdk.fs.readFile('/path/to/file.txt');
+    console.log('File content:', content);
+  } catch (error) {
+    console.error('Error:', error);
+  }
+}
