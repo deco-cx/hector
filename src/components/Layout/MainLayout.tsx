@@ -10,13 +10,26 @@ interface MainLayoutProps {
 
 export function MainLayout({ children }: MainLayoutProps) {
   const location = useLocation();
+  const isAppEditor = location.pathname.includes('/edit/');
   
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Content style={{ padding: '24px', maxWidth: '1200px', width: '100%', margin: '0 auto' }}>
+      <Content 
+        style={{ 
+          padding: isAppEditor ? 0 : '16px', 
+          maxWidth: '1200px', 
+          width: '100%', 
+          margin: '0 auto'
+        }}
+      >
         {children}
       </Content>
-      <Footer style={{ textAlign: 'center' }}>
+      <Footer style={{ 
+        textAlign: 'center',
+        padding: '12px 24px',
+        background: '#f9f9f9',
+        fontSize: '14px'
+      }}>
         Hector ©{new Date().getFullYear()} - AI App Builder
       </Footer>
     </Layout>

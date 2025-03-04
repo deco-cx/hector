@@ -750,3 +750,39 @@ Enables users to export their app's configuration for sharing or standalone depl
 -   **Collapsible Sections:** Used throughout the configuration screens to manage space and improve usability.
   
 -   **Validation Indicators:** Visual cues (e.g., checkmarks, error messages) to show whether the app is ready to run or export.
+
+# TODOs and Future Improvements
+
+The following features and improvements need to be implemented:
+
+## 1. Enhanced Styleguide Selection
+- Develop a more robust and comprehensive styleguide selection interface
+- Add preview capabilities for each style option
+- Include customization options for colors, fonts, and spacing within each style
+- Support custom CSS injection for advanced users
+
+## 2. Output Configuration Enhancement
+- Improve the interface for defining output formats and templates
+- Add support for multiple output formats (HTML, PDF, etc.)
+- Develop a template editor for customizing the presentation of generated content
+- Create reusable output templates that can be shared across apps
+
+## 3. Runtime/Execution System
+- Implement a robust execution engine for running apps
+- Integrate in the app's data structure for storing execution data and results
+- Create a system for tracking execution history and allowing resumption of previous runs
+- Add real-time progress indicators during execution
+- Implement caching mechanisms for previously generated content
+- Support for cancelling running executions
+- Add execution analytics and performance monitoring
+
+## 4. Internationalization (i18n) for Apps
+- Complete UI internationalization for all components and screens
+- Support for content internationalization (input labels, prompts, etc.)
+- Enable language-specific AI prompts and outputs
+- Add language selection controls for users running apps
+- Implement AI-assisted translation for app content
+- Support for language detection and automatic switching based on user preferences
+- Create a Localizable<T> type for all user-facing text fields
+- Add mechanisms to copy content between languages with AI translation assistance
+- Support query string parameters for pre-selecting language

@@ -1,343 +1,36 @@
-/* Modify CSS to ensure Schema fields are visible */
-/* Remove the rule that hides the root fieldset */
-.default-field-template > fieldset#root {
-  /* Keep some constraints but don't hide */
-  height: auto !important;
-  min-height: auto !important;
-  max-height: none !important;
-  padding: 0 !important;
-  margin: 0 0 16px 0 !important; /* Add bottom margin for spacing */
-  border: none !important;
-  overflow: visible !important;
-  /* Remove these properties that were hiding the content */
-  /* visibility: hidden !important; */
-  /* position: absolute !important; */
-}
+/* Reset all the complex CSS and focus on the key fix */
+/* Clear existing rules */
 
-/* Hide only truly empty fieldsets, not ones with content */
-fieldset:empty {
-  display: none !important;
-}
-
-/* Make sure we only hide empty form elements */
-.ant-form-item:empty,
-.ant-form-item-control:empty,
-.ant-form-item-control-input:empty {
-  display: none !important;
-}
-
-/* Fix fieldset height issue - primary problem */
-fieldset#root {
-  height: auto !important;
-  min-height: auto !important;
-  max-height: none !important;
-  display: block !important;
-  overflow: visible !important;
-}
-
-/* Target all fieldsets to ensure no excessive height */
+/* Simple, targeted fix for the fieldset height issue */
 fieldset {
   height: auto !important;
   min-height: auto !important;
   max-height: none !important;
-}
-
-/* Target empty or nearly-empty containers that might be taking space */
-.ant-form-item-control-input-content:empty {
-  display: none !important;
-}
-
-/* Force all form rows to be compact */
-.ant-row {
-  min-height: auto !important;
-}
-
-/* Fix default-field-template which contains the fieldset */
-.default-field-template {
-  margin-bottom: 0 !important;
-  height: auto !important;
-  display: block !important;
-}
-
-/* Additional targeting for any component with excessive height */
-.ant-form-item-control {
-  min-height: auto !important;
-  height: auto !important;
-}
-
-/* For all the existing margin fixes */
-.json-schema-form-wrapper fieldset {
-  margin-bottom: 0 !important;
-}
-
-.rjsf-no-margin {
-  margin-bottom: 0 !important;
-}
-
-.ant-card .default-field-template {
-  margin-bottom: 0 !important;
-}
-
-.ant-card-body .ant-form-item:last-child {
-  margin-bottom: 0 !important;
-}
-
-/* Fix any potential nested form elements */
-.ant-card-body fieldset {
-  margin: 0 !important;
-  padding: 0 !important;
-}
-
-/* Remove any extra margin from form labels */
-.ant-card-body .ant-form-item-label {
-  margin-bottom: 8px !important;
-}
-
-/* Fix overall spacing */
-.compact-form {
-  margin-bottom: 0 !important;
-}
-
-/* Target specific margin issues */
-#root > .ant-row {
-  margin-bottom: 0 !important;
-}
-
-/* Directly target the big bottom margin issue */
-fieldset#root {
   margin-bottom: 0 !important;
   padding-bottom: 0 !important;
 }
 
-/* Fix for specific RJSF component */
-.ant-card-body > .json-schema-form-wrapper > div > fieldset {
-  margin-bottom: 0 !important;
-}
-
-/* Target any unused space */
-.ant-card-body > div:last-child {
-  margin-bottom: 0 !important;
-}
-
-/* Fix for the excessive 300px margin issue */
-.default-field-template {
-  margin-bottom: 0 !important;
-}
-
-.default-field-template > div:last-child {
-  margin-bottom: 0 !important;
-}
-
-.default-field-template > fieldset {
-  margin-bottom: 0 !important;
-}
-
-/* Target the exact structure from the HTML example */
-div[class*="ant-form-item"] {
-  margin-bottom: 12px !important;
-}
-
-/* Override any RJSF default margins */
-#root, fieldset#root, .json-schema-form-wrapper, .rjsf {
-  margin-bottom: 0 !important; 
-}
-
-/* Force height constraints */
+/* Target the specific form wrapper */
 .json-schema-form-wrapper {
-  max-height: fit-content !important;
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
   overflow: visible !important;
 }
 
-/* Ensure card body has no padding at bottom */
-.ant-card-body {
-  padding-bottom: 0 !important;
-}
-
-/* Styles for specific field types */
+/* Fix for schema textarea */
 textarea[id*="schema"] {
   min-height: 150px !important;
   font-family: monospace !important;
-  white-space: pre !important;
-  resize: vertical !important;
-  margin-bottom: 0 !important;
 }
 
-/* Ensure the schema field container has enough space but no excessive margin */
-.ant-form-item:has(textarea[id*="schema"]) {
-  margin-bottom: 16px !important;
-  margin-top: 0 !important;
-}
-
-/* Additional fixes for JSON schema form */
-.ant-form-item-control-input {
-  min-height: auto !important;
-}
-
-/* Fix the extra space below card content */
-.ant-card-body {
-  padding-bottom: 16px !important;
-}
-
-/* Fix spacing in the JSON schema form container */
-.json-schema-form-wrapper {
-  padding-bottom: 0 !important;
-  margin-bottom: 0 !important;
-}
-
-/* Ensure all field containers have consistent spacing */
-.ant-form-item {
-  margin-bottom: 16px !important;
-}
-
-/* Fix the last item in each form to not have extra margin */
-.ant-form-item:last-child {
-  margin-bottom: 0 !important;
-}
-
-/* Fix nested fieldsets that might cause extra spacing */
-fieldset fieldset {
-  margin-bottom: 0 !important;
-  padding-bottom: 0 !important;
-}
-
-/* Ensure the card action area doesn't have extra space above it */
-.ant-card-actions {
-  margin-top: 0 !important;
-}
-
-/* Fix for the view button visibility */
-.ant-card-actions > li {
-  margin-bottom: 0 !important;
-}
-
-/* Force all fieldsets to have zero margin and padding at the bottom */
-fieldset, fieldset#root, div > fieldset, .rjsf fieldset, .json-schema-form-wrapper fieldset {
-  margin-bottom: 0 !important;
-  padding-bottom: 0 !important;
-  height: auto !important;
-  min-height: 0 !important;
-  max-height: none !important;
-}
-
-/* Eliminate any excessive bottom margin from the JSON schema container */
-.json-schema-form-wrapper, .json-schema-form-wrapper > div, .json-schema-form-wrapper > form {
-  margin-bottom: 0 !important;
-  padding-bottom: 0 !important;
-  height: auto !important;
-  min-height: 0 !important;
-  max-height: none !important;
-}
-
-/* Fix the root container for React JSON Schema Form */
-.rjsf, form.rjsf, div.rjsf, #root, form#root, div#root {
-  margin-bottom: 0 !important;
-  padding-bottom: 0 !important;
-  height: auto !important;
-  min-height: 0 !important;
-  max-height: none !important;
-  display: block !important;
-}
-
-/* Eliminate padding from the card body that might cause spacing issues */
+/* Remove any margin that might push down the card actions */
 .ant-card-body {
   padding-bottom: 0 !important;
 }
 
-/* Reset any collapse margins that might be occurring */
-.ant-form-item, .ant-form-item-control, .ant-form-item-control-input {
-  display: block !important;
-  margin-bottom: 8px !important;
-  padding-bottom: 0 !important;
-}
-
-/* Adjust the form fields to have proper spacing */
-.ant-form-item:last-child, .ant-form-item-control:last-child {
-  margin-bottom: 0 !important;
-}
-
-/* Ensure the action button area is not being pushed down */
+/* Fix for card action visibility */
 .ant-card-actions {
-  border-top: 1px solid #f0f0f0 !important;
   margin-top: 0 !important;
-}
-
-/* More specific selectors to target the schema textarea */
-textarea[id$="schema"], textarea[id*="_schema"], .json-schema-form-wrapper textarea {
-  margin-bottom: 0 !important;
-}
-
-/* Add a hard constraint on any default field template that might be causing the issue */
-.default-field-template, .field-template, form > div > div {
-  margin-bottom: 0 !important;
-  padding-bottom: 0 !important;
-}
-
-/* Target the container of the schema field which is often the culprit */
-.ant-form-item:has(textarea[id*="schema"]), div:has(> textarea[id*="schema"]) {
-  margin-bottom: 8px !important;
-}
-
-/* Fix for the common Ant Design component structure that might cause spacing */
-.ant-row, .ant-col, .ant-form-item-row {
-  margin-bottom: 0 !important;
-}
-
-/* Hard constraints on all direct children of the card body */
-.ant-card-body > * {
-  margin-bottom: 8px !important;
-}
-.ant-card-body > *:last-child {
-  margin-bottom: 0 !important;
-}
-
-/* Add a specific fix for the view mode of the action card */
-.action-card-view-mode {
-  margin-bottom: 0 !important;
-  padding-bottom: 0 !important;
-}
-
-/* Add a specific targeted fix for the schema field */
-.schema-field-wrapper {
-  margin-bottom: 0 !important;
-  padding-bottom: 0 !important;
-}
-
-/* Force compact fields throughout the form */
-.compact-field {
-  margin-bottom: 8px !important;
-}
-.compact-field:last-child {
-  margin-bottom: 0 !important;
-}
-
-/* Use more aggressive styling to eliminate the gap between form and actions */
-.ant-card-body {
-  padding-bottom: 0 !important;
-  display: flex !important;
-  flex-direction: column !important;
-}
-
-/* Fix the card structure to ensure proper spacing */
-.ant-card {
-  display: flex !important;
-  flex-direction: column !important;
-}
-
-/* Ensure the actions are directly connected to the content */
-.ant-card-actions {
-  margin-top: auto !important;
-  padding-top: 8px !important;
-}
-
-/* Use direct child selectors to control form spacing */
-.json-schema-form-wrapper > form > div > div,
-.json-schema-form-wrapper > form > div > div > div {
-  margin-bottom: 0 !important;
-  padding-bottom: 0 !important;
-}
-
-/* Fix any potential spacing in the schema text area */
-textarea[id*="schema"] {
-  margin-bottom: 0 !important;
-  display: block !important;
+  position: relative !important;
+  z-index: 1 !important;
 }

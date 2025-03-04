@@ -171,11 +171,11 @@ export function AppEditor() {
   }
   
   return (
-    <div className="app-editor bg-gray-50 min-h-screen">
+    <div className="app-editor min-h-screen">
       {/* Header Section */}
       <Card 
-        className="mb-8 border-b shadow-sm rounded-none" 
-        bodyStyle={{ padding: '20px' }}
+        className="mb-6 border-b shadow-sm rounded-lg" 
+        bodyStyle={{ padding: '24px 20px' }}
       >
         {/* Back to Home Link */}
         <div className="flex justify-between items-center">
@@ -220,7 +220,7 @@ export function AppEditor() {
       </Card>
       
       {/* Tabs Section */}
-      <div className="px-6 mb-6">
+      <div>
         <Tabs
           activeKey={activeTab}
           onChange={handleTabChange}
