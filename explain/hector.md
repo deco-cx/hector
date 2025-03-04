@@ -223,7 +223,7 @@ Configures the AI-driven actions that the app will perform, such as generating t
     -   **Schema-based Form:** Dynamic configuration form generated from JSON Schema for each action type
     -   **Prompt:** Users define the AI prompt, referencing input fields or previous actions with @filename.ext notation
     -   **Additional Properties:** Specific to each action type (e.g., model, temperature, max tokens for text)
-    -   **Schema Field (JSON Actions):** For JSON generation actions, users can define a JSON schema or use the "Use AI" button to generate a schema using the Object Generation API
+    -   **Schema Field (JSON Actions):** For JSON generation actions, users can define a JSON schema directly in a text field or use the "Use AI" button to generate a schema automatically. When the "Use AI" button is clicked, a specialized implementation uses the generateObject API with a meta-schema to produce valid JSON Schema documents based on the user's description.
     -   **Model Selection (Text and JSON):** For text and JSON generation, users can choose from a variety of AI models including general options (Best, Fast) and specific provider models (Anthropic, OpenAI, Deepseek, Mistral, etc.)
       
 -   **Available Variables Component:** 
@@ -393,28 +393,32 @@ The app uses the Webdraw AI SDK to perform AI-driven actions and manage file sto
 
 ### 6.1 AI Object Generation for Schema Creation
 
-The application leverages the Webdraw SDK's Object Generation API to create JSON Schema definitions for JSON actions:
+The application leverages the Webdraw SDK's Object Generation API to create JSON Schema definitions for JSON actions. This specialized implementation ensures that generated schemas are valid and properly structured.
 
-- **generateObject()**: This specialized API endpoint creates structured data following a provided schema
+**Implementation Details:**
+- **generateObject()**: The system uses this specialized API endpoint with a meta-schema to generate valid JSON Schema documents
 - **Schema Generation Flow**:
   1. User clicks "Use AI" button next to the Schema field
-  2. A specialized modal appears for Schema generation
+  2. A modal appears for Schema generation
   3. User enters a description of the data structure they need
-  4. The system calls generateObject() with a meta-schema to produce a valid JSON Schema
-  5. If successful, the generated schema is inserted into the Schema field
-  6. If unsuccessful, the system falls back to text generation
+  4. The system detects that this is a Schema field for a JSON action
+  5. It calls generateObject() with a meta-schema that includes a jsonSchema property
+  6. If successful, the generated schema is extracted from the response and formatted as JSON
+  7. The formatted schema is inserted into the Schema field
+  8. If unsuccessful, the system falls back to text generation with specific instructions
 
 - **Benefits**:
   - More accurate and valid JSON Schemas compared to text-based generation
   - Proper schema structure with correct types, validations, and nested objects
   - More intuitive interface for users who may not be familiar with JSON Schema syntax
   - Enhanced reliability with fallback mechanisms
-  
-- **Model Selection for JSON Generation**:
-  - JSON generation supports the same model options as text generation
-  - Models include options like Best, Fast, and specific models from providers (anthropic, openai, deepseek, mistral, etc.)
-  - Model selection affects the quality and style of the generated JSON content
-  - Different models may be better suited for different types of JSON structures
+
+- **Technical Implementation**:
+  - The system detects Schema fields in JSON actions via field ID and title
+  - Uses a specialized meta-schema with a jsonSchema object property
+  - Comprehensive error handling with fallback to text generation
+  - Proper JSON formatting with indentation for better readability
+  - Clear success/error messages to guide users
 
 ### 6.2 Example Payload Configuration
 
@@ -428,11 +432,30 @@ For "Gerar Texto":
 }
 ```
 
-For "Gerar JSON" with Object Generation for Schema:
+For "Gerar JSON":
 
 ```typescript
+// Current implementation for JSON schema creation
+// Note: Currently using regular text generation instead of specialized Object Generation
 {
-  // For schema generation
+  // Regular text generation to create a schema string
+  prompt: "Create a JSON schema for a product catalog with name, price, and category fields",
+  model: "Best", 
+  temperature: 0.7
+  // Result is a text string that needs to be valid JSON Schema
+}
+
+// JSON generation with the created schema:
+{
+  model: "Best",
+  prompt: "Generate a product catalog for a sports store",
+  schema: JSON.parse(schemaString), // Schema is parsed from the string stored in the action config
+  temperature: 0.7
+}
+
+// FUTURE IMPLEMENTATION (proposed for specialized schema generation):
+{
+  // Meta-schema for generating a valid JSON Schema
   schema: {
     type: "object",
     properties: {
@@ -443,7 +466,36 @@ For "Gerar JSON" with Object Generation for Schema:
     }
   },
   prompt: "Create a JSON schema for a product catalog with name, price, and category fields",
-  model: "anthropic:claude-3-7-sonnet-latest", // Same model options as text generation
+  model: "anthropic:claude-3-7-sonnet-latest",
+  temperature: 0.7
+}
+```
+
+For "Gerar JSON":
+
+```typescript
+// Schema generation using Object Generation API:
+{
+  // Meta-schema for generating JSON Schema
+  schema: {
+    type: "object",
+    properties: {
+      jsonSchema: {
+        type: "object",
+        description: "A valid JSON Schema defining the structure of objects"
+      }
+    }
+  },
+  prompt: "Create a JSON schema for a product catalog with name, price, and category fields",
+  model: "Best",
+  temperature: 0.7
+}
+
+// JSON generation with the created schema:
+{
+  model: "Best",
+  prompt: "Generate a product catalog for a sports store",
+  schema: JSON.parse(schemaString), // Schema is parsed from the string stored in the action config
   temperature: 0.7
 }
 ```
@@ -672,7 +724,7 @@ Configures the AI-driven actions that the app will perform, such as generating t
     -   **Schema-based Form:** Dynamic configuration form generated from JSON Schema for each action type
     -   **Prompt:** Users define the AI prompt, referencing input fields or previous actions with @filename.ext notation
     -   **Additional Properties:** Specific to each action type (e.g., model, temperature, max tokens for text)
-    -   **Schema Field (JSON Actions):** For JSON generation actions, users can define a JSON schema or use the "Use AI" button to generate a schema using the Object Generation API
+    -   **Schema Field (JSON Actions):** For JSON generation actions, users can define a JSON schema directly in a text field or use the "Use AI" button to generate a schema automatically. When the "Use AI" button is clicked, a specialized implementation uses the generateObject API with a meta-schema to produce valid JSON Schema documents based on the user's description.
     -   **Model Selection (Text and JSON):** For text and JSON generation, users can choose from a variety of AI models including general options (Best, Fast) and specific provider models (Anthropic, OpenAI, Deepseek, Mistral, etc.)
       
 -   **Available Variables Component:** 
@@ -838,3 +890,12 @@ The following features and improvements need to be implemented:
 - Create a Localizable<T> type for all user-facing text fields
 - Add mechanisms to copy content between languages with AI translation assistance
 - Support query string parameters for pre-selecting language
+
+## 5. COMPLETED: AI Schema Generation for JSON Actions
+- Implement specialized JSON Schema generation using the Object Generation API
+- Create a dedicated modal for schema generation with better UX
+- Define meta-schema for generating valid JSON Schema documents
+- Add error handling and validation for generated schemas
+- Provide helper UI to explain JSON Schema concepts
+- Include examples of common schema patterns
+- Support for schema templates based on common data structures

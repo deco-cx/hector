@@ -196,8 +196,31 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
     setIsModalVisible(false);
     
     try {
-      // Generate content using AI
-      const result = await service.executeAIGeneration(userPrompt);
+      console.log('Generating content using Object Generation API');
+      console.log('User prompt:', userPrompt);
+      
+      // Generate content using AI with object generation
+      const response = await service.executeAIGenerateObject({
+        prompt: userPrompt,
+        schema: {
+          type: "object",
+          properties: {
+            content: {
+              type: "string",
+              description: "The generated content based on the prompt"
+            }
+          }
+        }
+      });
+      
+      console.log('Content generation response:', response);
+      
+      // Extract the content from the response
+      if (!response || !response.content) {
+        throw new Error('Generated object missing content property');
+      }
+      
+      const result = response.content;
       
       // If we have a current prompt index, update that action's prompt
       if (currentPromptIndex !== null && formData.actions && formData.actions[currentPromptIndex]) {
@@ -261,25 +284,47 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
 
   // Custom field template for JsonSchemaForm to handle the prompt field specially
   const CustomFieldTemplate = (props: any) => {
-    const { id, label, required, children, schema, formData, onChange } = props;
+    const { id, label, required, children, schema, formData, onChange, uiSchema } = props;
     
     const [isGenerating, setIsGenerating] = useState(false);
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [userPrompt, setUserPrompt] = useState('');
     
-    // Access the editing index and current action type directly from parent scope
-    const currentActionIndex = editingIndex !== null ? editingIndex : -1;
+    // Get the action type directly from the field's UI options
+    const fieldOptions = props.uiSchema?.[id.split('_').pop()]?.['ui:options'] || {};
+    const isJsonSchemaField = id.endsWith('_schema') && schema.title === 'Schema';
     
-    // Get the actual action object directly from the parent component state
-    const actionsList = Array.isArray(formData.actions) ? formData.actions : [];
-    const currentAction = currentActionIndex >= 0 && currentActionIndex < actionsList.length 
-      ? actionsList[currentActionIndex] 
-      : null;
+    console.log('Field info:', { 
+      id, 
+      label, 
+      schemaTitle: schema.title, 
+      schemaType: schema.type,
+      fieldOptions,
+      isJsonSchemaField
+    });
 
     // Handle opening the AI prompt modal
     const handleOpenAIModal = () => {
-      // Set a default prompt suggestion based on the field
-      setUserPrompt(`Generate content for ${schema.title || 'this field'}${schema.description ? ` that ${schema.description}` : ''}`);
+      console.log('Opening AI modal for field:', id, 'isJsonSchemaField:', isJsonSchemaField);
+      
+      // Get the current action index from the editing index in the parent component
+      setCurrentPromptIndex(editingIndex);
+      
+      // Set a different default prompt based on the field type
+      if (isJsonSchemaField) {
+        console.log('Preparing JSON Schema prompt');
+        const actions = Array.isArray(formData.actions) ? formData.actions : [];
+        const action = editingIndex !== null && editingIndex >= 0 && editingIndex < actions.length 
+          ? actions[editingIndex] 
+          : null;
+        
+        const actionTitle = action?.title || 'structured data';
+        setUserPrompt(`Create a detailed JSON Schema for ${actionTitle}. The schema should define the structure, properties, types, and validation rules for ${actionTitle}. Include required fields, property descriptions, and appropriate data types.`);
+      } else {
+        console.log('Preparing regular content prompt for:', schema.title);
+        setUserPrompt(`Generate content for ${schema.title || 'this field'}${schema.description ? ` that ${schema.description}` : ''}`);
+      }
+      
       setIsModalVisible(true);
     };
     
@@ -304,35 +349,152 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
       setIsGenerating(true);
       setIsModalVisible(false);
       
+      console.log('Submitting AI request for field:', id, 'isJsonSchemaField:', isJsonSchemaField);
+      
       try {
-        // Use regular generateText
-        const result = await service.executeAIGeneration(userPrompt);
+        let result;
         
-        // For prompt fields, update the action's prompt
-        if (id.endsWith('_prompt') && schema.title === 'Prompt' && currentActionIndex !== null && currentAction) {
-          // Get the current editor language
-          const { editorLanguage = DEFAULT_LANGUAGE } = useLanguage();
+        // Use executeAIGenerateObject with different schemas based on field type
+        if (isJsonSchemaField) {
+          console.log('Generating JSON Schema using Object Generation API');
+          console.log('User prompt:', userPrompt);
+          console.log('JSON Schema field details:', {
+            id,
+            schemaTitle: schema.title,
+            actionType: "Using editingIndex",
+            actionTitle: formData.actions?.[editingIndex]?.title
+          });
           
-          // Create or update the Localizable value, preserving other languages
-          const currentPrompt = typeof currentAction.prompt === 'object' 
-            ? currentAction.prompt 
-            : { [DEFAULT_LANGUAGE]: currentAction.prompt || '' };
-            
-          const localizedValue = {
-            ...currentPrompt,
-            [editorLanguage]: result
-          };
+          // For JSON Schema fields, use a more specific schema request
+          const enhancedPrompt = `Return a valid JSON Schema based on this description: ${userPrompt}
+
+The JSON Schema should:
+1. Use proper JSON Schema format with type definitions
+2. Include appropriate property descriptions
+3. Specify required fields
+4. Use correct data types (string, number, boolean, object, array)
+5. Include any necessary constraints (minLength, pattern, etc.)
+6. Be properly formatted with correct JSON syntax`;
           
-          handlePromptChange(currentActionIndex, localizedValue);
+          const response = await service.executeAIGenerateObject({
+            prompt: enhancedPrompt,
+            schema: {
+              type: "object",
+              properties: {
+                jsonSchema: {
+                  type: "object",
+                  description: "A valid JSON Schema defining the structure of objects following JSON Schema specification"
+                }
+              }
+            }
+          });
+          
+          console.log('JSON Schema generation response:', response);
+          
+          // Extract the jsonSchema from the response
+          if (response && response.jsonSchema) {
+            result = JSON.stringify(response.jsonSchema, null, 2);
+            console.log('Successfully extracted JSON Schema:', result);
+          } else {
+            throw new Error('Generated object missing jsonSchema property');
+          }
         } else {
-          // For other fields, use the default onChange
-          onChange(result);
+          console.log('Generating content using Object Generation API');
+          console.log('User prompt:', userPrompt);
+          
+          // For other field types, request an object with a newFieldValue property
+          const response = await service.executeAIGenerateObject({
+            prompt: userPrompt,
+            schema: {
+              type: "object",
+              properties: {
+                newFieldValue: {
+                  type: "string",
+                  description: "The generated content for the field"
+                }
+              }
+            }
+          });
+          
+          console.log('Content generation response:', response);
+          
+          // Extract the newFieldValue from the response
+          if (response && response.newFieldValue) {
+            result = response.newFieldValue;
+            console.log('Successfully extracted field value:', result);
+          } else {
+            throw new Error('Generated object missing newFieldValue property');
+          }
         }
         
-        message.success('AI content generated successfully');
+        // Log the current context to understand what's happening
+        console.log('Generation context:', {
+          id,
+          schemaTitle: schema.title,
+          actionType: "Using editingIndex",
+          actionTitle: formData.actions?.[editingIndex]?.title
+        });
+        
+        if (result) {
+          // For prompt fields, update the action's prompt
+          if (id.endsWith('_prompt') && schema.title === 'Prompt' && editingIndex !== null && formData.actions && formData.actions[editingIndex]) {
+            console.log('Handling as prompt field:', id);
+            // Handle prompt field updates
+            handlePromptChange(editingIndex, result);
+            message.success('Generated new prompt!');
+          } else if (isJsonSchemaField && editingIndex !== null && formData.actions && formData.actions[editingIndex]) {
+            console.log('Handling as JSON Schema field:', id);
+            // For JSON schema fields, update the config
+            const newConfig = { ...formData.actions[editingIndex].config, schema: result };
+            console.log('New config with updated schema:', newConfig);
+            const updatedAction = { ...formData.actions[editingIndex], config: newConfig };
+            
+            const newActions = [...formData.actions];
+            newActions[editingIndex] = updatedAction;
+            updateActions(newActions);
+            
+            message.success('Generated new JSON schema!');
+          } else if (schema && editingIndex !== null && formData.actions && formData.actions[editingIndex]) {
+            // For any other field in the form, update the form data
+            const formId = id.replace(/_schema$/, '');
+            console.log('Handling as config form field:', id, formId);
+            
+            // Use handleConfigFormChange to update the config
+            const newConfig = { ...formData.actions[editingIndex].config };
+            newConfig[formId] = result;
+            console.log('New config with updated field:', newConfig);
+            
+            const newFormData = { ...formData.actions[editingIndex].config, [formId]: result };
+            handleConfigFormChange(editingIndex, newFormData);
+            
+            message.success(`Generated content for ${schema.title || 'field'}!`);
+          } else {
+            console.log('Handling as direct field update:', id);
+            // Direct update using the onChange function provided by JsonSchemaForm
+            
+            // Check if the result is a JSON string that needs to be parsed based on the schema type
+            let finalValue = result;
+            
+            // If the result looks like JSON and the schema expects an object
+            if (typeof result === 'string' && 
+                result.trim().startsWith('{') && 
+                schema.type === 'object') {
+              try {
+                finalValue = JSON.parse(result);
+                console.log('Parsed JSON result:', finalValue);
+              } catch (e) {
+                console.warn('Failed to parse result as JSON, using as string:', e);
+              }
+            }
+            
+            console.log('Setting field value to:', finalValue);
+            onChange(finalValue);
+            message.success(`Generated content for ${schema.title || 'field'}!`);
+          }
+        }
       } catch (error) {
-        console.error('Error generating content with AI:', error);
-        message.error('Failed to generate content with AI');
+        console.error('Error generating content:', error);
+        message.error('Failed to generate content. Please try again.');
       } finally {
         setIsGenerating(false);
       }
@@ -359,15 +521,15 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
           </div>
           
           {/* If we need a prompt, we should use the action's prompt property, not a value in the form data */}
-          {currentAction && (
+          {formData.actions && editingIndex !== null && (
             <PromptTextArea
-              value={currentAction.prompt}
-              onChange={(value) => handlePromptChange(currentActionIndex, value)}
+              value={formData.actions[editingIndex].prompt}
+              onChange={(value) => handlePromptChange(editingIndex, value)}
               placeholder={schema.description || 'Enter your prompt here...'}
               rows={4}
               inputs={Array.isArray(formData.inputs) ? formData.inputs : []}
               actions={Array.isArray(formData.actions) ? formData.actions : []}
-              currentActionIndex={currentActionIndex}
+              currentActionIndex={editingIndex}
             />
           )}
           
@@ -389,31 +551,24 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
               <Input.TextArea
                 value={userPrompt}
                 onChange={(e) => setUserPrompt(e.target.value)}
-                placeholder="Describe what you want the AI to generate..."
+                placeholder="Enter your prompt here..."
                 rows={4}
-                autoFocus
               />
             </Form.Item>
             
-            <div className="available-variables-wrapper" style={{ marginBottom: '16px' }}>
-              <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>
-                Available Variables (click to insert):
-              </div>
-              <div style={{ maxHeight: '150px', overflowY: 'auto', padding: '8px', border: '1px solid #f0f0f0', borderRadius: '4px' }}>
-                <AvailableVariables 
-                  inputs={Array.isArray(formData.inputs) ? formData.inputs : []}
-                  actions={Array.isArray(formData.actions) ? formData.actions.slice(0, currentPromptIndex || 0) : []}
-                  currentActionIndex={currentPromptIndex || 0}
-                  onVariableClick={(variable) => {
-                    setUserPrompt(prev => `${prev} ${variable}`.trim());
-                  }}
-                />
-              </div>
-            </div>
+            {/* Display available variables */}
+            <AvailableVariables 
+              inputs={Array.isArray(formData.inputs) ? formData.inputs : []}
+              actions={Array.isArray(formData.actions) ? formData.actions.slice(0, editingIndex || 0) : []}
+              currentActionIndex={editingIndex !== null ? editingIndex : 0}
+              onVariableClick={(variable) => {
+                setUserPrompt((prev) => prev + ' ' + variable);
+              }}
+            />
             
-            <p className="text-sm text-gray-500">
-              You can include any of the above variables in your prompt. For example: "Create a story about @child_name.md who dreams of becoming a @career.md"
-            </p>
+            <div style={{ marginTop: '8px', color: '#888' }}>
+              <p>You can include any of the variables above in your prompt. For example: "Create a story about @child_name.md"</p>
+            </div>
           </Modal>
         </div>
       );
@@ -459,31 +614,24 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
             <Input.TextArea
               value={userPrompt}
               onChange={(e) => setUserPrompt(e.target.value)}
-              placeholder="Describe what you want the AI to generate..."
+              placeholder="Enter your prompt here..."
               rows={4}
-              autoFocus
             />
           </Form.Item>
           
-          <div className="available-variables-wrapper" style={{ marginBottom: '16px' }}>
-            <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>
-              Available Variables (click to insert):
-            </div>
-            <div style={{ maxHeight: '150px', overflowY: 'auto', padding: '8px', border: '1px solid #f0f0f0', borderRadius: '4px' }}>
-              <AvailableVariables 
-                inputs={Array.isArray(formData.inputs) ? formData.inputs : []}
-                actions={Array.isArray(formData.actions) ? formData.actions.slice(0, currentPromptIndex || 0) : []}
-                currentActionIndex={currentPromptIndex || 0}
-                onVariableClick={(variable) => {
-                  setUserPrompt(prev => `${prev} ${variable}`.trim());
-                }}
-              />
-            </div>
-          </div>
+          {/* Display available variables */}
+          <AvailableVariables 
+            inputs={Array.isArray(formData.inputs) ? formData.inputs : []}
+            actions={Array.isArray(formData.actions) ? formData.actions.slice(0, props.currentActionIndex || 0) : []}
+            currentActionIndex={props.currentActionIndex !== null ? props.currentActionIndex : 0}
+            onVariableClick={(variable) => {
+              setUserPrompt((prev) => prev + ' ' + variable);
+            }}
+          />
           
-          <p className="text-sm text-gray-500">
-            You can include any of the above variables in your prompt. For example: "Create a story about @child_name.md who dreams of becoming a @career.md"
-          </p>
+          <div style={{ marginTop: '8px', color: '#888' }}>
+            <p>You can include any of the variables above in your prompt. For example: "Create a story about @child_name.md"</p>
+          </div>
         </Modal>
       </div>
     );
@@ -639,31 +787,24 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
                       <Input.TextArea
                         value={userPrompt}
                         onChange={(e) => setUserPrompt(e.target.value)}
-                        placeholder="Describe what you want the AI to generate..."
+                        placeholder="Enter your prompt here..."
                         rows={4}
-                        autoFocus
                       />
                     </Form.Item>
                     
-                    <div className="available-variables-wrapper" style={{ marginBottom: '16px' }}>
-                      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>
-                        Available Variables (click to insert):
-                      </div>
-                      <div style={{ maxHeight: '150px', overflowY: 'auto', padding: '8px', border: '1px solid #f0f0f0', borderRadius: '4px' }}>
-                        <AvailableVariables 
-                          inputs={Array.isArray(formData.inputs) ? formData.inputs : []}
-                          actions={actions.slice(0, index)}
-                          currentActionIndex={index}
-                          onVariableClick={(variable) => {
-                            setUserPrompt(prev => `${prev} ${variable}`.trim());
-                          }}
-                        />
-                      </div>
-                    </div>
+                    {/* Display available variables */}
+                    <AvailableVariables 
+                      inputs={Array.isArray(formData.inputs) ? formData.inputs : []}
+                      actions={Array.isArray(formData.actions) ? formData.actions.slice(0, currentPromptIndex || 0) : []}
+                      currentActionIndex={currentPromptIndex !== null ? currentPromptIndex : 0}
+                      onVariableClick={(variable) => {
+                        setUserPrompt((prev) => prev + ' ' + variable);
+                      }}
+                    />
                     
-                    <p className="text-sm text-gray-500">
-                      You can include any of the above variables in your prompt. For example: "Create a story about @child_name.md who dreams of becoming a @career.md"
-                    </p>
+                    <div style={{ marginTop: '8px', color: '#888' }}>
+                      <p>You can include any of the variables above in your prompt. For example: "Create a story about @child_name.md"</p>
+                    </div>
                   </Modal>
                   
                   {/* Using React JSON Schema Form for other fields */}
@@ -698,12 +839,16 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
                         schema: {
                           "ui:widget": "textarea",
                           "ui:options": {
-                            rows: 8
+                            rows: 8,
+                            // Add explicit field type identifier for the schema field
+                            isJsonSchemaField: action.type === 'generateJSON'
                           }
                         }
                       }}
                       // Pass our custom field template to render the "Use AI" button
-                      templates={{ FieldTemplate: CustomFieldTemplate }}
+                      templates={{ 
+                        FieldTemplate: CustomFieldTemplate 
+                      }}
                       className="rjsf-no-margin"
                     />
                   </div>
