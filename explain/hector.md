@@ -1237,9 +1237,42 @@ To implement the HTML+Vue export in Hector, follow these steps:
 
 By following this approach, Hector apps can be exported as standalone HTML+Vue applications that maintain all the functionality of the original app but can run independently of the Hector platform.
 
----
-
 This design document provides a complete specification for "Hector," the AI App Builder, covering user flows, UI components, data structures, and integrations. It ensures the platform is intuitive, scalable, and ready for implementation.
+
+## 12. Runtime Environment
+
+The Hector platform includes a built-in runtime environment that allows users to test their apps directly within the builder interface, without having to export or run them separately. This feature significantly accelerates the development process by providing immediate feedback on how the app will function when deployed.
+
+### 12.1 Runtime Capabilities
+
+The runtime environment offers the following key capabilities:
+
+- **In-place Testing**: Test your app configuration without leaving the builder interface
+- **Dependency-aware Execution**: The system automatically determines which actions can be executed based on available inputs and previous results
+- **Real-time Result Visualization**: See the results of executed actions immediately, including text, images, JSON, and audio
+- **Execution State Management**: The system maintains a state of all inputs and generated outputs
+- **Interactive UI Components**: Toggle between configuration and testing modes with a simple control
+
+### 12.2 Core Components
+
+The runtime environment consists of several integrated components:
+
+1. **ExecutionContext**: A central class that manages execution state, resolves dependencies, and tracks execution metadata
+2. **Input Component System**: Input components that toggle between configuration and testing modes
+3. **PlayActionButton**: A specialized button component that indicates action playability and handles execution
+4. **Result Visualization**: Components for displaying various types of generated content
+5. **Runtime Controls**: UI elements for switching modes, resetting state, and controlling execution
+
+### 12.3 Integration with Action Configuration
+
+The runtime environment seamlessly integrates with the existing action configuration system:
+
+- **View/Edit Mode Extension**: Input components now support test mode in addition to view and edit modes
+- **Action Card Enhancements**: Action cards display execution status and include play controls
+- **Dependency Resolution**: The system automatically analyzes @references in prompts to build dependency graphs
+- **Reference Substitution**: When executing actions, @references are replaced with actual values from inputs or previous actions
+
+For detailed information about the runtime environment implementation, including data structures, component interfaces, and execution flow, refer to the [Runtime Environment Design Document](./runtime.md).
 
 # Screens
 
