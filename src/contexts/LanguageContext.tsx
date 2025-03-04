@@ -7,6 +7,7 @@ interface LanguageContextType {
   editorLanguage: string;
   setEditorLanguage: (lang: string) => void;
   availableLanguages: string[];
+  setAvailableLanguages: (languages: string[]) => void;
 }
 
 const LanguageContext = createContext<LanguageContextType>({
@@ -14,7 +15,8 @@ const LanguageContext = createContext<LanguageContextType>({
   setCurrentLanguage: () => {},
   editorLanguage: DEFAULT_LANGUAGE,
   setEditorLanguage: () => {},
-  availableLanguages: AVAILABLE_LANGUAGES
+  availableLanguages: AVAILABLE_LANGUAGES,
+  setAvailableLanguages: () => {}
 });
 
 export const useLanguage = () => useContext(LanguageContext);
@@ -29,6 +31,9 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
   
   // editorLanguage is for the language being edited in the app editor
   const [editorLanguage, setEditorLanguage] = useState<string>(DEFAULT_LANGUAGE);
+
+  // availableLanguages are the languages that the user can select from
+  const [availableLanguages, setAvailableLanguages] = useState<string[]>(AVAILABLE_LANGUAGES);
 
   // Initialize language from browser or localStorage on first load
   useEffect(() => {
@@ -95,7 +100,8 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
         setCurrentLanguage,
         editorLanguage,
         setEditorLanguage,
-        availableLanguages: AVAILABLE_LANGUAGES
+        availableLanguages,
+        setAvailableLanguages
       }}
     >
       {children}

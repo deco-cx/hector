@@ -21,6 +21,7 @@ export interface LanguageToggleProps {
   value?: string;
   showLabel?: boolean;
   size?: 'small' | 'middle' | 'large';
+  availableLanguages?: string[];
 }
 
 const LanguageToggle: React.FC<LanguageToggleProps> = ({
@@ -28,13 +29,14 @@ const LanguageToggle: React.FC<LanguageToggleProps> = ({
   value,
   showLabel = false,
   size = 'middle',
+  availableLanguages: propAvailableLanguages,
 }) => {
   const { 
     currentLanguage, 
     setCurrentLanguage, 
     editorLanguage, 
     setEditorLanguage,
-    availableLanguages 
+    availableLanguages: contextAvailableLanguages 
   } = useLanguage();
 
   // Use provided value or editorLanguage from context
@@ -42,6 +44,9 @@ const LanguageToggle: React.FC<LanguageToggleProps> = ({
   
   // Use provided onChange or setEditorLanguage from context
   const handleLanguageChange = onChange || setEditorLanguage;
+
+  // Use prop availableLanguages if provided, otherwise use context availableLanguages
+  const availableLanguages = propAvailableLanguages || contextAvailableLanguages;
 
   return (
     <div className="language-toggle">
@@ -69,8 +74,17 @@ const LanguageToggle: React.FC<LanguageToggleProps> = ({
 };
 
 // App-level language toggle that changes the global language
-export const AppLanguageToggle: React.FC = () => {
-  const { currentLanguage, setCurrentLanguage } = useLanguage();
+export interface AppLanguageToggleProps {
+  availableLanguages?: string[];
+}
+
+export const AppLanguageToggle: React.FC<AppLanguageToggleProps> = ({
+  availableLanguages: propAvailableLanguages,
+}) => {
+  const { currentLanguage, setCurrentLanguage, availableLanguages: contextAvailableLanguages } = useLanguage();
+  
+  // Use prop availableLanguages if provided, otherwise use context availableLanguages
+  const availableLanguages = propAvailableLanguages || contextAvailableLanguages;
   
   return (
     <Tooltip title="Change application language">
@@ -79,7 +93,6 @@ export const AppLanguageToggle: React.FC = () => {
         icon={<GlobalOutlined />}
         onClick={() => {
           // Toggle between available languages
-          const { availableLanguages } = useLanguage();
           const currentIndex = availableLanguages.indexOf(currentLanguage);
           const nextIndex = (currentIndex + 1) % availableLanguages.length;
           setCurrentLanguage(availableLanguages[nextIndex]);

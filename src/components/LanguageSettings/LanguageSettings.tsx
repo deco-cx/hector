@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Typography, Button, Space, Modal, Progress, message, Alert, Divider, Tooltip } from 'antd';
 import { TranslationOutlined, GlobalOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -32,12 +32,22 @@ const LanguageSettings: React.FC<LanguageSettingsProps> = ({
   setFormData,
 }) => {
   const { service } = useWebdraw();
-  const { currentLanguage, setCurrentLanguage } = useLanguage();
+  const { currentLanguage, setCurrentLanguage, setAvailableLanguages } = useLanguage();
   const [translationProgress, setTranslationProgress] = useState(0);
   const [isTranslating, setIsTranslating] = useState(false);
   
   // Get the current supported languages from the app config
   const supportedLanguages = formData.supportedLanguages || [DEFAULT_LANGUAGE];
+  
+  // Sync the supported languages to the context
+  useEffect(() => {
+    setAvailableLanguages(supportedLanguages);
+    
+    // If the current language is not in supported languages, switch to default
+    if (!supportedLanguages.includes(currentLanguage)) {
+      setCurrentLanguage(DEFAULT_LANGUAGE);
+    }
+  }, [supportedLanguages, setAvailableLanguages, currentLanguage, setCurrentLanguage]);
   
   const startTranslation = async (sourceLang: string, targetLang: string) => {
     setIsTranslating(true);
