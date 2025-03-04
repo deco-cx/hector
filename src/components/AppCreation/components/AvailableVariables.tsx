@@ -2,6 +2,7 @@ import React from 'react';
 import { Typography, Space, Tag, Tooltip, Divider } from 'antd';
 import { FileTextOutlined, CodeOutlined, FileImageOutlined, SoundOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import { ActionData, ActionType } from '../../../config/actionsConfig';
+import { DEFAULT_LANGUAGE, getLocalizedValue, Localizable } from '../../../types/i18n';
 
 const { Text } = Typography;
 
@@ -26,7 +27,7 @@ const actionColors: Record<ActionType, string> = {
 interface AvailableVariablesProps {
   inputs: Array<{
     name: string;
-    label: string;
+    label: string | Localizable<string>;
     type: string;
   }>;
   actions: ActionData[];
@@ -55,17 +56,24 @@ const AvailableVariables: React.FC<AvailableVariablesProps> = ({
             Input Fields:
           </Text>
           <Space wrap>
-            {inputs.map((input) => (
-              <Tooltip key={input.name} title={`Reference: @${input.name}`}>
-                <Tag 
-                  color="cyan" 
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => onVariableClick(`@${input.name}`)}
-                >
-                  @{input.name} ({input.label})
-                </Tag>
-              </Tooltip>
-            ))}
+            {inputs.map((input) => {
+              // Get localized label value, handling both string and Localizable objects
+              const labelValue = typeof input.label === 'string' 
+                ? input.label 
+                : getLocalizedValue(input.label, DEFAULT_LANGUAGE) || '';
+              
+              return (
+                <Tooltip key={input.name} title={`Reference: @${input.name}`}>
+                  <Tag 
+                    color="cyan" 
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => onVariableClick(`@${input.name}`)}
+                  >
+                    @{input.name} ({labelValue})
+                  </Tag>
+                </Tooltip>
+              );
+            })}
           </Space>
         </div>
       ) : (
@@ -89,7 +97,7 @@ const AvailableVariables: React.FC<AvailableVariablesProps> = ({
                   style={{ cursor: 'pointer' }}
                   onClick={() => onVariableClick(`@${action.filename}`)}
                 >
-                  @{action.filename} ({action.title})
+                  @{action.filename} ({getLocalizedValue(action.title, DEFAULT_LANGUAGE)})
                 </Tag>
               </Tooltip>
             ))}

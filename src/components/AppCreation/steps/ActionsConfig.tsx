@@ -13,7 +13,7 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { 
   ActionType, availableActions, ActionData, 
-  generateActionFilename 
+  generateActionFilename, createDefaultLocalizable
 } from '../../../config/actionsConfig';
 import JsonSchemaForm from '@rjsf/antd';
 import { RJSFSchema } from '@rjsf/utils';
@@ -21,6 +21,8 @@ import validator from '@rjsf/validator-ajv8';
 import PromptTextArea from '../components/PromptTextArea';
 import { useWebdraw } from '../../../context/WebdrawContext';
 import AvailableVariables from '../components/AvailableVariables';
+import { Localizable, DEFAULT_LANGUAGE, getLocalizedValue } from '../../../types/i18n';
+import { useLanguage } from '../../../contexts/LanguageContext';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -54,10 +56,12 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [userPrompt, setUserPrompt] = useState('');
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [currentPromptIndex, setCurrentPromptIndex] = useState<number | null>(null);
+  const { editorLanguage } = useLanguage();
   
   // Direct update to parent
   const updateActions = (actions: ActionData[]) => {
-    setFormData({ actions });
+    setFormData({ ...formData, actions });
   };
 
   const handleCardFlip = (index: number) => {
@@ -74,8 +78,14 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
     const newActionData: ActionData = {
       id: uuidv4(),
       type,
-      title: `New ${actionConfig.label}`,
-      filename: generateActionFilename(`New ${actionConfig.label}`, type, formData.actions || []),
+      title: createDefaultLocalizable(`New ${actionConfig.label}`),
+      description: createDefaultLocalizable(''),
+      filename: generateActionFilename(
+        getLocalizedValue(createDefaultLocalizable(`New ${actionConfig.label}`), DEFAULT_LANGUAGE) || `New ${actionConfig.label}`, 
+        type, 
+        formData.actions || []
+      ),
+      prompt: createDefaultLocalizable(''),
       config: { ...actionConfig.defaultProps }
     };
     
@@ -117,17 +127,27 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
       };
       
       // Also update filename extension
-      const title = newActions[index].title;
+      const title = getLocalizedValue(newActions[index].title, DEFAULT_LANGUAGE) || '';
       newActions[index].filename = generateActionFilename(
         title, 
         value as ActionType, 
         formData.actions.filter((_, i) => i !== index)
       );
     } else if (field === 'title') {
-      // Update title and regenerate filename
-      newActions[index] = { ...newActions[index], title: value };
+      // Update title as a Localizable object and regenerate filename
+      const localizedTitle = typeof newActions[index].title === 'object'
+        ? { ...newActions[index].title, [DEFAULT_LANGUAGE]: value }
+        : { [DEFAULT_LANGUAGE]: value };
+        
+      newActions[index] = { 
+        ...newActions[index], 
+        title: localizedTitle 
+      };
+      
+      // Use the updated title for the filename
+      const titleStr = value || '';
       newActions[index].filename = generateActionFilename(
-        value, 
+        titleStr, 
         newActions[index].type, 
         formData.actions.filter((_, i) => i !== index)
       );
@@ -136,17 +156,98 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
     updateActions(newActions);
   };
 
+  // Handle AI Modal for generating prompt
+  const handleGeneratePrompt = (index: number) => {
+    if (!isSDKAvailable) {
+      message.error('Webdraw SDK is not available');
+      return;
+    }
+    
+    setCurrentPromptIndex(index);
+    
+    const actionType = formData.actions[index]?.type as ActionType;
+    const promptSuggestion = `Write a creative prompt that will ${
+      actionType === 'generateText' ? 'generate text' : 
+      actionType === 'generateImage' ? 'generate an image' : 
+      actionType === 'generateJSON' ? 'generate structured data' : 
+      'generate content'
+    }`;
+    
+    setUserPrompt(promptSuggestion);
+    setIsModalVisible(true);
+  };
+
+  // Handle modal cancel
+  const handleModalCancel = () => {
+    setIsModalVisible(false);
+    setCurrentPromptIndex(null);
+  };
+  
+  // Handle modal submit for main actions
+  const handleModalSubmit = async () => {
+    if (!isSDKAvailable) {
+      message.error('Webdraw SDK is not available');
+      setIsModalVisible(false);
+      return;
+    }
+    
+    if (!userPrompt.trim()) {
+      message.error('Please enter a prompt');
+      return;
+    }
+    
+    setIsGenerating(true);
+    setIsModalVisible(false);
+    
+    try {
+      // Generate content using AI
+      const result = await service.executeAIGeneration(userPrompt);
+      
+      // If we have a current prompt index, update that action's prompt
+      if (currentPromptIndex !== null && formData.actions && formData.actions[currentPromptIndex]) {
+        // Get the current editor language
+        const { editorLanguage = DEFAULT_LANGUAGE } = useLanguage();
+        
+        // Get the current action
+        const currentAction = formData.actions[currentPromptIndex];
+        
+        // Create or update the Localizable value, preserving other languages
+        const currentPrompt = typeof currentAction.prompt === 'object' 
+          ? currentAction.prompt 
+          : { [DEFAULT_LANGUAGE]: currentAction.prompt || '' };
+          
+        const localizedValue = {
+          ...currentPrompt,
+          [editorLanguage]: result
+        };
+        
+        handlePromptChange(currentPromptIndex, localizedValue);
+        setCurrentPromptIndex(null);
+      }
+      
+      message.success('AI content generated successfully');
+    } catch (error) {
+      console.error('Error generating content with AI:', error);
+      message.error('Failed to generate content with AI');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   // Handle direct prompt change
-  const handlePromptChange = (index: number, value: string) => {
+  const handlePromptChange = (index: number, value: string | Localizable<string>) => {
     if (!Array.isArray(formData.actions)) return;
     
     const newActions = [...formData.actions];
+    
+    // Ensure the value is a Localizable object
+    const promptValue = typeof value === 'string' 
+      ? { [DEFAULT_LANGUAGE]: value } 
+      : value;
+    
     newActions[index] = {
       ...newActions[index],
-      config: {
-        ...newActions[index].config,
-        prompt: value
-      }
+      prompt: promptValue // Update the prompt directly on action, not in config
     };
     updateActions(newActions);
   };
@@ -172,54 +273,18 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
     const [userPrompt, setUserPrompt] = useState('');
     
     // Access the editing index and current action type directly from parent scope
-    // The parent component is the one with the actions data, not inside formData
-    const currentActionIndex = editingIndex !== null ? editingIndex : -1; // Default to -1 if null
+    const currentActionIndex = editingIndex !== null ? editingIndex : -1;
     
     // Get the actual action object directly from the parent component state
     const actionsList = Array.isArray(formData.actions) ? formData.actions : [];
     const currentAction = currentActionIndex >= 0 && currentActionIndex < actionsList.length 
       ? actionsList[currentActionIndex] 
       : null;
-    const currentActionType = currentAction?.type;
-    
-    console.log("Action context:", { 
-      editingIndex, 
-      currentActionIndex, 
-      currentActionType,
-      actionId: currentAction?.id,
-      actionTitle: currentAction?.title
-    });
-    
-    // Check if this is the Schema field for JSON actions - using direct parent context
-    const isJsonAction = currentActionType === 'generateJSON';
-    const isSchemaField = id === 'root_schema' && label === 'Schema' && isJsonAction;
-    
-    // Simplified detection that doesn't rely on action context
-    const isSchemaFieldByInput = id === 'root_schema' && label === 'Schema';
-    
-    console.log("Field detection:", { 
-      id, 
-      isSchema: id === 'root_schema', 
-      label, 
-      currentActionType,
-      isJsonAction,
-      isSchemaField 
-    });
-    
+
     // Handle opening the AI prompt modal
     const handleOpenAIModal = () => {
-      // Different defaults based on field type
-      if (id === 'root_schema' && label === 'Schema') {
-        console.log("Setting schema prompt template");
-        setUserPrompt(`Create a JSON schema for data with appropriate properties and data types.`);
-      } else if (isSchemaField) {
-        console.log("Setting schema prompt via isSchemaField detection");
-        setUserPrompt('Create a JSON schema for ' + (currentAction?.title || 'this data'));
-      } else {
-        // Set a default prompt suggestion based on the field
-        console.log("Setting regular prompt template");
-        setUserPrompt(`Generate content for ${schema.title || 'this field'}${schema.description ? ` that ${schema.description}` : ''}`);
-      }
+      // Set a default prompt suggestion based on the field
+      setUserPrompt(`Generate content for ${schema.title || 'this field'}${schema.description ? ` that ${schema.description}` : ''}`);
       setIsModalVisible(true);
     };
     
@@ -245,81 +310,30 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
       setIsModalVisible(false);
       
       try {
-        let result;
+        // Use regular generateText
+        const result = await service.executeAIGeneration(userPrompt);
         
-        // Force schema field detection based on ID and label only - bypass context detection issues
-        const isSchemaFieldByInput = id === 'root_schema' && label === 'Schema';
-        
-        // Special handling for Schema field in generateJSON action - use object generation
-        if (isSchemaFieldByInput) {
-          console.log("USING GENERATE_OBJECT API for schema field");
+        // For prompt fields, update the action's prompt
+        if (id.endsWith('_prompt') && schema.title === 'Prompt' && currentActionIndex !== null && currentAction) {
+          // Get the current editor language
+          const { editorLanguage = DEFAULT_LANGUAGE } = useLanguage();
           
-          // Use generateObject for the Schema field
-          try {
-            // Define the expected schema structure we want the AI to generate
-            const schemaForAI = {
-              type: "object" as const,
-              properties: {
-                jsonSchema: {
-                  type: "object",
-                  description: "A valid JSON Schema defining the structure of objects"
-                }
-              }
-            };
+          // Create or update the Localizable value, preserving other languages
+          const currentPrompt = typeof currentAction.prompt === 'object' 
+            ? currentAction.prompt 
+            : { [DEFAULT_LANGUAGE]: currentAction.prompt || '' };
             
-            console.log("Calling executeAIGenerateObject with schema:", JSON.stringify(schemaForAI, null, 2));
-            
-            // Call the service method directly
-            const response = await service.executeAIGenerateObject<{jsonSchema: Record<string, any>}>({
-              prompt: userPrompt,
-              schema: schemaForAI
-            });
-            
-            console.log("Generate object response:", response);
-            
-            // Check if the response has the expected structure
-            if (response && response.jsonSchema) {
-              // Format the returned schema as a JSON string
-              result = JSON.stringify(response.jsonSchema, null, 2);
-              console.log("Generated schema:", result);
-            } else {
-              // Fallback if the response doesn't have the expected structure
-              console.error("Invalid response format:", response);
-              message.error("Received invalid schema format from AI");
-              
-              // Try to use the entire response as a fallback
-              result = JSON.stringify(response, null, 2);
-            }
-          } catch (objectError) {
-            console.error("Error using generateObject:", objectError);
-            message.error("Failed to generate JSON schema, falling back to text generation");
-            
-            // Fall back to regular text generation as a last resort
-            try {
-              result = await service.executeAIGeneration(`Generate a JSON schema for ${userPrompt}. Please respond with ONLY valid JSON schema, no explanations or other text.`);
-              
-              // Try to format the result in case it's not properly formatted JSON
-              try {
-                const parsed = JSON.parse(result);
-                result = JSON.stringify(parsed, null, 2);
-              } catch (parseError) {
-                console.warn("Could not parse result as JSON:", parseError);
-                // Keep the original result if parsing fails
-              }
-            } catch (textError) {
-              console.error("Text generation fallback also failed:", textError);
-              throw textError;
-            }
-          }
+          const localizedValue = {
+            ...currentPrompt,
+            [editorLanguage]: result
+          };
+          
+          handlePromptChange(currentActionIndex, localizedValue);
         } else {
-          console.log("Using generateText for regular field:", id);
-          
-          // Use regular generateText for other fields
-          result = await service.executeAIGeneration(userPrompt);
+          // For other fields, use the default onChange
+          onChange(result);
         }
         
-        // Update the field with the generated content
-        onChange(result);
         message.success('AI content generated successfully');
       } catch (error) {
         console.error('Error generating content with AI:', error);
@@ -348,19 +362,23 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
               Use AI
             </Button>
           </div>
-          <PromptTextArea
-            value={formData || ''}
-            onChange={(value) => onChange(value)}
-            placeholder={schema.description || 'Enter your prompt here...'}
-            rows={4}
-            inputs={Array.isArray(formData.inputs) ? formData.inputs : []}
-            actions={Array.isArray(formData.actions) ? formData.actions : []}
-            currentActionIndex={currentActionIndex}
-          />
           
-          {/* AI Prompt Modal */}
+          {/* If we need a prompt, we should use the action's prompt property, not a value in the form data */}
+          {currentAction && (
+            <PromptTextArea
+              value={currentAction.prompt}
+              onChange={(value) => handlePromptChange(currentActionIndex, value)}
+              placeholder={schema.description || 'Enter your prompt here...'}
+              rows={4}
+              inputs={Array.isArray(formData.inputs) ? formData.inputs : []}
+              actions={Array.isArray(formData.actions) ? formData.actions : []}
+              currentActionIndex={currentActionIndex}
+            />
+          )}
+          
+          {/* Main AI-driven action modal */}
           <Modal
-            title={isSchemaFieldByInput ? "Generate JSON Schema with Object Generation API" : "Generate with AI"}
+            title="Generate with AI"
             open={isModalVisible}
             onOk={handleModalSubmit}
             onCancel={handleModalCancel}
@@ -368,7 +386,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
             width={500}
           >
             <AntForm.Item
-              label={isSchemaFieldByInput ? "Describe the data structure you want to create" : "What would you like to generate?"}
+              label="What would you like to generate?"
               required
               labelCol={{ span: 24 }}
               wrapperCol={{ span: 24 }}
@@ -376,9 +394,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
               <Input.TextArea
                 value={userPrompt}
                 onChange={(e) => setUserPrompt(e.target.value)}
-                placeholder={isSchemaFieldByInput 
-                  ? "E.g., Create a JSON schema for a user profile with name, email, and address fields" 
-                  : "Describe what you want the AI to generate..."}
+                placeholder="Describe what you want the AI to generate..."
                 rows={4}
                 autoFocus
               />
@@ -391,8 +407,8 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
               <div style={{ maxHeight: '150px', overflowY: 'auto', padding: '8px', border: '1px solid #f0f0f0', borderRadius: '4px' }}>
                 <AvailableVariables 
                   inputs={Array.isArray(formData.inputs) ? formData.inputs : []}
-                  actions={Array.isArray(formData.actions) ? formData.actions : []}
-                  currentActionIndex={currentActionIndex}
+                  actions={Array.isArray(formData.actions) ? formData.actions.slice(0, currentPromptIndex || 0) : []}
+                  currentActionIndex={currentPromptIndex || 0}
                   onVariableClick={(variable) => {
                     setUserPrompt(prev => `${prev} ${variable}`.trim());
                   }}
@@ -401,9 +417,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
             </div>
             
             <p className="text-sm text-gray-500">
-              {isSchemaFieldByInput 
-                ? "This will use the AI Object Generation API to create a valid JSON Schema. The schema will define the structure and validation rules for the JSON data that will be generated by this action."
-                : "You can include any of the above variables in your prompt. For example: \"Create a story about @child_name.md who dreams of becoming a @career.md\""}
+              You can include any of the above variables in your prompt. For example: "Create a story about @child_name.md who dreams of becoming a @career.md"
             </p>
           </Modal>
         </div>
@@ -432,9 +446,9 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
         </div>
         {children}
         
-        {/* AI Prompt Modal */}
+        {/* Main AI-driven action modal */}
         <Modal
-          title={isSchemaFieldByInput ? "Generate JSON Schema with Object Generation API" : "Generate with AI"}
+          title="Generate with AI"
           open={isModalVisible}
           onOk={handleModalSubmit}
           onCancel={handleModalCancel}
@@ -442,7 +456,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
           width={500}
         >
           <AntForm.Item
-            label={isSchemaFieldByInput ? "Describe the data structure you want to create" : "What would you like to generate?"}
+            label="What would you like to generate?"
             required
             labelCol={{ span: 24 }}
             wrapperCol={{ span: 24 }}
@@ -450,9 +464,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
             <Input.TextArea
               value={userPrompt}
               onChange={(e) => setUserPrompt(e.target.value)}
-              placeholder={isSchemaFieldByInput 
-                ? "E.g., Create a JSON schema for a user profile with name, email, and address fields" 
-                : "Describe what you want the AI to generate..."}
+              placeholder="Describe what you want the AI to generate..."
               rows={4}
               autoFocus
             />
@@ -465,8 +477,8 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
             <div style={{ maxHeight: '150px', overflowY: 'auto', padding: '8px', border: '1px solid #f0f0f0', borderRadius: '4px' }}>
               <AvailableVariables 
                 inputs={Array.isArray(formData.inputs) ? formData.inputs : []}
-                actions={Array.isArray(formData.actions) ? formData.actions : []}
-                currentActionIndex={currentActionIndex}
+                actions={Array.isArray(formData.actions) ? formData.actions.slice(0, currentPromptIndex || 0) : []}
+                currentActionIndex={currentPromptIndex || 0}
                 onVariableClick={(variable) => {
                   setUserPrompt(prev => `${prev} ${variable}`.trim());
                 }}
@@ -475,9 +487,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
           </div>
           
           <p className="text-sm text-gray-500">
-            {isSchemaFieldByInput 
-              ? "This will use the AI Object Generation API to create a valid JSON Schema. The schema will define the structure and validation rules for the JSON data that will be generated by this action."
-              : "You can include any of the above variables in your prompt. For example: \"Create a story about @child_name.md who dreams of becoming a @career.md\""}
+            You can include any of the above variables in your prompt. For example: "Create a story about @child_name.md who dreams of becoming a @career.md"
           </p>
         </Modal>
       </div>
@@ -511,7 +521,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
               title={
                 <Space>
                   {actionIcons[action.type]}
-                  <span>{action.title}</span>
+                  <span>{getLocalizedValue(action.title, DEFAULT_LANGUAGE)}</span>
                 </Space>
               }
               actions={[
@@ -563,7 +573,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
                   >
                     <Input
                       placeholder="Enter action title"
-                      value={action.title}
+                      value={getLocalizedValue(action.title, DEFAULT_LANGUAGE)}
                       onChange={(e) => handleActionChange(index, 'title', e.target.value)}
                     />
                   </AntForm.Item>
@@ -597,11 +607,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
                         type="primary" 
                         size="middle"
                         icon={<RobotOutlined />} 
-                        onClick={() => {
-                          // Set a default prompt suggestion
-                          setUserPrompt(`Write a creative prompt that will ${action.type === 'generateText' ? 'generate text' : action.type === 'generateImage' ? 'generate an image' : action.type === 'generateJSON' ? 'generate structured data' : 'generate content'}`);
-                          setIsModalVisible(true);
-                        }}
+                        onClick={() => handleGeneratePrompt(index)}
                         loading={isGenerating}
                       >
                         Use AI
@@ -610,7 +616,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
 
                     <div style={{ marginTop: 8 }}>
                       <PromptTextArea
-                        value={action.config.prompt || ''}
+                        value={getLocalizedValue(action.prompt, DEFAULT_LANGUAGE) || ''}
                         onChange={(value) => handlePromptChange(index, value)}
                         inputs={Array.isArray(formData.inputs) ? formData.inputs : []}
                         actions={actions}
@@ -624,35 +630,8 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
                   <Modal
                     title="Generate with AI"
                     open={isModalVisible}
-                    onOk={() => {
-                      if (!isSDKAvailable) {
-                        message.error('Webdraw SDK is not available');
-                        setIsModalVisible(false);
-                        return;
-                      }
-                      
-                      if (!userPrompt.trim()) {
-                        message.error('Please enter a prompt');
-                        return;
-                      }
-                      
-                      setIsGenerating(true);
-                      setIsModalVisible(false);
-                      
-                      service.executeAIGeneration(userPrompt)
-                        .then(result => {
-                          handlePromptChange(index, result);
-                          message.success('AI content generated successfully');
-                        })
-                        .catch(error => {
-                          console.error('Error generating content with AI:', error);
-                          message.error('Failed to generate content with AI');
-                        })
-                        .finally(() => {
-                          setIsGenerating(false);
-                        });
-                    }}
-                    onCancel={() => setIsModalVisible(false)}
+                    onOk={handleModalSubmit}
+                    onCancel={handleModalCancel}
                     confirmLoading={isGenerating}
                     width={500}
                   >
@@ -710,10 +689,9 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
                       }}
                       validator={validator}
                       onChange={(e) => {
-                        // Merge the updated form data with the existing prompt
+                        // Don't include prompt in the config since it's stored directly on the action
                         handleConfigFormChange(index, {
-                          ...e.formData,
-                          prompt: action.config.prompt
+                          ...e.formData
                         });
                       }}
                       uiSchema={{
@@ -745,7 +723,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
                     <Text type="secondary">Output:</Text> <code>{action.filename}</code>
                   </Paragraph>
                   <Paragraph ellipsis={{ rows: 2 }} style={{ marginBottom: '0' }}>
-                    <Text type="secondary">Prompt:</Text> {action.config.prompt || 'No prompt configured'}
+                    <Text type="secondary">Prompt:</Text> {getLocalizedValue(action.prompt, DEFAULT_LANGUAGE) || 'No prompt configured'}
                   </Paragraph>
                 </div>
               )}

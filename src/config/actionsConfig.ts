@@ -1,4 +1,5 @@
 import { JSONSchema7 } from 'json-schema';
+import { Localizable, DEFAULT_LANGUAGE, getLocalizedValue } from '../types/i18n';
 
 export type ActionType = 'generateText' | 'generateJSON' | 'generateImage' | 'generateAudio' | 'generateVideo';
 
@@ -15,9 +16,16 @@ export interface ActionConfig {
 export interface ActionData {
   id: string;
   type: ActionType;
-  title: string;
+  title: Localizable<string>;
+  description?: Localizable<string>;
   filename: string;
+  prompt: Localizable<string>;
   config: Record<string, any>;
+}
+
+// Helper function to create a Localizable string with a default value
+export function createDefaultLocalizable(value: string): Localizable<string> {
+  return { [DEFAULT_LANGUAGE]: value };
 }
 
 // Define available actions with their schemas and default properties
@@ -89,7 +97,6 @@ export const availableActions: Record<ActionType, ActionConfig> = {
       model: 'Best',
       temperature: 0.7,
       maxTokens: 500,
-      prompt: '',
     },
   },
   generateJSON: {
@@ -157,7 +164,6 @@ export const availableActions: Record<ActionType, ActionConfig> = {
     defaultProps: {
       model: 'Best',
       temperature: 0.7,
-      prompt: '',
       schema: '{\n  "type": "object",\n  "properties": {\n    "example": {\n      "type": "string"\n    }\n  }\n}',
     },
   },
@@ -229,7 +235,6 @@ export const availableActions: Record<ActionType, ActionConfig> = {
       model: 'Best',
       size: '512x512',
       n: 1,
-      prompt: '',
     },
   },
   generateAudio: {
@@ -264,7 +269,6 @@ export const availableActions: Record<ActionType, ActionConfig> = {
     },
     defaultProps: {
       model: 'Best',
-      prompt: '',
     },
   },
   generateVideo: {
@@ -300,7 +304,6 @@ export const availableActions: Record<ActionType, ActionConfig> = {
     },
     defaultProps: {
       model: 'Best',
-      prompt: '',
     },
   },
 };
@@ -351,7 +354,8 @@ export const executeAction = async (
   action: ActionData,
   inputData: Record<string, any>,
   sdk: any, // We'll need to type this properly with the Webdraw SDK interface
-  previousResults: Record<string, any> = {}
+  previousResults: Record<string, any> = {},
+  language: string = DEFAULT_LANGUAGE
 ): Promise<any> => {
   // Replace references to input fields and previous actions in the prompt
   const processReferences = (text: string): string => {
@@ -369,18 +373,21 @@ export const executeAction = async (
     });
   };
 
+  // Get the prompt text for the current language
+  const promptText = getLocalizedValue(action.prompt, language) || '';
+  
+  // Process the prompt to replace references
+  const processedPrompt = processReferences(promptText);
+  
   // Process the action configuration
   const config = { ...action.config };
-  if (config.prompt) {
-    config.prompt = processReferences(config.prompt);
-  }
-
+  
   // Execute the appropriate SDK method based on action type
   switch (action.type) {
     case 'generateText':
       return await sdk.ai.generateText({
         model: config.model,
-        prompt: config.prompt,
+        prompt: processedPrompt,
         temperature: config.temperature,
         maxTokens: config.maxTokens,
       });
@@ -388,7 +395,7 @@ export const executeAction = async (
     case 'generateJSON':
       return await sdk.ai.generateObject({
         model: config.model,
-        prompt: config.prompt,
+        prompt: processedPrompt,
         schema: JSON.parse(config.schema),
         temperature: config.temperature,
       });
@@ -396,7 +403,7 @@ export const executeAction = async (
     case 'generateImage':
       return await sdk.ai.generateImage({
         model: config.model,
-        prompt: config.prompt,
+        prompt: processedPrompt,
         size: config.size,
         n: config.n,
       });
@@ -404,16 +411,16 @@ export const executeAction = async (
     case 'generateAudio':
       return await sdk.ai.generateAudio({
         model: config.model,
-        prompt: config.prompt,
+        prompt: processedPrompt,
       });
 
     case 'generateVideo':
       return await sdk.ai.generateVideo({
         model: config.model,
-        prompt: config.prompt,
+        prompt: processedPrompt,
       });
 
     default:
       throw new Error(`Unsupported action type: ${action.type}`);
   }
-}; 
+};
