@@ -1,8 +1,7 @@
 import React from 'react';
 import { Card } from 'antd';
 import AvailableVariables from './AvailableVariables';
-import { ActionData } from '../../../config/actionsConfig';
-import { Localizable, DEFAULT_LANGUAGE } from '../../../types/i18n';
+import { ActionData, InputField, Localizable, DEFAULT_LANGUAGE } from '../../../types/types';
 import LocalizableTextArea from '../../../components/LocalizableInput/LocalizableTextArea';
 import { useLanguage } from '../../../contexts/LanguageContext';
 
@@ -11,11 +10,7 @@ interface PromptTextAreaProps {
   onChange: (value: string | Localizable<string>) => void;
   placeholder?: string;
   rows?: number;
-  inputs: Array<{
-    name: string;
-    label: string | Localizable<string>;
-    type: string;
-  }>;
+  inputs: Array<InputField>;
   actions: ActionData[];
   currentActionIndex: number;
 }
@@ -30,7 +25,7 @@ const PromptTextArea: React.FC<PromptTextAreaProps> = ({
   currentActionIndex
 }) => {
   // Get the editor language to use for variable insertion
-  const { editorLanguage = DEFAULT_LANGUAGE } = useLanguage();
+  const { editorLanguage = DEFAULT_LANGUAGE, availableLanguages } = useLanguage();
   
   // Make sure value is a Localizable object
   const localizedValue = typeof value === 'string' 
@@ -47,6 +42,7 @@ const PromptTextArea: React.FC<PromptTextAreaProps> = ({
         style={{ 
           marginBottom: 16,
         }}
+        showLanguageToggle={availableLanguages.length > 1}
       />
       
       <Card 

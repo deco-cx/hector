@@ -1,30 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Typography, Button, Space, Input, Select, Card, 
-  Tooltip, Row, Col, Divider, Empty, Form as AntForm,
-  message, Modal
+  Tooltip, Row, Col, Divider, Empty, Form,
+  message, Modal, Upload, Popconfirm, Tabs
 } from 'antd';
 import { 
   PlusOutlined, DeleteOutlined, EditOutlined, EyeOutlined, 
   InfoCircleOutlined, FileTextOutlined, CodeOutlined,
   FileImageOutlined, SoundOutlined, PlayCircleOutlined,
-  RobotOutlined
+  RobotOutlined, RocketOutlined, SettingOutlined, CloseOutlined,
+  MinusCircleOutlined
 } from '@ant-design/icons';
 import { v4 as uuidv4 } from 'uuid';
-import { 
-  ActionType, availableActions, ActionData, 
-  generateActionFilename, createDefaultLocalizable
-} from '../../../config/actionsConfig';
-import JsonSchemaForm from '@rjsf/antd';
-import { RJSFSchema } from '@rjsf/utils';
-import validator from '@rjsf/validator-ajv8';
-import PromptTextArea from '../components/PromptTextArea';
 import { useWebdraw } from '../../../context/WebdrawContext';
 import AvailableVariables from '../components/AvailableVariables';
-import { Localizable, DEFAULT_LANGUAGE, getLocalizedValue } from '../../../types/i18n';
+import { ActionData, ActionType, Localizable, DEFAULT_LANGUAGE, getLocalizedValue, createDefaultLocalizable, InputField } from '../../../types/types';
 import { useLanguage } from '../../../contexts/LanguageContext';
+import { RJSFSchema } from '@rjsf/utils';
+import RJSFForm from '@rjsf/antd';
+import validator from '@rjsf/validator-ajv8';
+import PromptTextArea from '../components/PromptTextArea';
+import { availableActions, generateActionFilename } from '../../../config/actionsConfig';
+import LocalizableTextArea from '../../../components/LocalizableInput/LocalizableTextArea';
 
 const { Title, Paragraph, Text } = Typography;
+const { TextArea } = Input;
+const { TabPane } = Tabs;
 
 // Map action types to their respective icons
 const actionIcons: Record<ActionType, React.ReactNode> = {
@@ -37,14 +38,8 @@ const actionIcons: Record<ActionType, React.ReactNode> = {
 
 interface ActionsConfigProps {
   formData: {
-    inputs: Array<{
-      name: string;
-      label: string;
-      type: string;
-      required: boolean;
-      placeholder?: string;
-    }>;
-    actions: ActionData[];
+    inputs: Array<InputField>;
+    actions: Array<ActionData>;
     [key: string]: any;
   };
   setFormData: React.Dispatch<React.SetStateAction<any>>;
@@ -58,6 +53,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [currentPromptIndex, setCurrentPromptIndex] = useState<number | null>(null);
   const { editorLanguage } = useLanguage();
+  const [form] = Form.useForm();
   
   // Direct update to parent
   const updateActions = (actions: ActionData[]) => {
@@ -236,19 +232,18 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
 
   // Handle direct prompt change
   const handlePromptChange = (index: number, value: string | Localizable<string>) => {
-    if (!Array.isArray(formData.actions)) return;
-    
     const newActions = [...formData.actions];
     
-    // Ensure the value is a Localizable object
-    const promptValue = typeof value === 'string' 
-      ? { [DEFAULT_LANGUAGE]: value } 
+    // If the value is a string, convert it to a Localizable object
+    const localizedValue = typeof value === 'string'
+      ? { [editorLanguage]: value }
       : value;
     
     newActions[index] = {
       ...newActions[index],
-      prompt: promptValue // Update the prompt directly on action, not in config
+      prompt: localizedValue
     };
+    
     updateActions(newActions);
   };
 
@@ -385,7 +380,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
             confirmLoading={isGenerating}
             width={500}
           >
-            <AntForm.Item
+            <Form.Item
               label="What would you like to generate?"
               required
               labelCol={{ span: 24 }}
@@ -398,7 +393,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
                 rows={4}
                 autoFocus
               />
-            </AntForm.Item>
+            </Form.Item>
             
             <div className="available-variables-wrapper" style={{ marginBottom: '16px' }}>
               <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>
@@ -455,7 +450,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
           confirmLoading={isGenerating}
           width={500}
         >
-          <AntForm.Item
+          <Form.Item
             label="What would you like to generate?"
             required
             labelCol={{ span: 24 }}
@@ -468,7 +463,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
               rows={4}
               autoFocus
             />
-          </AntForm.Item>
+          </Form.Item>
           
           <div className="available-variables-wrapper" style={{ marginBottom: '16px' }}>
             <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>
@@ -545,7 +540,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
               {editingIndex === index ? (
                 // Edit Mode
                 <Space direction="vertical" style={{ width: '100%', marginBottom: 0 }} size="small">
-                  <AntForm.Item
+                  <Form.Item
                     label="Action Type"
                     required
                     style={{ marginBottom: 12 }}
@@ -563,9 +558,9 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
                         value: type,
                       }))}
                     />
-                  </AntForm.Item>
+                  </Form.Item>
 
-                  <AntForm.Item
+                  <Form.Item
                     label="Action Title"
                     required
                     tooltip="A descriptive name for this action"
@@ -576,9 +571,9 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
                       value={getLocalizedValue(action.title, DEFAULT_LANGUAGE)}
                       onChange={(e) => handleActionChange(index, 'title', e.target.value)}
                     />
-                  </AntForm.Item>
+                  </Form.Item>
                   
-                  <AntForm.Item
+                  <Form.Item
                     label="Output Filename (auto-generated)"
                     tooltip="This filename will be used to reference this action's output"
                     style={{ marginBottom: 12 }}
@@ -589,7 +584,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
                       disabled
                       addonAfter={<InfoCircleOutlined />}
                     />
-                  </AntForm.Item>
+                  </Form.Item>
                   
                   <Divider orientation="left" style={{ margin: '12px 0' }}>Configuration</Divider>
                   
@@ -616,7 +611,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
 
                     <div style={{ marginTop: 8 }}>
                       <PromptTextArea
-                        value={getLocalizedValue(action.prompt, DEFAULT_LANGUAGE) || ''}
+                        value={action.prompt}
                         onChange={(value) => handlePromptChange(index, value)}
                         inputs={Array.isArray(formData.inputs) ? formData.inputs : []}
                         actions={actions}
@@ -635,7 +630,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
                     confirmLoading={isGenerating}
                     width={500}
                   >
-                    <AntForm.Item
+                    <Form.Item
                       label="What would you like to generate?"
                       required
                       labelCol={{ span: 24 }}
@@ -648,7 +643,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
                         rows={4}
                         autoFocus
                       />
-                    </AntForm.Item>
+                    </Form.Item>
                     
                     <div className="available-variables-wrapper" style={{ marginBottom: '16px' }}>
                       <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>
@@ -673,7 +668,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
                   
                   {/* Using React JSON Schema Form for other fields */}
                   <div className="json-schema-form-wrapper" style={{ height: 'auto', maxHeight: 'none', overflow: 'visible' }}>
-                    <JsonSchemaForm
+                    <RJSFForm
                       schema={{
                         ...availableActions[action.type].schema as RJSFSchema,
                         // Remove prompt from schema since we handle it separately

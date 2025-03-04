@@ -1,8 +1,7 @@
 import React from 'react';
 import { Typography, Space, Tag, Tooltip, Divider } from 'antd';
 import { FileTextOutlined, CodeOutlined, FileImageOutlined, SoundOutlined, PlayCircleOutlined } from '@ant-design/icons';
-import { ActionData, ActionType } from '../../../config/actionsConfig';
-import { DEFAULT_LANGUAGE, getLocalizedValue, Localizable } from '../../../types/i18n';
+import { ActionData, ActionType, InputField, DEFAULT_LANGUAGE, getLocalizedValue, Localizable } from '../../../types/types';
 
 const { Text } = Typography;
 
@@ -25,11 +24,7 @@ const actionColors: Record<ActionType, string> = {
 };
 
 interface AvailableVariablesProps {
-  inputs: Array<{
-    name: string;
-    label: string | Localizable<string>;
-    type: string;
-  }>;
+  inputs: Array<InputField>;
   actions: ActionData[];
   currentActionIndex: number;
   onVariableClick: (variable: string) => void;
@@ -57,19 +52,17 @@ const AvailableVariables: React.FC<AvailableVariablesProps> = ({
           </Text>
           <Space wrap>
             {inputs.map((input) => {
-              // Get localized label value, handling both string and Localizable objects
-              const labelValue = typeof input.label === 'string' 
-                ? input.label 
-                : getLocalizedValue(input.label, DEFAULT_LANGUAGE) || '';
+              // Get localized title value
+              const titleValue = getLocalizedValue(input.title, DEFAULT_LANGUAGE) || '';
               
               return (
-                <Tooltip key={input.name} title={`Reference: @${input.name}`}>
+                <Tooltip key={input.filename} title={`Reference: @${input.filename.replace('.md', '')}`}>
                   <Tag 
                     color="cyan" 
                     style={{ cursor: 'pointer' }}
-                    onClick={() => onVariableClick(`@${input.name}`)}
+                    onClick={() => onVariableClick(`@${input.filename.replace('.md', '')}`)}
                   >
-                    @{input.name} ({labelValue})
+                    @{input.filename.replace('.md', '')} ({titleValue})
                   </Tag>
                 </Tooltip>
               );

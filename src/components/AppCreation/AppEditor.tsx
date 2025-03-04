@@ -6,18 +6,18 @@ import { StyleGuide } from './steps/StyleGuide';
 import { InputsConfig } from './steps/InputsConfig';
 import { ActionsConfig } from './steps/ActionsConfig';
 import { OutputConfig } from './steps/OutputConfig';
-import { AppConfig } from '../../types/webdraw';
+import { AppConfig, getLocalizedValue, DEFAULT_LANGUAGE } from '../../types/types';
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons';
 import LanguageSettings from '../LanguageSettings/LanguageSettings';
 import JSONViewer from '../JSONViewer/JSONViewer';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { getLocalizedValue, DEFAULT_LANGUAGE } from '../../types/i18n';
 
-// Temporary type for component props until we can align the types
-interface FormDataType extends AppConfig {
-  // Additional properties that might be expected by components
-  [key: string]: any;
-  actions: any[]; // Replace with proper type when available
+interface AppEditorProps {
+  tab?: string;
+}
+
+// Define a type that combines AppConfig with the expected component props
+interface ExtendedAppConfig extends AppConfig {
   output: {
     format: string;
     template: string;
@@ -29,24 +29,19 @@ interface FormDataType extends AppConfig {
   };
 }
 
-interface AppEditorProps {
-  tab?: string;
-}
-
 export const AppEditor: React.FC<AppEditorProps> = ({ tab }) => {
   const { appName: appId } = useParams<{ appName: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const { service, isSDKAvailable } = useWebdraw();
   const { currentLanguage } = useLanguage();
+  
+  // State for the form data
+  const [formData, setFormData] = useState<ExtendedAppConfig | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [formData, setFormData] = useState<FormDataType | null>(null);
-  const [activeTab, setActiveTab] = useState(
-    tab || (location.state as any)?.activeTab || 'style'
-  );
-  const [inputsKey, setInputsKey] = useState(0); // Add a key to force refresh
-  const [saving, setSaving] = useState(false); // Track save operation status
+  const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState(tab || 'style');
+  const [inputsKey, setInputsKey] = useState(0); // Used to force re-render of inputs tab
   
   // Handle tab selection
   const handleTabChange = (key: string) => {
@@ -70,62 +65,56 @@ export const AppEditor: React.FC<AppEditorProps> = ({ tab }) => {
   
   // Load app data
   useEffect(() => {
-    async function loadApp() {
-      if (!isSDKAvailable) {
+    const loadAppData = async () => {
+      if (!isSDKAvailable || !appId) {
         setLoading(false);
         return;
       }
       
-      if (!appId) {
-        message.error('App ID is required');
-        navigate('/');
-        return;
-      }
-      
-      setLoading(true);
-      
       try {
-        console.log(`Attempting to load app with ID: ${appId}`);
-        // Get app data from service
         const appData = await service.getApp(appId);
-        console.log("App data loaded successfully:", appData);
         
-        // Ensure critical arrays are initialized
+        // Normalize the app data to ensure it has all required fields
         const normalizedAppData = {
           ...appData,
           inputs: Array.isArray(appData.inputs) ? appData.inputs : [],
-          actions: Array.isArray(appData.actions) ? appData.actions : []
+          actions: Array.isArray(appData.actions) ? appData.actions : [],
+          output: {
+            format: appData.output?.format || 'html',
+            type: appData.output?.type || 'html',
+            files: appData.output?.files || [],
+            template: appData.output?.template || '',
+            enableMarkdown: appData.output?.enableMarkdown || false,
+            enableSyntaxHighlighting: appData.output?.enableSyntaxHighlighting || false,
+            maxLength: appData.output?.maxLength || 1000
+          },
+          style: appData.style || '',
+          template: appData.template || '',
         };
         
-        setFormData(normalizedAppData as unknown as FormDataType);
-        setLoading(false);
+        setFormData(normalizedAppData as ExtendedAppConfig);
       } catch (error) {
-        console.error(`Failed to load app with ID ${appId}:`, error);
-        message.error(`Failed to load app "${appId}". The app might not exist or there was an error loading it.`);
-        navigate('/');
+        console.error('Failed to load app:', error);
+        message.error('Failed to load app');
+      } finally {
+        setLoading(false);
       }
-    }
+    };
     
-    loadApp();
-  }, [appId, service, navigate, isSDKAvailable]);
+    loadAppData();
+  }, [appId, isSDKAvailable, service]);
   
-  // Function to perform the actual save - call this explicitly when needed
+  // Save app data
   const saveApp = useCallback(async () => {
-    if (!isSDKAvailable || !formData) return;
+    if (!isSDKAvailable || !formData || !appId) {
+      message.error('Cannot save app: missing data or SDK');
+      return;
+    }
     
     setSaving(true);
     
-    // Ensure the ID is set
-    const appDataToSave = {
-      ...formData,
-      id: formData.id || appId
-    };
-    
-    console.log('Saving app data:', appDataToSave);
-    
     try {
-      await service.saveApp(appDataToSave as unknown as AppConfig);
-      console.log('App saved successfully');
+      await service.saveApp(formData);
       message.success('App saved successfully');
     } catch (error) {
       console.error('Failed to save app:', error);
@@ -136,9 +125,9 @@ export const AppEditor: React.FC<AppEditorProps> = ({ tab }) => {
   }, [formData, service, isSDKAvailable, appId]);
   
   // Handle form data changes - this only updates the React state
-  const handleFormDataChange = useCallback((newData: FormDataType) => {
+  const handleFormDataChange = useCallback((newData: Partial<ExtendedAppConfig>) => {
     setFormData(prevData => {
-      if (!prevData) return newData;
+      if (!prevData) return newData as ExtendedAppConfig;
       
       // Create a merged version with the new data
       const mergedData = {
@@ -149,23 +138,20 @@ export const AppEditor: React.FC<AppEditorProps> = ({ tab }) => {
       // Only update if something has actually changed
       // We do a shallow comparison of stringified versions to avoid insignificant changes
       if (JSON.stringify(mergedData) === JSON.stringify(prevData)) {
-        console.log('Form data unchanged, skipping update');
-        return prevData; // Return previous data to avoid re-render
+        return prevData;
       }
       
-      console.log('Form data changed, updating state');
       return mergedData;
     });
   }, []);
   
   // Monitor formData changes for debugging
   useEffect(() => {
-    if (formData) {
-      console.log('AppEditor formData updated:', {
-        id: formData.id,
-        hasInputs: Boolean(formData.inputs),
-        inputsLength: Array.isArray(formData.inputs) ? formData.inputs.length : 'not an array',
-        inputs: formData.inputs
+    if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+      console.log('Form data updated:', {
+        hasInputs: Boolean(formData?.inputs),
+        inputsLength: Array.isArray(formData?.inputs) ? formData.inputs.length : 'not an array',
+        inputs: formData?.inputs
       });
     }
   }, [formData]);

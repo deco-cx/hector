@@ -1,32 +1,5 @@
 import { JSONSchema7 } from 'json-schema';
-import { Localizable, DEFAULT_LANGUAGE, getLocalizedValue } from '../types/i18n';
-
-export type ActionType = 'generateText' | 'generateJSON' | 'generateImage' | 'generateAudio' | 'generateVideo';
-
-export interface ActionConfig {
-  type: ActionType;
-  label: string;
-  description: string;
-  icon: string;
-  fileExtension: string;
-  schema: JSONSchema7;
-  defaultProps: Record<string, any>;
-}
-
-export interface ActionData {
-  id: string;
-  type: ActionType;
-  title: Localizable<string>;
-  description?: Localizable<string>;
-  filename: string;
-  prompt: Localizable<string>;
-  config: Record<string, any>;
-}
-
-// Helper function to create a Localizable string with a default value
-export function createDefaultLocalizable(value: string): Localizable<string> {
-  return { [DEFAULT_LANGUAGE]: value };
-}
+import { Localizable, DEFAULT_LANGUAGE, getLocalizedValue, ActionType, ActionConfig, ActionData, createDefaultLocalizable } from '../types/types';
 
 // Define available actions with their schemas and default properties
 export const availableActions: Record<ActionType, ActionConfig> = {

@@ -1,4 +1,4 @@
-import { WebdrawSDK, AppConfig } from '../types/webdraw';
+import { WebdrawSDK, AppConfig } from '../types/types';
 
 export class WebdrawService {
   private sdk: WebdrawSDK;

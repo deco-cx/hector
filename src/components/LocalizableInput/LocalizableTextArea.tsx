@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Input, Button, Space, Tooltip } from 'antd';
 import { GlobalOutlined, PlusOutlined } from '@ant-design/icons';
-import { Localizable, AVAILABLE_LANGUAGES, DEFAULT_LANGUAGE } from '../../types/i18n';
+import { Localizable, AVAILABLE_LANGUAGES, DEFAULT_LANGUAGE } from '../../types/types';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useNavigate, useParams } from 'react-router-dom';
 import './LocalizableInput.css';
@@ -13,6 +13,7 @@ export interface LocalizableTextAreaProps extends Omit<React.ComponentProps<type
   onChange?: (value: Localizable<string>) => void;
   defaultLanguage?: string;
   rows?: number;
+  showLanguageToggle?: boolean;
 }
 
 const languageEmojis: Record<string, string> = {
@@ -33,6 +34,7 @@ export const LocalizableTextArea: React.FC<LocalizableTextAreaProps> = ({
   onChange,
   defaultLanguage,
   rows = 4,
+  showLanguageToggle = true,
   ...props
 }) => {
   const { availableLanguages } = useLanguage();
@@ -61,29 +63,9 @@ export const LocalizableTextArea: React.FC<LocalizableTextAreaProps> = ({
   };
 
   const renderLanguageToggle = () => {
-    // If only one language is available, show the default language and "+" button
-    if (availableLanguages.length <= 1) {
-      return (
-        <div className="language-indicator" style={{ display: 'flex', alignItems: 'center' }}>
-          <Tooltip key={DEFAULT_LANGUAGE} title={DEFAULT_LANGUAGE}>
-            <Button
-              type="text"
-              size="small"
-              className="active-language"
-            >
-              {languageEmojis[DEFAULT_LANGUAGE] || <GlobalOutlined />}
-            </Button>
-          </Tooltip>
-          <Tooltip title="Add more languages">
-            <Button
-              type="text"
-              size="small"
-              icon={<PlusOutlined />}
-              onClick={navigateToLanguageTab}
-            />
-          </Tooltip>
-        </div>
-      );
+    // If language toggle is disabled or only one language is available, don't show anything
+    if (!showLanguageToggle || availableLanguages.length <= 1) {
+      return null;
     }
 
     // Otherwise, show all available languages
