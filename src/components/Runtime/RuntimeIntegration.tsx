@@ -6,7 +6,7 @@ import { RuntimeControls } from './RuntimeControls';
 import { PlayActionButton } from './PlayActionButton';
 import { InputTest } from './InputTest';
 import { ResultVisualization } from './ResultVisualization';
-import { ActionData, InputField } from '../../types/types';
+import { ActionData, InputField, DEFAULT_LANGUAGE } from '../../types/types';
 
 const { TabPane } = Tabs;
 const { Text, Title } = Typography;
@@ -26,7 +26,7 @@ export const EnhancedActionCard: React.FC<EnhancedActionCardProps> = ({
   action, 
   active 
 }) => {
-  const { isRuntimeMode, executionContext } = useRuntime();
+  const { executionContext } = useRuntime();
   const [showResult, setShowResult] = useState(false);
   
   // Get action status
@@ -42,26 +42,24 @@ export const EnhancedActionCard: React.FC<EnhancedActionCardProps> = ({
   };
   
   return (
-    <div className={`action-card-wrapper ${isRuntimeMode ? 'runtime-mode' : ''}`}>
+    <div className="action-card-wrapper">
       <div className="action-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div className="action-card-title">
-          <Text strong>{action.name || `Action ${action.id}`}</Text>
+          <Text strong>{action.title ? action.title[DEFAULT_LANGUAGE] : `Action ${action.id}`}</Text>
         </div>
         
-        {isRuntimeMode && (
-          <div className="action-card-controls">
-            <PlayActionButton action={action} />
-          </div>
-        )}
+        <div className="action-card-controls">
+          <PlayActionButton action={action} />
+        </div>
       </div>
       
-      {isRuntimeMode && hasResult && (
+      {hasResult && (
         <div className="action-card-result" style={{ marginTop: '16px' }}>
           <Row gutter={[16, 16]}>
             <Col span={24}>
               <ResultVisualization 
                 result={result} 
-                actionName={action.name || action.id} 
+                actionName={action.title ? action.title[DEFAULT_LANGUAGE] : action.id} 
                 title="Result" 
               />
             </Col>
@@ -115,24 +113,7 @@ export const RuntimePanel: React.FC<RuntimePanelProps> = ({
   inputs, 
   actions 
 }) => {
-  const { isRuntimeMode } = useRuntime();
   const [activeTab, setActiveTab] = useState<string>('inputs');
-  
-  // Set inputs tab by default in runtime mode
-  useEffect(() => {
-    if (isRuntimeMode) {
-      setActiveTab('inputs');
-    }
-  }, [isRuntimeMode]);
-  
-  if (!isRuntimeMode) {
-    return (
-      <Empty 
-        description="Switch to runtime mode to test actions" 
-        image={Empty.PRESENTED_IMAGE_SIMPLE}
-      />
-    );
-  }
   
   return (
     <Card className="runtime-panel" style={{ marginBottom: '20px' }}>
@@ -165,7 +146,7 @@ export const RuntimePanel: React.FC<RuntimePanelProps> = ({
           <Row gutter={[16, 16]}>
             {actions.map(action => (
               <Col key={action.id} xs={24} sm={12} lg={8}>
-                <Card size="small" title={action.name || `Action ${action.id}`}>
+                <Card size="small" title={action.title ? action.title[DEFAULT_LANGUAGE] : `Action ${action.id}`}>
                   <EnhancedActionCard action={action} />
                 </Card>
               </Col>

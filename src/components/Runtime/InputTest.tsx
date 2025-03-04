@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Input, Select, Upload, Button, Typography, Card, Space, Divider } from 'antd';
 import { UploadOutlined, FileTextOutlined, PictureOutlined, SoundOutlined } from '@ant-design/icons';
 import { InputField } from '../../types/types';
@@ -19,8 +19,39 @@ interface InputTestProps {
  * InputTest component renders appropriate input field based on type
  */
 export const InputTest: React.FC<InputTestProps> = ({ input }) => {
-  const { executionContext } = useRuntime();
+  const { executionContext, sdk } = useRuntime();
   const [value, setValue] = useState<any>(executionContext.getValue(input.filename) || input.defaultValue || '');
+  
+  // Save execution state with debounce
+  const saveExecutionState = useCallback(
+    async (newValue: any) => {
+      if (sdk) {
+        try {
+          // Set the value in the context
+          executionContext.setValue(input.filename, newValue);
+          
+          // Save to filesystem with debounce
+          const timeoutId = setTimeout(async () => {
+            await executionContext.saveExecutionState(sdk);
+          }, 500);
+          
+          return () => clearTimeout(timeoutId);
+        } catch (error) {
+          console.error('Failed to save execution state:', error);
+        }
+      }
+    },
+    [executionContext, sdk, input.filename]
+  );
+  
+  // Handle value changes
+  const handleValueChange = useCallback(
+    (newValue: any) => {
+      setValue(newValue);
+      saveExecutionState(newValue);
+    },
+    [saveExecutionState]
+  );
   
   // Update the execution context when value changes
   useEffect(() => {
@@ -56,14 +87,14 @@ export const InputTest: React.FC<InputTestProps> = ({ input }) => {
           ? (
             <TextArea
               value={value}
-              onChange={(e) => setValue(e.target.value)}
+              onChange={(e) => handleValueChange(e.target.value)}
               placeholder={placeholder}
               rows={4}
             />
           ) : (
             <Input
               value={value}
-              onChange={(e) => setValue(e.target.value)}
+              onChange={(e) => handleValueChange(e.target.value)}
               placeholder={placeholder}
             />
           );
@@ -73,7 +104,7 @@ export const InputTest: React.FC<InputTestProps> = ({ input }) => {
           <Select
             style={{ width: '100%' }}
             value={value}
-            onChange={(val) => setValue(val)}
+            onChange={(val) => handleValueChange(val)}
             placeholder={placeholder}
           >
             {input.options?.map((option) => (
@@ -106,7 +137,7 @@ export const InputTest: React.FC<InputTestProps> = ({ input }) => {
                 const reader = new FileReader();
                 reader.readAsDataURL(file);
                 reader.onload = () => {
-                  setValue({
+                  handleValueChange({
                     filepath: URL.createObjectURL(file),
                     base64: reader.result,
                     filename: file.name
@@ -138,7 +169,7 @@ export const InputTest: React.FC<InputTestProps> = ({ input }) => {
                 const reader = new FileReader();
                 reader.readAsDataURL(file);
                 reader.onload = () => {
-                  setValue({
+                  handleValueChange({
                     filepath: URL.createObjectURL(file),
                     base64: reader.result,
                     filename: file.name
@@ -166,7 +197,7 @@ export const InputTest: React.FC<InputTestProps> = ({ input }) => {
                 const reader = new FileReader();
                 reader.readAsDataURL(file);
                 reader.onload = () => {
-                  setValue({
+                  handleValueChange({
                     filepath: URL.createObjectURL(file),
                     base64: reader.result,
                     filename: file.name,
@@ -183,7 +214,7 @@ export const InputTest: React.FC<InputTestProps> = ({ input }) => {
         );
         
       default:
-        return <Input value={value} onChange={(e) => setValue(e.target.value)} placeholder={placeholder} />;
+        return <Input value={value} onChange={(e) => handleValueChange(e.target.value)} placeholder={placeholder} />;
     }
   };
   
@@ -233,7 +264,7 @@ export const InputTest: React.FC<InputTestProps> = ({ input }) => {
             <Button 
               size="small" 
               danger 
-              onClick={() => setValue('')}
+              onClick={() => handleValueChange('')}
             >
               Clear
             </Button>

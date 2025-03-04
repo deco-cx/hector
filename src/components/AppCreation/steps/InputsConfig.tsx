@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
-import { Typography, Button, Form, Input, Select, Card, Tooltip, Row, Col } from 'antd';
-import { PlusOutlined, MinusCircleOutlined } from '@ant-design/icons';
+import React, { useEffect, useState } from 'react';
+import { Typography, Button, Form, Input, Select, Card, Tooltip, Row, Col, Space, Tabs } from 'antd';
+import { PlusOutlined, MinusCircleOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
 import { 
   Localizable, 
   DEFAULT_LANGUAGE, 
@@ -9,8 +9,11 @@ import {
   InputField
 } from '../../../types/types';
 import LocalizableInput from '../../../components/LocalizableInput/LocalizableInput';
+import { useRuntime } from '../../../components/Runtime/RuntimeContext';
+import { InputTest } from '../../../components/Runtime/InputTest';
 
-const { Title, Paragraph } = Typography;
+const { Title, Paragraph, Text } = Typography;
+const { TabPane } = Tabs;
 
 interface InputsConfigProps {
   formData: {
@@ -30,6 +33,18 @@ const inputTypes = [
 
 export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
   const [form] = Form.useForm();
+  const runtime = useRuntime();
+  
+  // Track which inputs are in view mode
+  const [viewModeInputs, setViewModeInputs] = useState<Record<number, boolean>>({});
+  
+  // Toggle view mode for a specific input
+  const toggleInputViewMode = (index: number) => {
+    setViewModeInputs(prev => ({
+      ...prev,
+      [index]: !prev[index]
+    }));
+  };
   
   // Generate a filename from the title
   const generateFilename = (title: Localizable<string>): string => {
@@ -48,56 +63,31 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
   const onValuesChange = (changedValues: any, allValues: any) => {
     console.log("onValuesChange called with:", { 
       changedValues: JSON.stringify(changedValues, null, 2), 
-      allValues: JSON.stringify(allValues, null, 2)
+      allValues: JSON.stringify(allValues, null, 2) 
     });
     
-    // Check if a required field was changed
     if (changedValues.inputs) {
-      const changedRequiredField = changedValues.inputs.some((input: any, index: number) => {
-        if (input && input.required !== undefined) {
-          console.log(`Required field changed at index ${index}:`, input.required, typeof input.required);
-          return true;
+      // Process each changed input
+      const newInputs = allValues.inputs.map((input: InputField, index: number) => {
+        const newInput = { ...input };
+        
+        // Generate filename from title if it doesn't exist or has been reset
+        if ((!newInput.filename || newInput.filename === '') && newInput.title) {
+          newInput.filename = generateFilename(newInput.title);
         }
-        return false;
+        
+        // Ensure required is properly set as boolean
+        if (newInput.required !== undefined) {
+          newInput.required = newInput.required === true || String(newInput.required) === 'true';
+        }
+        
+        return newInput;
       });
       
-      if (changedRequiredField) {
-        console.log("Required field was changed in this update");
-      }
-      
-      const updatedInputs = allValues.inputs?.map((input: any, index: number) => {
-        if (input && input.title) {
-          // Log the required value for debugging
-          console.log(`Input ${index} required value before update:`, input.required, typeof input.required);
-          
-          // Make sure required is a boolean
-          const requiredValue = input.required === true || input.required === 'true' ? true : false;
-          console.log(`Input ${index} normalized required value:`, requiredValue, typeof requiredValue);
-          
-          return {
-            ...input,
-            required: requiredValue,
-            filename: generateFilename(input.title)
-          };
-        }
-        return input;
-      }).filter(Boolean) || [];
-      
-      // Log the updated inputs
-      console.log("Updated inputs before form update:", JSON.stringify(updatedInputs, null, 2));
-      
-      // Update form and parent
-      form.setFieldsValue({ inputs: updatedInputs });
-      setFormData({
-        ...formData,
-        inputs: updatedInputs
-      });
-      
-      console.log("Form values updated - final inputs:", updatedInputs.map((input: any) => ({
-        title: getLocalizedValue(input.title, DEFAULT_LANGUAGE),
-        required: input.required,
-        type: input.type
-      })));
+      setFormData((prev: any) => ({
+        ...prev,
+        inputs: newInputs
+      }));
     }
   };
   
@@ -145,6 +135,18 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
       { inputs: newInputs }
     );
     
+    // Clean up viewModeInputs state
+    setViewModeInputs(prev => {
+      const newViewModes = { ...prev };
+      delete newViewModes[index];
+      return Object.fromEntries(
+        Object.entries(newViewModes).map(([key, value]) => {
+          const keyNum = parseInt(key);
+          return [keyNum > index ? keyNum - 1 : keyNum, value];
+        })
+      );
+    });
+    
     console.log("Removed field, total inputs:", newInputs.length);
   };
   
@@ -183,6 +185,7 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
       <Title level={4}>Input Fields</Title>
       <Paragraph className="text-gray-500 mb-4">
         Define the input fields that users will need to fill in before generating content.
+        Click the edit/view toggle to switch between configuring inputs and filling them in.
       </Paragraph>
       
       {/* Add a button to log form values for debugging */}
@@ -205,98 +208,125 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
                 const currentRequired = currentField ? currentField.required : undefined;
                 console.log(`Rendering field ${name}, required value:`, currentRequired, typeof currentRequired);
                 
+                const isViewMode = viewModeInputs[name] === true;
+                
                 return (
                 <Card 
                   key={key} 
                   className="input-field-card"
-                  title={getLocalizedValue(form.getFieldValue(['inputs', name, 'title']), DEFAULT_LANGUAGE) || 'New Field'}
+                  title={
+                    <Space>
+                      {getLocalizedValue(form.getFieldValue(['inputs', name, 'title']), DEFAULT_LANGUAGE) || 'New Field'}
+                    </Space>
+                  }
                   extra={
-                    <Tooltip title="Remove Field">
-                      <Button 
-                        type="text" 
-                        danger 
-                        icon={<MinusCircleOutlined />} 
-                        onClick={() => handleRemoveField(name)}
-                      />
-                    </Tooltip>
+                    <Space>
+                      <Tooltip title={isViewMode ? "Edit Field" : "View Field"}>
+                        <Button 
+                          type="text" 
+                          icon={isViewMode ? <EditOutlined /> : <EyeOutlined />} 
+                          onClick={() => toggleInputViewMode(name)}
+                        />
+                      </Tooltip>
+                      {!isViewMode && (
+                        <Tooltip title="Remove Field">
+                          <Button 
+                            type="text" 
+                            danger 
+                            icon={<MinusCircleOutlined />} 
+                            onClick={() => handleRemoveField(name)}
+                          />
+                        </Tooltip>
+                      )}
+                    </Space>
                   }
                 >
-                  <Row gutter={16}>
-                    <Col span={12}>
+                  {isViewMode ? (
+                    // View mode - Show the InputTest component to fill values
+                    <InputTest 
+                      input={form.getFieldValue(['inputs', name])} 
+                    />
+                  ) : (
+                    // Edit mode - Show the configuration form
+                    <>
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <Form.Item
+                            {...restField}
+                            name={[name, 'title']}
+                            label="Field Name"
+                            rules={[{ required: true, message: 'Field name is required' }]}
+                          >
+                            <LocalizableInput placeholder="Enter field name" />
+                          </Form.Item>
+                        </Col>
+                        
+                        <Col span={12}>
+                          <Form.Item
+                            {...restField}
+                            name={[name, 'type']}
+                            label="Field Type"
+                            rules={[{ required: true, message: 'Field type is required' }]}
+                          >
+                            <Select placeholder="Select field type">
+                              {inputTypes.map(type => (
+                                <Select.Option key={type.value} value={type.value}>
+                                  {type.label}
+                                </Select.Option>
+                              ))}
+                            </Select>
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                      
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <Form.Item
+                            {...restField}
+                            name={[name, 'placeholder']}
+                            label="Placeholder"
+                          >
+                            <LocalizableInput placeholder="Enter placeholder text" />
+                          </Form.Item>
+                        </Col>
+                        
+                        <Col span={12}>
+                          <Form.Item
+                            {...restField}
+                            name={[name, 'required']}
+                            label="Required"
+                            valuePropName="value"
+                          >
+                            <Select
+                              onChange={(value) => {
+                                console.log(`Required value changed for field ${name}:`, value, typeof value);
+                                // Directly modify the form field to ensure it's set properly
+                                const currentInputs = form.getFieldValue('inputs');
+                                if (currentInputs && currentInputs[name]) {
+                                  console.log('Before update, current value:', currentInputs[name].required);
+                                  currentInputs[name].required = value === true || value === 'true';
+                                  console.log('After update, new value:', currentInputs[name].required);
+                                  form.setFieldsValue({ inputs: currentInputs });
+                                }
+                              }}
+                            >
+                              <Select.Option value={true}>Yes</Select.Option>
+                              <Select.Option value={false}>No</Select.Option>
+                            </Select>
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                      
                       <Form.Item
                         {...restField}
-                        name={[name, 'title']}
-                        label="Field Name"
-                        rules={[{ required: true, message: 'Field name is required' }]}
+                        name={[name, 'filename']}
+                        label="File Name"
+                        extra="Auto-generated from field name. Will be used to reference this field in actions."
                       >
-                        <LocalizableInput placeholder="Enter field name" />
+                        <Input disabled />
                       </Form.Item>
-                    </Col>
-                    
-                    <Col span={12}>
-                      <Form.Item
-                        {...restField}
-                        name={[name, 'type']}
-                        label="Field Type"
-                        rules={[{ required: true, message: 'Field type is required' }]}
-                      >
-                        <Select placeholder="Select field type">
-                          {inputTypes.map(type => (
-                            <Select.Option key={type.value} value={type.value}>
-                              {type.label}
-                            </Select.Option>
-                          ))}
-                        </Select>
-                      </Form.Item>
-                    </Col>
-                  </Row>
-                  
-                  <Row gutter={16}>
-                    <Col span={12}>
-                      <Form.Item
-                        {...restField}
-                        name={[name, 'placeholder']}
-                        label="Placeholder"
-                      >
-                        <LocalizableInput placeholder="Enter placeholder text" />
-                      </Form.Item>
-                    </Col>
-                    
-                    <Col span={12}>
-                      <Form.Item
-                        {...restField}
-                        name={[name, 'required']}
-                        label="Required"
-                        valuePropName="value"
-                      >
-                        <Select
-                          onChange={(value) => {
-                            console.log(`Required value changed for field ${name}:`, value, typeof value);
-                            // Directly modify the form field to ensure it's set properly
-                            const currentInputs = form.getFieldValue('inputs');
-                            if (currentInputs && currentInputs[name]) {
-                              console.log('Before update, current value:', currentInputs[name].required);
-                              currentInputs[name].required = value === true || value === 'true';
-                              console.log('After update, new value:', currentInputs[name].required);
-                              form.setFieldsValue({ inputs: currentInputs });
-                            }
-                          }}
-                        >
-                          <Select.Option value={true}>Yes</Select.Option>
-                          <Select.Option value={false}>No</Select.Option>
-                        </Select>
-                      </Form.Item>
-                    </Col>
-                  </Row>
-                  
-                  <Form.Item
-                    {...restField}
-                    name={[name, 'filename']}
-                    label="File Name"
-                    extra="Auto-generated from field name. Will be used to reference this field in actions."
-                  >
-                    <Input disabled />
-                  </Form.Item>
+                    </>
+                  )}
                 </Card>
               )})}
               

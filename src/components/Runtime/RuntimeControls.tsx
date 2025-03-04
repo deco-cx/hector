@@ -1,8 +1,9 @@
 import React from 'react';
-import { Card, Switch, Button, Space, Typography, Badge, Divider } from 'antd';
-import { ReloadOutlined, PlayCircleOutlined, ClockCircleOutlined, ExperimentOutlined, SettingOutlined } from '@ant-design/icons';
+import { Card, Button, Space, Typography, Badge, Divider } from 'antd';
+import { ReloadOutlined, ClockCircleOutlined, ExperimentOutlined } from '@ant-design/icons';
 import { useRuntime } from './RuntimeContext';
 import { ActionStatus } from './ExecutionContext';
+import { ExecutionPill } from './ExecutionPill';
 
 const { Text, Title } = Typography;
 
@@ -19,11 +20,7 @@ interface RuntimeControlsProps {
 export const RuntimeControls: React.FC<RuntimeControlsProps> = ({ 
   title = 'Runtime Controls' 
 }) => {
-  const { 
-    isRuntimeMode, 
-    setRuntimeMode, 
-    executionContext
-  } = useRuntime();
+  const { executionContext } = useRuntime();
   
   // Reset the execution context
   const handleReset = () => {
@@ -63,11 +60,8 @@ export const RuntimeControls: React.FC<RuntimeControlsProps> = ({
       className="runtime-controls-card"
     >
       <Space direction="vertical" style={{ width: '100%' }}>
-        <div className="runtime-mode-toggle">
-          <RuntimeModeToggle 
-            isRuntimeMode={isRuntimeMode} 
-            setRuntimeMode={setRuntimeMode} 
-          />
+        <div className="execution-history">
+          <ExecutionPill />
         </div>
         
         <Divider style={{ margin: '12px 0' }} />
@@ -77,7 +71,6 @@ export const RuntimeControls: React.FC<RuntimeControlsProps> = ({
             <Button 
               icon={<ReloadOutlined />} 
               onClick={handleReset}
-              disabled={!isRuntimeMode}
             >
               Reset All
             </Button>
@@ -92,38 +85,6 @@ export const RuntimeControls: React.FC<RuntimeControlsProps> = ({
         </div>
       </Space>
     </Card>
-  );
-};
-
-/**
- * Props for the RuntimeModeToggle component
- */
-interface RuntimeModeToggleProps {
-  isRuntimeMode: boolean;
-  setRuntimeMode: (isRuntime: boolean) => void;
-}
-
-/**
- * Toggle for switching between config and runtime modes
- */
-export const RuntimeModeToggle: React.FC<RuntimeModeToggleProps> = ({ 
-  isRuntimeMode, 
-  setRuntimeMode 
-}) => {
-  return (
-    <div className="runtime-mode-toggle-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-      <Space>
-        <Text strong>Mode:</Text>
-        <Text>{isRuntimeMode ? 'Runtime' : 'Configuration'}</Text>
-      </Space>
-      
-      <Switch
-        checked={isRuntimeMode}
-        onChange={setRuntimeMode}
-        checkedChildren={<PlayCircleOutlined />}
-        unCheckedChildren={<SettingOutlined />}
-      />
-    </div>
   );
 };
 

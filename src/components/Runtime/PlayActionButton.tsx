@@ -37,7 +37,7 @@ export const PlayActionButton: React.FC<PlayActionButtonProps> = ({
   action, 
   size = 'middle' 
 }) => {
-  const { executionContext, isRuntimeMode, sdk } = useRuntime();
+  const { executionContext, sdk } = useRuntime();
   const [loading, setLoading] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [processingFile, setProcessingFile] = useState(false);
@@ -54,7 +54,7 @@ export const PlayActionButton: React.FC<PlayActionButtonProps> = ({
       shape: 'circle',
       icon: <PlayCircleOutlined />,
       size,
-      disabled: !isRuntimeMode || !status.playable || loading
+      disabled: !status.playable || loading
     };
     
     // If action is currently executing
@@ -204,10 +204,6 @@ export const PlayActionButton: React.FC<PlayActionButtonProps> = ({
       } else if (status.status === 'error') {
         return `Failed execution: ${getErrorMessage(status.error)}. Click to retry.`;
       }
-    }
-    
-    if (!isRuntimeMode) {
-      return 'Switch to runtime mode to execute this action';
     }
     
     if (!status.playable) {

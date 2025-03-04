@@ -77,6 +77,9 @@ export class ExecutionContext {
   // Subscribers for changes
   private subscribers: (() => void)[] = [];
   
+  // Add the lastExecutionTime property and getter
+  private lastExecutionTime: string | null = null;
+  
   /**
    * Constructor
    */
@@ -347,6 +350,9 @@ export class ExecutionContext {
         // Save execution state to WebDraw's filesystem
         await this.saveExecutionState(sdk, action);
         
+        // Update lastExecutionTime on execution
+        this.lastExecutionTime = new Date().toISOString();
+        
         return result.data;
       } else {
         // Mark as failed
@@ -360,7 +366,7 @@ export class ExecutionContext {
   }
   
   /**
-   * Saves the current execution state to WebDraw filesystem
+   * Saves the current execution state
    * @param sdk The WebDraw SDK instance
    * @param action Optional action to associate with the save
    */
@@ -391,9 +397,47 @@ export class ExecutionContext {
       // Write to file
       await sdk.fs.write(filename, JSON.stringify(state, null, 2));
       
+      // Save to app config as well
+      await this.saveCurrentExecutionToAppConfig(sdk, appName);
+      
       console.log(`Execution state saved to ${filename}`);
+      this.lastExecutionTime = new Date().toISOString();
     } catch (error) {
       console.error('Failed to save execution state:', error);
+    }
+  }
+  
+  /**
+   * Saves the current execution state to the app configuration
+   * @param sdk The WebDraw SDK instance
+   * @param appName The name of the app
+   */
+  private async saveCurrentExecutionToAppConfig(sdk: any, appName: string): Promise<void> {
+    try {
+      // Try to get the app config file
+      const appConfigPath = `apps/${appName}/config.json`;
+      let appConfig: any = {};
+      
+      try {
+        // Read the current app config if it exists
+        const appConfigContent = await sdk.fs.read(appConfigPath);
+        appConfig = JSON.parse(appConfigContent);
+      } catch (error) {
+        console.log('App config may not exist yet, creating new one');
+      }
+      
+      // Add/update the current execution state
+      appConfig.currentExecution = {
+        values: this.values,
+        executionMeta: this.executionMeta,
+        updatedAt: new Date().toISOString()
+      };
+      
+      // Write the updated config back
+      await sdk.fs.write(appConfigPath, JSON.stringify(appConfig, null, 2));
+      console.log(`Current execution state saved to app config at ${appConfigPath}`);
+    } catch (error) {
+      console.error('Failed to save current execution to app config:', error);
     }
   }
   
@@ -405,6 +449,10 @@ export class ExecutionContext {
     try {
       this.values = state.values || {};
       this.executionMeta = state.executionMeta || {};
+      // Set the lastExecutionTime if present in state
+      if (state.timestamp) {
+        this.lastExecutionTime = state.timestamp;
+      }
       this.notifySubscribers();
     } catch (error) {
       console.error('Failed to load execution state:', error);
@@ -420,7 +468,7 @@ export class ExecutionContext {
     return {
       values: this.values,
       executionMeta: this.executionMeta,
-      timestamp: new Date().toISOString()
+      timestamp: this.lastExecutionTime || new Date().toISOString()
     };
   }
   
@@ -431,6 +479,33 @@ export class ExecutionContext {
    */
   async loadCurrentExecution(sdk: any, appName: string): Promise<void> {
     try {
+      // Check if SDK and its filesystem are available
+      if (!sdk || !sdk.fs) {
+        console.warn('SDK or filesystem not available for loading execution state');
+        return;
+      }
+      
+      // First try to load from the app config
+      const appConfigPath = `apps/${appName}/config.json`;
+      
+      try {
+        // Check if app config exists
+        const appConfigExists = await sdk.fs.exists(appConfigPath);
+        if (appConfigExists) {
+          const appConfigContent = await sdk.fs.read(appConfigPath);
+          const appConfig = JSON.parse(appConfigContent as string);
+          
+          if (appConfig.currentExecution) {
+            console.log('Loading execution state from app config');
+            this.loadFromState(appConfig.currentExecution);
+            return; // Successfully loaded from app config
+          }
+        }
+      } catch (error) {
+        console.warn('Could not load execution from app config, trying fallback:', error);
+      }
+      
+      // Fallback to the legacy config file
       const configFile = `Hector/config.json`;
       
       // Check if config file exists
@@ -440,6 +515,7 @@ export class ExecutionContext {
         const config = JSON.parse(configContent as string);
         
         if (config.currentExecution) {
+          console.log('Loading execution state from fallback config');
           this.loadFromState(config.currentExecution);
         }
       }
@@ -502,5 +578,13 @@ export class ExecutionContext {
         console.error('Error in execution context subscriber:', error);
       }
     }
+  }
+  
+  /**
+   * Get the timestamp of the most recent execution
+   * @returns ISO string of the last execution time or null if no executions
+   */
+  getLastExecutionTime(): string | null {
+    return this.lastExecutionTime;
   }
 } 

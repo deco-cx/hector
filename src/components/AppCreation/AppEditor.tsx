@@ -13,6 +13,15 @@ import JSONViewer from '../JSONViewer/JSONViewer';
 import ExportsView from '../Exports/ExportsView';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { createOutputTemplate } from '../../config/outputsConfig';
+import { RuntimeProvider } from '../../components/Runtime';
+import { ExecutionPill } from '../../components/Runtime/ExecutionPill';
+
+// Extend Window interface to include our custom property
+declare global {
+  interface Window {
+    __updateRuntimeMode?: (isRuntime: boolean) => void;
+  }
+}
 
 interface AppEditorProps {
   tab?: string;
@@ -251,173 +260,161 @@ export const AppEditor: React.FC<AppEditorProps> = ({ tab }) => {
   }
   
   if (!formData) {
-    return null;
+    return (
+      <div style={{ padding: 20 }}>
+        <Alert
+          message="App Not Found"
+          description={
+            <div>
+              <p>Could not load app data.</p>
+              <Button onClick={() => navigate('/')}>Return to Home</Button>
+            </div>
+          }
+          type="error"
+          showIcon
+        />
+      </div>
+    );
+  }
+  
+  // Get the app name as string for use in RuntimeProvider
+  const appNameString = formData.name 
+    ? (typeof formData.name === 'object' 
+        ? getLocalizedValue(formData.name, currentLanguage) || String(appId) 
+        : String(formData.name))
+    : String(appId) || 'app';
+    
+  // Create a wrapper for the RuntimeProvider that removes the mode-related functionality
+  const RuntimeProviderWrapper: React.FC<React.PropsWithChildren> = ({ children }) => {
+    // This will be rendered inside the RuntimeContext, allowing us to use the already defined state
+    return (
+      <RuntimeProvider
+        sdk={service}
+        appName={appNameString}
+        inputs={formData?.inputs || []}
+        actions={formData?.actions || []}
+      >
+        {children}
+      </RuntimeProvider>
+    );
+  };
+  
+  // If the SDK service is not available, show a loading message
+  if (!service || !formData) {
+    return (
+      <div style={{ padding: 24 }}>
+        <Spin tip="Loading..."/>
+      </div>
+    );
   }
   
   return (
-    <div className="app-editor min-h-screen">
-      {/* Header Section */}
-      <Card 
-        className="mb-6 border-b shadow-sm rounded-lg" 
-        bodyStyle={{ padding: '24px 20px' }}
-      >
-        {/* Back to Home Link and Save Button */}
-        <div style={{ 
+    <RuntimeProviderWrapper>
+      <div className="app-editor">
+        <div className="app-editor-header" style={{ 
           display: 'flex', 
           justifyContent: 'space-between', 
-          alignItems: 'center',
-          marginBottom: '32px',
-          gap: '16px'
+          alignItems: 'center', 
+          marginBottom: 16,
+          padding: '8px 16px',
+          backgroundColor: '#f5f5f5',
+          borderBottom: '1px solid #e8e8e8'
         }}>
-          <Button 
-            type="link" 
-            icon={<ArrowLeftOutlined />} 
-            onClick={() => navigate('/')}
-            style={{
-              color: '#7c3aed',
-              padding: 0,
-              display: 'flex',
-              alignItems: 'center',
-              fontSize: '16px'
-            }}
-          >
-            Back to Home
-          </Button>
+          <Space>
+            <Button 
+              icon={<ArrowLeftOutlined />} 
+              onClick={() => navigate('/')}
+            >
+              Back
+            </Button>
+            <Typography.Title level={4} style={{ margin: 0 }}>
+              {getLocalizedValue(formData.name, currentLanguage) || appId}
+            </Typography.Title>
+          </Space>
           
-          <Button
-            type="primary"
-            onClick={saveApp}
-            loading={saving}
-            icon={<SaveOutlined />}
-            size="large"
-          >
-            Save Changes
-          </Button>
+          <Space>
+            <ExecutionPill />
+            <Button 
+              type="primary" 
+              icon={<SaveOutlined />} 
+              onClick={saveApp} 
+              loading={saving}
+            >
+              Save
+            </Button>
+          </Space>
         </div>
         
-        {/* App Information */}
-        <div style={{ marginTop: '24px' }}>
-          <Typography.Title 
-            level={2}
-            style={{ 
-              marginBottom: '24px',
-              padding: '20px 24px',
-              background: '#f5f3ff', 
-              borderBottom: '2px solid #7c3aed',
-              borderRadius: '4px 4px 0 0',
-              fontFamily: "'Merriweather', serif",
-            }}
-          >
-            {formData.name && getLocalizedValue(formData.name, currentLanguage)}
-          </Typography.Title>
-          
-          <div style={{ 
-            color: '#6b7280', 
-            fontSize: '14px', 
-            padding: '0 12px', 
-            marginTop: '20px', 
-            marginBottom: '12px' 
-          }}>
-            File: <code style={{ background: '#f3f4f6', padding: '2px 8px', borderRadius: '4px' }}>~/Hector/apps/{formData.id}.json</code> 
-            <span style={{ marginLeft: '12px' }}>(used for the file name, cannot be changed)</span>
-          </div>
-        </div>
-      </Card>
-      
-      {/* Tabs Section */}
-      <div style={{ 
-        backgroundColor: '#fff', 
-        padding: '16px', 
-        borderRadius: '8px',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)'
-      }}>
-        <Tabs
-          activeKey={activeTab}
-          onChange={handleTabChange}
-          type="card"
-          size="large"
-          style={{ marginBottom: 16 }}
-          items={[
-            {
-              key: 'style',
-              label: 'Style',
-              children: (
-                <div style={{ padding: '12px 4px' }}>
-                  <StyleGuide
-                    key="style-guide"
-                    formData={formData}
-                    setFormData={handleFormDataChange}
+        <div className="app-editor-content" style={{ padding: 16 }}>
+          <Tabs 
+            activeKey={activeTab} 
+            onChange={handleTabChange}
+            items={[
+              {
+                key: 'style',
+                label: 'Style Guide',
+                children: (
+                  <StyleGuide 
+                    formData={formData} 
+                    setFormData={handleFormDataChange} 
                   />
-                </div>
-              ),
-            },
-            {
-              key: 'inputs',
-              label: 'Inputs',
-              children: (
-                <div style={{ padding: '12px 4px' }}>
-                  <InputsConfig
+                )
+              },
+              {
+                key: 'inputs',
+                label: 'Inputs',
+                children: (
+                  <InputsConfig 
                     key={inputsKey}
-                    formData={formData}
+                    formData={formData} 
+                    setFormData={handleFormDataChange} 
+                  />
+                )
+              },
+              {
+                key: 'actions',
+                label: 'Actions',
+                children: (
+                  <ActionsConfig 
+                    formData={formData} 
+                    setFormData={handleFormDataChange} 
+                  />
+                )
+              },
+              {
+                key: 'output',
+                label: 'Output',
+                children: (
+                  <OutputConfig 
+                    formData={formData} 
+                    setFormData={handleFormDataChange} 
+                  />
+                )
+              },
+              {
+                key: 'languages',
+                label: 'Languages',
+                children: (
+                  <LanguageSettings 
+                    formData={languageSettingsData} 
                     setFormData={handleFormDataChange}
                   />
-                </div>
-              ),
-            },
-            {
-              key: 'actions',
-              label: 'Actions',
-              children: (
-                <div style={{ padding: '12px 4px' }}>
-                  <ActionsConfig
-                    key="actions-config"
-                    formData={formData}
-                    setFormData={handleFormDataChange}
-                  />
-                </div>
-              ),
-            },
-            {
-              key: 'output',
-              label: 'Output',
-              children: (
-                <div style={{ padding: '12px 4px' }}>
-                  <OutputConfig
-                    key="output-config"
-                    formData={formData}
-                    setFormData={handleFormDataChange}
-                  />
-                </div>
-              ),
-            },
-            {
-              key: 'languages',
-              label: 'Languages',
-              children: (
-                <div style={{ padding: '12px 4px' }}>
-                  <LanguageSettings
-                    key="language-settings"
-                    formData={languageSettingsData}
-                    setFormData={handleFormDataChange}
-                  />
-                </div>
-              ),
-            },
-            {
-              key: 'exports',
-              label: 'Exports',
-              children: (
-                <div style={{ padding: '12px 4px' }}>
-                  <ExportsView
-                    key="exports-view"
-                    data={formData}
-                  />
-                </div>
-              ),
-            },
-          ]}
-        />
+                )
+              },
+              {
+                key: 'json',
+                label: 'JSON View',
+                children: <JSONViewer data={formData} />
+              },
+              {
+                key: 'exports',
+                label: 'Export',
+                children: <ExportsView data={formData} />
+              }
+            ]}
+          />
+        </div>
       </div>
-    </div>
+    </RuntimeProviderWrapper>
   );
-} 
+}; 

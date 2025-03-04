@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Typography, Space, Button, Tabs, Empty, Spin, Alert } from 'antd';
 import { FileTextOutlined, FileImageOutlined, SoundOutlined, VideoCameraOutlined, CodeOutlined, DownloadOutlined, LoadingOutlined, ReloadOutlined } from '@ant-design/icons';
-import ReactJson from 'react-json-view';
 
 const { Text, Title, Paragraph } = Typography;
 const { TabPane } = Tabs;
@@ -257,12 +256,14 @@ export const ResultVisualization: React.FC<ResultVisualizationProps> = ({
         
       case 'json':
         let jsonData;
+        let formattedJson;
         try {
           if (typeof result === 'string') {
             jsonData = JSON.parse(result);
           } else {
             jsonData = result;
           }
+          formattedJson = JSON.stringify(jsonData, null, 2);
         } catch (e) {
           // If we can't parse it as JSON, just render as text
           return (
@@ -283,13 +284,19 @@ export const ResultVisualization: React.FC<ResultVisualizationProps> = ({
         
         return (
           <div className="result-json">
-            <ReactJson 
-              src={jsonData} 
-              theme="rjv-default" 
-              collapsed={2} 
-              displayDataTypes={false}
-              style={{ maxHeight: '300px', overflow: 'auto' }}
-            />
+            <pre 
+              style={{ 
+                maxHeight: '300px', 
+                overflow: 'auto',
+                backgroundColor: '#f5f5f5',
+                padding: '12px',
+                borderRadius: '4px',
+                margin: 0,
+                fontSize: '13px'
+              }}
+            >
+              {formattedJson}
+            </pre>
           </div>
         );
         
