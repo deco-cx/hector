@@ -93,11 +93,26 @@ export class ExecutionContext {
   
   /**
    * Sets a value in the execution context
-   * @param key The key to set
+   * @param key The key to set the value for
    * @param value The value to set
    */
   setValue(key: string, value: any): void {
-    this.values[key] = value;
+    // Make a deep copy of the value to avoid reference issues
+    let valueCopy;
+    try {
+      // Handle special cases for objects that can't be directly serialized
+      if (value instanceof File || value instanceof Blob) {
+        valueCopy = value;
+      } else {
+        valueCopy = JSON.parse(JSON.stringify(value));
+      }
+    } catch (error) {
+      // If serialization fails (e.g., for circular refs), use the original value
+      console.warn(`Could not make deep copy of value for ${key}, using original`);
+      valueCopy = value;
+    }
+    
+    this.values[key] = valueCopy;
     this.notifySubscribers();
   }
   
@@ -342,13 +357,16 @@ export class ExecutionContext {
   }
   
   /**
-   * Saves the current execution state
+   * Saves the current execution state to the WebDraw filesystem
    * @param sdk The WebDraw SDK instance
-   * @param action Optional action to associate with the save
+   * @param action Optional action that was executed
    */
   async saveExecutionState(sdk: any, action?: ActionData): Promise<void> {
     try {
       const appName = action?.id?.split('_')[0] || 'app';
+      
+      // Store current values before saving
+      const currentValues = { ...this.values };
       
       // Create directories if they don't exist
       try {
@@ -363,10 +381,14 @@ export class ExecutionContext {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const filename = `Hector/executions/${appName}/${timestamp}.json`;
       
+      // Make deep copies of state to avoid reference issues
+      const valuesCopy = JSON.parse(JSON.stringify(currentValues));
+      const executionMetaCopy = JSON.parse(JSON.stringify(this.executionMeta));
+      
       // Create the state to save
       const state: ExecutionState = {
-        values: this.values,
-        executionMeta: this.executionMeta,
+        values: valuesCopy,
+        executionMeta: executionMetaCopy,
         timestamp: new Date().toISOString()
       };
       
@@ -378,6 +400,9 @@ export class ExecutionContext {
       
       console.log(`Execution state saved to ${filename}`);
       this.lastExecutionTime = new Date().toISOString();
+      
+      // Ensure values are preserved
+      this.values = currentValues;
     } catch (error) {
       console.error('Failed to save execution state:', error);
     }
@@ -402,10 +427,14 @@ export class ExecutionContext {
         console.log('App config may not exist yet, creating new one');
       }
       
+      // Make a deep copy of values and executionMeta to avoid reference issues
+      const valuesCopy = JSON.parse(JSON.stringify(this.values));
+      const executionMetaCopy = JSON.parse(JSON.stringify(this.executionMeta));
+      
       // Add/update the current execution state
       appConfig.currentExecution = {
-        values: this.values,
-        executionMeta: this.executionMeta,
+        values: valuesCopy,
+        executionMeta: executionMetaCopy,
         updatedAt: new Date().toISOString()
       };
       
@@ -423,8 +452,10 @@ export class ExecutionContext {
    */
   loadFromState(state: ExecutionState): void {
     try {
-      this.values = state.values || {};
-      this.executionMeta = state.executionMeta || {};
+      // Make deep copies to avoid reference issues
+      this.values = state.values ? JSON.parse(JSON.stringify(state.values)) : {};
+      this.executionMeta = state.executionMeta ? JSON.parse(JSON.stringify(state.executionMeta)) : {};
+      
       // Set the lastExecutionTime if present in state
       if (state.timestamp) {
         this.lastExecutionTime = state.timestamp;
@@ -449,51 +480,46 @@ export class ExecutionContext {
   }
   
   /**
-   * Loads the current execution from the WebDraw filesystem
+   * Loads current execution from app config
    * @param sdk The WebDraw SDK instance
    * @param appName The name of the app
    */
   async loadCurrentExecution(sdk: any, appName: string): Promise<void> {
     try {
-      // Check if SDK and its filesystem are available
-      if (!sdk || !sdk.fs) {
-        console.warn('SDK or filesystem not available for loading execution state');
-        return;
-      }
-      
-      // First try to load from the app config
+      // Try to get the app config file
       const appConfigPath = `apps/${appName}/config.json`;
       
       try {
-        // Check if app config exists
-        const appConfigExists = await sdk.fs.exists(appConfigPath);
-        if (appConfigExists) {
-          const appConfigContent = await sdk.fs.read(appConfigPath);
-          const appConfig = JSON.parse(appConfigContent as string);
+        // Read the current app config if it exists
+        const appConfigContent = await sdk.fs.read(appConfigPath);
+        const appConfig = JSON.parse(appConfigContent);
+        
+        // Check if there's a current execution
+        if (appConfig.currentExecution) {
+          // Make deep copies to avoid reference issues
+          const valuesCopy = appConfig.currentExecution.values 
+            ? JSON.parse(JSON.stringify(appConfig.currentExecution.values)) 
+            : {};
           
-          if (appConfig.currentExecution) {
-            console.log('Loading execution state from app config');
-            this.loadFromState(appConfig.currentExecution);
-            return; // Successfully loaded from app config
+          const executionMetaCopy = appConfig.currentExecution.executionMeta 
+            ? JSON.parse(JSON.stringify(appConfig.currentExecution.executionMeta)) 
+            : {};
+          
+          // Preserve any existing values
+          const currentValues = { ...this.values };
+          
+          // Merge with values from app config
+          this.values = { ...currentValues, ...valuesCopy };
+          this.executionMeta = executionMetaCopy;
+          
+          if (appConfig.currentExecution.updatedAt) {
+            this.lastExecutionTime = appConfig.currentExecution.updatedAt;
           }
+          
+          this.notifySubscribers();
         }
       } catch (error) {
-        console.warn('Could not load execution from app config, trying fallback:', error);
-      }
-      
-      // Fallback to the legacy config file
-      const configFile = `Hector/config.json`;
-      
-      // Check if config file exists
-      const exists = await sdk.fs.exists(configFile);
-      if (exists) {
-        const configContent = await sdk.fs.readFile(configFile);
-        const config = JSON.parse(configContent as string);
-        
-        if (config.currentExecution) {
-          console.log('Loading execution state from fallback config');
-          this.loadFromState(config.currentExecution);
-        }
+        console.log('App config may not exist yet, skipping loading execution state');
       }
     } catch (error) {
       console.error('Failed to load current execution:', error);
