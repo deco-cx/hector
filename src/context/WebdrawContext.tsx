@@ -1,5 +1,5 @@
 import React, { createContext, useContext, ReactNode, useEffect, useState } from 'react';
-import { WebdrawSDK } from '../types/webdraw';
+import { WebdrawSDK } from '../types/types';
 import { WebdrawService } from '../services/webdraw-service';
 import { Modal, Button } from 'antd';
 import { sdkInitialized } from '../sdk/webdraw-sdk-client';

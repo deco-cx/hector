@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Modal, Form, Input, message } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { useWebdraw } from '../../context/WebdrawContext';
-import { AppConfig } from '../../types/webdraw';
+import { AppConfig } from '../../types/types';
 import { DEFAULT_LANGUAGE } from '../../types/i18n';
 
 interface CreateAppModalProps {
@@ -34,15 +34,7 @@ export function CreateAppModal({ visible, onCancel, onCreate }: CreateAppModalPr
         style: 'default',
         inputs: [],
         actions: [],
-        output: {
-          format: 'html',
-          template: '',
-          enableMarkdown: true,
-          enableSyntaxHighlighting: true,
-          maxLength: 2000,
-          type: 'html',
-          files: []
-        },
+        output: [], // Using empty array for new OutputTemplate[] format
         supportedLanguages: [DEFAULT_LANGUAGE]
       };
       

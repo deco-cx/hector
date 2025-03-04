@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Steps, Card, Button } from 'antd';
 import { ActionsConfig } from './steps/ActionsConfig';
+import { OutputConfig } from './steps/OutputConfig';
+import { InputField, createDefaultLocalizable } from '../../types/types';
 
 // Mock components to be implemented later
 const TemplateSelection = () => (
@@ -13,10 +15,6 @@ const StyleGuide = () => (
 
 const InputsConfig = () => (
   <div>Inputs Configuration Component (To be implemented)</div>
-);
-
-const OutputConfig = () => (
-  <div>Output Configuration Component (To be implemented)</div>
 );
 
 const steps = [
@@ -49,23 +47,20 @@ const AppCreationWizard: React.FC = () => {
     style: 'minimalistic',
     inputs: [
       { 
-        name: 'child_name.md', 
-        type: 'text', 
-        label: 'Child Name', 
+        filename: 'child_name.md', 
+        type: 'text' as const, 
+        title: createDefaultLocalizable('Child Name'),
         required: true
       },
       { 
-        name: 'age.md', 
-        type: 'number', 
-        label: 'Age', 
+        filename: 'age.md', 
+        type: 'text' as const, 
+        title: createDefaultLocalizable('Age'),
         required: false
       }
-    ],
+    ] as InputField[],
     actions: [],
-    output: {
-      type: 'html',
-      files: [],
-    },
+    output: [],
   });
 
   const next = () => {
@@ -87,7 +82,7 @@ const AppCreationWizard: React.FC = () => {
       case 3:
         return <ActionsConfig formData={formData} setFormData={setFormData} />;
       case 4:
-        return <OutputConfig />;
+        return <OutputConfig formData={formData} setFormData={setFormData} />;
       default:
         return null;
     }

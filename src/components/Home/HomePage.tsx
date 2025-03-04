@@ -4,7 +4,7 @@ import { PlusOutlined, AppstoreOutlined, BookOutlined, EditOutlined, DeleteOutli
 import { useNavigate } from 'react-router-dom';
 import { CreateAppModal } from '../AppCreation/CreateAppModal';
 import { useWebdraw } from '../../context/WebdrawContext';
-import { AppConfig } from '../../types/webdraw';
+import { AppConfig } from '../../types/types';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { getLocalizedValue } from '../../types/i18n';
 

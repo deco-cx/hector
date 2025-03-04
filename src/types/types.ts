@@ -33,6 +33,49 @@ export type Localizable<T> = {
 // ============================================================================
 
 /**
+ * Output configuration
+ */
+export interface LegacyOutputConfig {
+  format: string;
+  template?: string;
+  enableMarkdown?: boolean;
+  enableSyntaxHighlighting?: boolean;
+  maxLength?: number;
+  type: 'html' | 'json' | 'files';
+  title?: Localizable<string>;
+  description?: Localizable<string>;
+  files: string[];
+}
+
+/**
+ * Output template types supported by the system
+ */
+export type OutputTemplateType = 'Story';
+
+/**
+ * Base interface for all output templates
+ */
+export interface BaseOutputTemplate {
+  type: OutputTemplateType;
+  title: Localizable<string>;
+}
+
+/**
+ * Story output template
+ */
+export interface StoryOutputTemplate extends BaseOutputTemplate {
+  type: 'Story';
+  backgroundImage?: string;
+  content?: string;
+  audio?: string;
+}
+
+/**
+ * Union type for all output templates
+ */
+export type OutputTemplate = StoryOutputTemplate;
+
+/**
  * Main application configuration interface
  */
 export interface AppConfig {
@@ -42,7 +85,7 @@ export interface AppConfig {
   style: string;
   inputs: InputField[];
   actions: ActionData[];
-  output: OutputConfig;
+  output: OutputTemplate[];
   supportedLanguages?: string[];
 }
 
@@ -63,21 +106,6 @@ export interface InputField {
     label: Localizable<string>;
   }>;
   defaultValue?: unknown;
-}
-
-/**
- * Output configuration
- */
-export interface OutputConfig {
-  format: string;
-  template?: string;
-  enableMarkdown?: boolean;
-  enableSyntaxHighlighting?: boolean;
-  maxLength?: number;
-  type: 'html' | 'json' | 'files';
-  title?: Localizable<string>;
-  description?: Localizable<string>;
-  files: string[];
 }
 
 // ============================================================================

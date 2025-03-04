@@ -4,7 +4,7 @@ import { PlusOutlined } from '@ant-design/icons';
 import { useWebdraw } from '../context/WebdrawContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getLocalizedValue } from '../types/i18n';
-import { AppConfig } from '../types/webdraw';
+import { AppConfig } from '../types/types';
 
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;

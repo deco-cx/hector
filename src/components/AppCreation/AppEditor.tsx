@@ -6,27 +6,20 @@ import { StyleGuide } from './steps/StyleGuide';
 import { InputsConfig } from './steps/InputsConfig';
 import { ActionsConfig } from './steps/ActionsConfig';
 import { OutputConfig } from './steps/OutputConfig';
-import { AppConfig, getLocalizedValue, DEFAULT_LANGUAGE } from '../../types/types';
+import { AppConfig, getLocalizedValue, DEFAULT_LANGUAGE, OutputTemplate, createDefaultLocalizable } from '../../types/types';
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons';
 import LanguageSettings from '../LanguageSettings/LanguageSettings';
 import JSONViewer from '../JSONViewer/JSONViewer';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { createOutputTemplate } from '../../config/outputsConfig';
 
 interface AppEditorProps {
   tab?: string;
 }
 
 // Define a type that combines AppConfig with the expected component props
-interface ExtendedAppConfig extends AppConfig {
-  output: {
-    format: string;
-    template: string;
-    enableMarkdown: boolean;
-    enableSyntaxHighlighting: boolean;
-    maxLength: number;
-    type: 'html' | 'json' | 'files';
-    files: string[];
-  };
+interface ExtendedAppConfig extends Omit<AppConfig, 'output'> {
+  output: OutputTemplate[];
 }
 
 export const AppEditor: React.FC<AppEditorProps> = ({ tab }) => {
@@ -75,19 +68,50 @@ export const AppEditor: React.FC<AppEditorProps> = ({ tab }) => {
         const appData = await service.getApp(appId);
         
         // Normalize the app data to ensure it has all required fields
+        let outputConfig: OutputTemplate[] = [];
+        
+        // Handle conversion from legacy format to new OutputTemplate[] format
+        if (Array.isArray(appData.output)) {
+          // Already in the new format
+          outputConfig = appData.output;
+        } else if (appData.output && typeof appData.output === 'object') {
+          // Convert from legacy format
+          // If there are files in the legacy format, create a Story template
+          const legacyOutput = appData.output as any;
+          if (legacyOutput.files && legacyOutput.files.length > 0) {
+            const storyTemplate = createOutputTemplate('Story');
+            storyTemplate.title = createDefaultLocalizable('Output Story');
+            
+            // If there's a content file (e.g., .md file), use it
+            const contentFile = legacyOutput.files.find((file: string) => 
+              file.endsWith('.md') || file.endsWith('.txt'));
+            if (contentFile) {
+              storyTemplate.content = contentFile;
+            }
+            
+            // If there's an image file, use it as background
+            const imageFile = legacyOutput.files.find((file: string) => 
+              file.endsWith('.png') || file.endsWith('.jpg') || file.endsWith('.jpeg'));
+            if (imageFile) {
+              storyTemplate.backgroundImage = imageFile;
+            }
+            
+            // If there's an audio file, use it
+            const audioFile = legacyOutput.files.find((file: string) => 
+              file.endsWith('.mp3') || file.endsWith('.wav'));
+            if (audioFile) {
+              storyTemplate.audio = audioFile;
+            }
+            
+            outputConfig.push(storyTemplate);
+          }
+        }
+        
         const normalizedAppData = {
           ...appData,
           inputs: Array.isArray(appData.inputs) ? appData.inputs : [],
           actions: Array.isArray(appData.actions) ? appData.actions : [],
-          output: {
-            format: appData.output?.format || 'html',
-            type: appData.output?.type || 'html',
-            files: appData.output?.files || [],
-            template: appData.output?.template || '',
-            enableMarkdown: appData.output?.enableMarkdown || false,
-            enableSyntaxHighlighting: appData.output?.enableSyntaxHighlighting || false,
-            maxLength: appData.output?.maxLength || 1000
-          },
+          output: outputConfig,
           style: appData.style || '',
           template: appData.template || '',
         };
@@ -114,7 +138,13 @@ export const AppEditor: React.FC<AppEditorProps> = ({ tab }) => {
     setSaving(true);
     
     try {
-      await service.saveApp(formData);
+      // Create a proper AppConfig object from our ExtendedAppConfig
+      // We don't need to convert the output format since we want to use the new format
+      const appConfig: AppConfig = {
+        ...formData
+      };
+      
+      await service.saveApp(appConfig);
       message.success('App saved successfully');
     } catch (error) {
       console.error('Failed to save app:', error);

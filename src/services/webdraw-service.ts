@@ -1,4 +1,5 @@
-import { WebdrawSDK, AppConfig, Action } from '../types/webdraw';
+import { WebdrawSDK, Action } from '../types/webdraw';
+import { AppConfig, OutputTemplate } from '../types/types';
 
 export class WebdrawService {
   private sdk: WebdrawSDK;
@@ -63,12 +64,8 @@ export class WebdrawService {
               style: 'unknown',
               inputs: [],
               actions: [],
-              output: {
-                type: 'html',
-                format: 'standard',
-                files: []
-              },
-              supportedLanguages: ['en-US'] // Add supported languages
+              output: [], // Using empty array for the new OutputTemplate[] format
+              supportedLanguages: ['en-US']
             } as AppConfig;
           }
         })
@@ -122,26 +119,14 @@ export class WebdrawService {
     console.log("Saving app file to path:", path);
     
     try {
-      // Make sure the directory exists
+      // Make sure directory exists
       await this.sdk.fs.mkdir(this.APPS_PATH, { recursive: true });
       
-      // Convert app to string first to make sure we're not passing an object
-      const appData = JSON.stringify(app, null, 2);
-      console.log("Stringified app data for saving");
+      // We want to save the app data using the newer OutputTemplate[] format
+      const serializedApp = JSON.stringify(app, null, 2);
+      await this.sdk.fs.write(path, serializedApp);
       
-      // Try the new write method first
-      try {
-        await this.sdk.fs.write(path, appData);
-        console.log("File saved successfully using write method");
-      } catch (writeError) {
-        console.warn("Write method failed, falling back to writeFile:", writeError);
-        // Fall back to the old writeFile method if needed
-        await this.sdk.fs.writeFile({
-          path,
-          content: appData
-        });
-        console.log("File saved successfully using writeFile method");
-      }
+      console.log(`App saved successfully to ${path}`);
     } catch (error) {
       console.error("Error saving app file:", error);
       throw error;

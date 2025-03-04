@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-ignore
 import { SDK } from "https://webdraw.com/webdraw-sdk@v1";
-import { WebdrawSDK } from '../types/webdraw';
+import { WebdrawSDK } from '../types/types';
+import WebdrawSDKClient from "@webdraw/sdk";
 
 // Log SDK initialization to debug loading issues
 console.log("Initializing Webdraw SDK client");

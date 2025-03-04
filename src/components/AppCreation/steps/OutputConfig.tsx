@@ -1,129 +1,284 @@
-import React from 'react';
-import { Typography, Form, Input, Select, Card, Space, Switch } from 'antd';
-import { InfoCircleOutlined } from '@ant-design/icons';
+import React, { useState } from 'react';
+import { Typography, Card, Button, Space, Empty, Tabs, Tooltip, Modal } from 'antd';
+import { InfoCircleOutlined, PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
+import { OutputTemplate, OutputTemplateType } from '../../../types/types';
+import { availableOutputTemplates, createOutputTemplate, templateFieldFileTypes } from '../../../config/outputsConfig';
+import RJSFForm from '@rjsf/antd';
+import { RJSFSchema } from '@rjsf/utils';
+import validator from '@rjsf/validator-ajv8';
+import FileReferenceField from '../components/FileReferenceField';
 
 const { Title, Paragraph } = Typography;
-const { TextArea } = Input;
+const { TabPane } = Tabs;
+
+// Custom widgets for RJSF
+const widgets = {
+  FileReferenceWidget: FileReferenceField
+};
 
 interface OutputConfigProps {
   formData: {
-    output: {
-      format: string;
-      template: string;
-      enableMarkdown: boolean;
-      enableSyntaxHighlighting: boolean;
-      maxLength: number;
-    };
+    output: OutputTemplate[];
     [key: string]: any;
   };
   setFormData: React.Dispatch<React.SetStateAction<any>>;
 }
 
-const outputFormats = [
-  { label: 'Plain Text', value: 'text' },
-  { label: 'Markdown', value: 'markdown' },
-  { label: 'HTML', value: 'html' },
-  { label: 'JSON', value: 'json' },
-];
-
 export function OutputConfig({ formData, setFormData }: OutputConfigProps) {
-  const handleOutputChange = (changedValues: any, allValues: any) => {
-    setFormData((prev: typeof formData) => ({
+  const [activeTab, setActiveTab] = useState<string | null>(null);
+  const [isAddTemplateModalVisible, setIsAddTemplateModalVisible] = useState(false);
+  const [isPreviewModalVisible, setIsPreviewModalVisible] = useState(false);
+  const [previewTemplate, setPreviewTemplate] = useState<OutputTemplate | null>(null);
+
+  // Ensure output array exists
+  const outputs = Array.isArray(formData.output) ? formData.output : [];
+
+  // Update outputs in the parent state
+  const updateOutputs = (newOutputs: OutputTemplate[]) => {
+    setFormData((prev: any) => ({
       ...prev,
-      output: allValues,
+      output: newOutputs,
     }));
+  };
+
+  // Handle template selection in modal
+  const handleAddTemplate = (type: OutputTemplateType) => {
+    // Create a new template
+    const newTemplate = createOutputTemplate(type);
+    
+    // Add to outputs array
+    const newOutputs = [...outputs, newTemplate];
+    updateOutputs(newOutputs);
+    
+    // Close modal and set active tab to the new template
+    setIsAddTemplateModalVisible(false);
+    setActiveTab(type);
+  };
+
+  // Handle template deletion
+  const handleDeleteTemplate = (type: OutputTemplateType) => {
+    const newOutputs = outputs.filter(output => output.type !== type);
+    updateOutputs(newOutputs);
+    
+    // Reset active tab if deleted
+    if (activeTab === type) {
+      setActiveTab(newOutputs.length > 0 ? newOutputs[0].type : null);
+    }
+  };
+
+  // Update template configuration
+  const handleConfigChange = (type: OutputTemplateType, formData: any) => {
+    const newOutputs = outputs.map(output => {
+      if (output.type === type) {
+        return { ...output, ...formData };
+      }
+      return output;
+    });
+    updateOutputs(newOutputs);
+  };
+
+  // Show preview of the template
+  const handleShowPreview = (template: OutputTemplate) => {
+    setPreviewTemplate(template);
+    setIsPreviewModalVisible(true);
+  };
+
+  // Get available template types that haven't been added yet
+  const getAvailableTemplateTypes = () => {
+    const existingTypes = new Set(outputs.map(output => output.type));
+    return Object.keys(availableOutputTemplates).filter(
+      type => !existingTypes.has(type as OutputTemplateType)
+    ) as OutputTemplateType[];
+  };
+
+  // Get template by type
+  const getTemplateByType = (type: OutputTemplateType): OutputTemplate | undefined => {
+    return outputs.find(output => output.type === type);
+  };
+
+  // Render the preview modal
+  const renderPreviewModal = () => {
+    if (!previewTemplate) return null;
+
+    return (
+      <Modal
+        title="Output Preview"
+        open={isPreviewModalVisible}
+        onCancel={() => setIsPreviewModalVisible(false)}
+        footer={[
+          <Button key="close" onClick={() => setIsPreviewModalVisible(false)}>
+            Close
+          </Button>
+        ]}
+        width={800}
+      >
+        <div style={{ padding: '20px', backgroundColor: '#f0f0f0', borderRadius: '8px' }}>
+          <Paragraph>
+            This is a placeholder for the output preview.
+            The actual preview will be implemented in the future.
+          </Paragraph>
+          <pre style={{ backgroundColor: '#f9f9f9', padding: '12px', borderRadius: '4px' }}>
+            {JSON.stringify(previewTemplate, null, 2)}
+          </pre>
+        </div>
+      </Modal>
+    );
+  };
+
+  // Create UI schema for the form with file widgets
+  const createUiSchema = (type: OutputTemplateType) => {
+    const uiSchema: Record<string, any> = {
+      "ui:submitButtonOptions": {
+        norender: true, // Hide submit button
+      }
+    };
+    
+    // For each field that should use the file widget
+    const templateConfig = availableOutputTemplates[type];
+    const properties = templateConfig.schema.properties || {};
+    
+    Object.entries(properties).forEach(([key, prop]) => {
+      // If property is described in templateFieldFileTypes
+      if (templateFieldFileTypes[key]) {
+        uiSchema[key] = {
+          "ui:widget": "FileReferenceWidget"
+        };
+      }
+    });
+    
+    return uiSchema;
+  };
+
+  // Render tab contents for a template
+  const renderTemplateForm = (type: OutputTemplateType) => {
+    const template = getTemplateByType(type);
+    if (!template) return null;
+
+    const templateConfig = availableOutputTemplates[type];
+    const uiSchema = createUiSchema(type);
+
+    return (
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+          <Space>
+            <Tooltip title="Preview Output">
+              <Button 
+                icon={<EyeOutlined />} 
+                onClick={() => handleShowPreview(template)}
+              >
+                Preview
+              </Button>
+            </Tooltip>
+            <Tooltip title="Delete Template">
+              <Button 
+                danger 
+                icon={<DeleteOutlined />} 
+                onClick={() => handleDeleteTemplate(type)}
+              >
+                Delete
+              </Button>
+            </Tooltip>
+          </Space>
+        </div>
+
+        <RJSFForm
+          schema={templateConfig.schema as RJSFSchema}
+          formData={template}
+          validator={validator}
+          onChange={(e) => handleConfigChange(type, e.formData)}
+          widgets={widgets}
+          uiSchema={uiSchema}
+        />
+      </div>
+    );
   };
 
   return (
     <div>
-      <Title level={4}>Configure Output Format</Title>
+      <Title level={4}>Configure Output</Title>
       <Paragraph>
         Define how the AI's responses should be formatted and displayed in your application.
+        Select a template type to configure your output.
       </Paragraph>
 
       <Card>
-        <Form
-          layout="vertical"
-          initialValues={formData.output}
-          onValuesChange={handleOutputChange}
-        >
-          <Form.Item
-            name="format"
-            label="Output Format"
-            tooltip={{
-              title: 'Select the primary format for AI responses',
-              icon: <InfoCircleOutlined />,
-            }}
-            rules={[{ required: true, message: 'Please select an output format' }]}
+        {outputs.length === 0 ? (
+          <Empty
+            description="No output templates added yet"
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
           >
-            <Select options={outputFormats} />
-          </Form.Item>
-
-          <Form.Item
-            name="template"
-            label="Output Template"
-            tooltip={{
-              title: 'Define a template for structuring the AI response. Use {response} to reference the AI output.',
-              icon: <InfoCircleOutlined />,
-            }}
-          >
-            <TextArea
-              rows={4}
-              placeholder="Example: Here's what I found: {response}"
-            />
-          </Form.Item>
-
-          <Space direction="vertical" style={{ width: '100%' }}>
-            <Form.Item
-              name="maxLength"
-              label="Maximum Response Length"
-              tooltip={{
-                title: 'Maximum number of characters in the AI response',
-                icon: <InfoCircleOutlined />,
-              }}
-              rules={[
-                { required: true, message: 'Please set a maximum length' },
-                {
-                  type: 'number',
-                  min: 100,
-                  max: 10000,
-                  message: 'Length must be between 100 and 10000 characters',
-                },
-              ]}
+            <Button 
+              type="primary" 
+              icon={<PlusOutlined />}
+              onClick={() => setIsAddTemplateModalVisible(true)}
             >
-              <Input type="number" min={100} max={10000} />
-            </Form.Item>
-
-            <Card size="small" title="Advanced Options">
-              <Space direction="vertical" style={{ width: '100%' }}>
-                <Form.Item
-                  name="enableMarkdown"
-                  valuePropName="checked"
-                  label="Enable Markdown Support"
-                  tooltip={{
-                    title: 'Allow markdown formatting in responses',
-                    icon: <InfoCircleOutlined />,
-                  }}
+              Add Output Template
+            </Button>
+          </Empty>
+        ) : (
+          <>
+            <Tabs
+              activeKey={activeTab || outputs[0].type}
+              onChange={key => setActiveTab(key as OutputTemplateType)}
+              tabBarExtraContent={
+                getAvailableTemplateTypes().length > 0 && (
+                  <Button 
+                    type="primary" 
+                    icon={<PlusOutlined />}
+                    onClick={() => setIsAddTemplateModalVisible(true)}
+                  >
+                    Add Template
+                  </Button>
+                )
+              }
+            >
+              {outputs.map(output => (
+                <TabPane 
+                  tab={availableOutputTemplates[output.type].label} 
+                  key={output.type}
                 >
-                  <Switch />
-                </Form.Item>
-
-                <Form.Item
-                  name="enableSyntaxHighlighting"
-                  valuePropName="checked"
-                  label="Enable Syntax Highlighting"
-                  tooltip={{
-                    title: 'Highlight code blocks in responses',
-                    icon: <InfoCircleOutlined />,
-                  }}
-                >
-                  <Switch />
-                </Form.Item>
-              </Space>
-            </Card>
-          </Space>
-        </Form>
+                  {renderTemplateForm(output.type)}
+                </TabPane>
+              ))}
+            </Tabs>
+          </>
+        )}
       </Card>
+
+      {/* Modal for adding new template */}
+      <Modal
+        title="Add Output Template"
+        open={isAddTemplateModalVisible}
+        onCancel={() => setIsAddTemplateModalVisible(false)}
+        footer={null}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {getAvailableTemplateTypes().map(type => (
+            <Card 
+              key={type}
+              hoverable
+              style={{ marginBottom: '8px' }}
+              onClick={() => handleAddTemplate(type)}
+            >
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <div style={{ marginRight: '12px' }}>
+                  {/* You can use dynamic icons here if needed */}
+                  <span style={{ fontSize: '24px' }}>📄</span>
+                </div>
+                <div>
+                  <Typography.Text strong>{availableOutputTemplates[type].label}</Typography.Text>
+                  <Paragraph style={{ marginBottom: 0 }}>
+                    {availableOutputTemplates[type].description}
+                  </Paragraph>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      </Modal>
+
+      {/* Preview modal */}
+      {renderPreviewModal()}
     </div>
   );
 } 
