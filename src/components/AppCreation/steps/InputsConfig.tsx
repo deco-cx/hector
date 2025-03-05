@@ -271,7 +271,7 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
                             label="Field Name"
                             rules={[{ required: true, message: 'Field name is required' }]}
                           >
-                            <LocalizableInput placeholder="Enter field name" />
+                            <LocalizableInput placeholder="Enter field name" showLanguageButtons={true} />
                           </Form.Item>
                         </Col>
                         

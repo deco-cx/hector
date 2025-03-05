@@ -1,11 +1,16 @@
 import React, { useState } from 'react';
-import { Input, Tooltip, Button } from 'antd';
-import { GlobalOutlined } from '@ant-design/icons';
+import { Input, Tooltip, Button, Space } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
 import { useHector } from '../../context/HectorContext';
-import LanguageToggle from '../LanguageToggle/LanguageToggle';
 import './LocalizableInput.css';
 
 const { TextArea } = Input;
+
+// Language flag emoji mapping
+const FLAG_EMOJI: Record<string, string> = {
+  'en-US': '🇺🇸',
+  'pt-BR': '🇧🇷',
+};
 
 interface LocalizableTextAreaProps {
   value?: Record<string, string>;
@@ -33,21 +38,19 @@ const LocalizableTextArea: React.FC<LocalizableTextAreaProps> = ({
   autoSize = { minRows: 4, maxRows: 8 },
   rows = 4
 }) => {
-  const [isLanguagePickerVisible, setIsLanguagePickerVisible] = useState(false);
-  const { availableLanguages, editorLanguage, setEditorLanguage } = useHector();
+  const [fieldLanguage, setFieldLanguage] = useState<string | null>(null);
+  const { availableLanguages, editorLanguage, navigateToLanguageSettings } = useHector();
+  
+  // The language to edit - either the field-specific language or the global editor language
+  const currentLanguage = fieldLanguage || editorLanguage;
   
   // Handle changes to the textarea value
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     if (onChange) {
       const newValue = { ...value };
-      newValue[editorLanguage] = e.target.value;
+      newValue[currentLanguage] = e.target.value;
       onChange(newValue);
     }
-  };
-  
-  // Toggle language picker visibility
-  const toggleLanguagePicker = () => {
-    setIsLanguagePickerVisible(!isLanguagePickerVisible);
   };
   
   return (
@@ -56,7 +59,7 @@ const LocalizableTextArea: React.FC<LocalizableTextAreaProps> = ({
       
       <div className="localizable-textarea-wrapper">
         <TextArea
-          value={value[editorLanguage] || ''}
+          value={value[currentLanguage] || ''}
           onChange={handleInputChange}
           placeholder={placeholder}
           disabled={disabled}
@@ -68,26 +71,35 @@ const LocalizableTextArea: React.FC<LocalizableTextAreaProps> = ({
           className="localizable-textarea"
         />
         
-        <Tooltip title="Change language">
-          <Button
-            type="text"
-            icon={<GlobalOutlined />}
-            onClick={toggleLanguagePicker}
-            className="language-toggle-button textarea-toggle"
-          />
-        </Tooltip>
-      </div>
-      
-      {isLanguagePickerVisible && (
-        <div className="language-picker">
-          <LanguageToggle 
-            value={editorLanguage}
-            onChange={setEditorLanguage}
-            availableLanguages={availableLanguages}
-            showLabel
-          />
+        <div className="language-buttons">
+          <Space size={4} direction="vertical">
+            {availableLanguages.map(lang => (
+              <Tooltip key={lang} title={lang}>
+                <Button
+                  type={lang === currentLanguage ? 'primary' : 'default'}
+                  shape="circle"
+                  size="small"
+                  onClick={() => setFieldLanguage(lang)}
+                  className={`language-flag-button ${lang === currentLanguage ? 'active' : ''}`}
+                >
+                  {FLAG_EMOJI[lang]}
+                </Button>
+              </Tooltip>
+            ))}
+            
+            <Tooltip title="Add language">
+              <Button
+                type="default"
+                shape="circle"
+                icon={<PlusOutlined />}
+                onClick={navigateToLanguageSettings}
+                size="small"
+                className="add-language-button"
+              />
+            </Tooltip>
+          </Space>
         </div>
-      )}
+      </div>
     </div>
   );
 };

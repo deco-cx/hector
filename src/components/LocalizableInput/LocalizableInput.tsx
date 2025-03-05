@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, memo } from 'react';
 import { Input, Tooltip, Button, Space } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useHector } from '../../context/HectorContext';
@@ -21,10 +21,12 @@ interface LocalizableInputProps {
   showCount?: boolean;
   autoSize?: boolean | { minRows?: number; maxRows?: number };
   enableRichText?: boolean;
+  hideLanguageButtons?: boolean;
+  showLanguageButtons?: boolean;
 }
 
 // Component for editing localizable text values
-const LocalizableInput: React.FC<LocalizableInputProps> = ({
+const LocalizableInput: React.FC<LocalizableInputProps> = memo(({
   value = {},
   onChange,
   placeholder = 'Enter text...',
@@ -35,6 +37,8 @@ const LocalizableInput: React.FC<LocalizableInputProps> = ({
   showCount = false,
   autoSize,
   enableRichText = false,
+  hideLanguageButtons = false,
+  showLanguageButtons = false,
 }) => {
   const [fieldLanguage, setFieldLanguage] = useState<string | null>(null);
   const { availableLanguages, editorLanguage, navigateToLanguageSettings } = useHector();
@@ -42,14 +46,19 @@ const LocalizableInput: React.FC<LocalizableInputProps> = ({
   // The language to edit - either the field-specific language or the global editor language
   const currentLanguage = fieldLanguage || editorLanguage;
   
-  // Handle changes to the input value
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle changes to the input value - optimized with useCallback
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (onChange) {
       const newValue = { ...value };
       newValue[currentLanguage] = e.target.value;
       onChange(newValue);
     }
-  };
+  }, [onChange, value, currentLanguage]);
+  
+  // Memoize language button clicks
+  const handleLanguageClick = useCallback((lang: string) => {
+    setFieldLanguage(lang);
+  }, []);
   
   return (
     <div className="localizable-input-container">
@@ -67,37 +76,39 @@ const LocalizableInput: React.FC<LocalizableInputProps> = ({
           className="localizable-input"
         />
         
-        <div className="language-buttons">
-          <Space size={4}>
-            {availableLanguages.map(lang => (
-              <Tooltip key={lang} title={lang}>
+        {(showLanguageButtons && !hideLanguageButtons) && (
+          <div className="language-buttons">
+            <Space size={4}>
+              {availableLanguages.map(lang => (
+                <Tooltip key={lang} title={lang}>
+                  <Button
+                    type={lang === currentLanguage ? 'primary' : 'default'}
+                    shape="circle"
+                    size="small"
+                    onClick={() => handleLanguageClick(lang)}
+                    className={`language-flag-button ${lang === currentLanguage ? 'active' : ''}`}
+                  >
+                    {FLAG_EMOJI[lang]}
+                  </Button>
+                </Tooltip>
+              ))}
+              
+              <Tooltip title="Add language">
                 <Button
-                  type={lang === currentLanguage ? 'primary' : 'default'}
+                  type="default"
                   shape="circle"
+                  icon={<PlusOutlined />}
+                  onClick={navigateToLanguageSettings}
                   size="small"
-                  onClick={() => setFieldLanguage(lang)}
-                  className={`language-flag-button ${lang === currentLanguage ? 'active' : ''}`}
-                >
-                  {FLAG_EMOJI[lang]}
-                </Button>
+                  className="add-language-button"
+                />
               </Tooltip>
-            ))}
-            
-            <Tooltip title="Add language">
-              <Button
-                type="default"
-                shape="circle"
-                icon={<PlusOutlined />}
-                onClick={navigateToLanguageSettings}
-                size="small"
-                className="add-language-button"
-              />
-            </Tooltip>
-          </Space>
-        </div>
+            </Space>
+          </div>
+        )}
       </div>
     </div>
   );
-};
+});
 
 export default LocalizableInput; 
