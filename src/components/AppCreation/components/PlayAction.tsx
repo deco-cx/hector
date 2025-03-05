@@ -197,12 +197,15 @@ export function PlayAction({ actionIndex }: PlayActionProps) {
         // Create payload and only include model if it's not "Best"
         const payload: any = {
           prompt: processedPrompt,
-          size: config.size || '1024x1024',
+          // size: config.size || '1024x1024',
+          aspect_ratio: "1:1", // Use 1:1 aspect ratio instead of n parameter
         };
         
-        // Only add model if it's not "Best" (default)
+        // For image generation, "Best" should be replaced with "openai:dall-e-3"
         if (config.model && config.model !== 'Best') {
           payload.model = config.model;
+        } else {
+          payload.model = "openai:dall-e-3";
         }
         
         const result = await sdk.ai.generateImage(payload);

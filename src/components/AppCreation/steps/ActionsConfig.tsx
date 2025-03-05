@@ -22,6 +22,7 @@ import PromptTextArea from '../components/PromptTextArea';
 import { availableActions as actionConfigs, generateActionFilename as generateFilename } from '../../../config/actionsConfig';
 import { PlayAction } from '../components/PlayAction';
 import { AudioPlayer } from '../components/AudioPlayer';
+import { ImageVisualizer } from '../components/ImageVisualizer';
 
 const { Title, Paragraph, Text } = Typography;
 const { TextArea } = Input;
@@ -892,6 +893,26 @@ function ResultDisplay({ actionIndex }: { actionIndex: number }) {
   // Show error state
   if (isError) {
     return <div className="action-result-error">Error executing action</div>;
+  }
+  
+  // For image actions, show the image visualizer component if we have a file path
+  if (action.type === 'generateImage' && resultFilePath) {
+    return (
+      <div className="action-result-with-image">
+        <div className="action-result-text" style={{ marginBottom: '10px' }}>
+          <TextArea
+            value={resultContent}
+            placeholder="Action has not been executed yet. Click the Play button to run this action."
+            autoSize={{ minRows: 2, maxRows: 4 }}
+            readOnly
+            style={{ 
+              backgroundColor: resultContent ? '#f8f8f8' : '#f0f0f0',
+            }}
+          />
+        </div>
+        <ImageVisualizer filepath={resultFilePath} />
+      </div>
+    );
   }
   
   // For audio actions, show the audio player component if we have a file path

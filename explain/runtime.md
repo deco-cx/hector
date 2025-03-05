@@ -222,3 +222,24 @@ When an audio file is generated, the system will:
 
 The audio files will be available at the URL pattern: `https://fs.webdraw.com/users/{userId}/Audio/{filename}.mp3`
 
+## Image Generation
+
+For image generation, the following model substitution should be used:
+- When "Best" is selected, use "openai:dall-e-3" as the actual model parameter
+- This ensures compatibility with the OpenAI DALL-E 3 provider
+
+Additional parameters for image generation:
+- `aspect_ratio: "1:1"` - Set a square aspect ratio for all generated images
+- `size` - Uses the configured size or defaults to '1024x1024'
+
+When an image file is generated, the system will:
+1. Store the filepath in the execution bag's `path` property
+2. Display an ImageVisualizer component in the result area
+3. The ImageVisualizer will poll the web-accessible URL (fs.webdraw.com) until the file is available
+   - The component checks once per second for up to 60 seconds (1 minute)
+   - It displays the current retry attempt number during the loading state
+   - The component shows detailed console logs for troubleshooting
+4. Once available, the component will render the image with appropriate styling for immediate viewing
+
+Image files will be accessible at the URL pattern: `https://fs.webdraw.com/users/{userId}/Pictures/{filename}.webp`
+
