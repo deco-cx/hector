@@ -116,7 +116,7 @@ export interface InputField {
 /**
  * Available action types in the system
  */
-export type ActionType = 'generateText' | 'generateJSON' | 'generateImage' | 'generateAudio' | 'generateVideo';
+export type ActionType = 'generateText' | 'generateJSON' | 'generateImage' | 'generateAudio' | 'generateVideo' | 'readFile' | 'writeFile';
 
 /**
  * Configuration for each action type
@@ -129,6 +129,7 @@ export interface ActionConfig {
   fileExtension: string;
   schema: JSONSchema7;
   defaultProps: Record<string, any>;
+  category: 'AI' | 'FileSystem' | string;
 }
 
 /**

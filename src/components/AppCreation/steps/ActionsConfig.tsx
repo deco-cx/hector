@@ -8,7 +8,7 @@ import {
   PlusOutlined, DeleteOutlined, EditOutlined, EyeOutlined, 
   InfoCircleOutlined, FileTextOutlined, CodeOutlined,
   FileImageOutlined, SoundOutlined, PlayCircleOutlined,
-  RobotOutlined
+  RobotOutlined, FileOutlined, SaveOutlined
 } from '@ant-design/icons';
 import { v4 as uuidv4 } from 'uuid';
 import { useHector } from '../../../context/HectorContext';
@@ -30,7 +30,9 @@ const actionIcons: Record<ActionType, React.ReactNode> = {
   generateJSON: <CodeOutlined />,
   generateImage: <FileImageOutlined />,
   generateAudio: <SoundOutlined />,
-  generateVideo: <PlayCircleOutlined />
+  generateVideo: <PlayCircleOutlined />,
+  readFile: <FileOutlined />,
+  writeFile: <SaveOutlined />
 };
 
 interface ActionsConfigProps {
@@ -67,6 +69,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
 
   const handleAddAction = (type: ActionType) => {
     const actionConfig = actionConfigs[type];
+    const isFileSystemAction = actionConfig.category === 'FileSystem';
     
     const newActionData: ActionData = {
       id: uuidv4(),
@@ -78,7 +81,8 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
         type, 
         formData.actions || []
       ),
-      prompt: createDefaultLocalizable(''),
+      // For FileSystem actions, create an empty prompt that won't be used
+      prompt: isFileSystemAction ? createDefaultLocalizable('') : createDefaultLocalizable(''),
       config: { ...actionConfig.defaultProps }
     };
     
@@ -113,11 +117,28 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
     if (field === 'type') {
       // When changing action type, update with new default props
       const actionConfig = actionConfigs[value as ActionType];
+      const isFileSystemAction = actionConfig.category === 'FileSystem';
+      const currentAction = newActions[index];
+      const currentIsFileSystem = actionConfigs[currentAction.type].category === 'FileSystem';
+      
+      // Base updated action
       newActions[index] = {
         ...newActions[index],
         type: value as ActionType,
         config: { ...actionConfig.defaultProps }
       };
+      
+      // Handle prompt when switching between action categories
+      if (isFileSystemAction !== currentIsFileSystem) {
+        // If switching to FileSystem action, set empty prompt
+        if (isFileSystemAction) {
+          newActions[index].prompt = createDefaultLocalizable('');
+        } 
+        // If switching from FileSystem to AI action, create a default localizable prompt
+        else if (typeof newActions[index].prompt !== 'object') {
+          newActions[index].prompt = createDefaultLocalizable('');
+        }
+      }
       
       // Also update filename extension
       const title = getLocalizedValue(newActions[index].title, DEFAULT_LANGUAGE) || '';
@@ -264,7 +285,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [userPrompt, setUserPrompt] = useState('');
     
-    // Get the action type directly from the field's UI options
+    // Get the field's UI options
     const fieldOptions = props.uiSchema?.[id.split('_').pop()]?.['ui:options'] || {};
     const isJsonSchemaField = id.endsWith('_schema') && schema.title === 'Schema';
     
@@ -388,8 +409,17 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
       }
     };
     
-    // Check if this is the prompt field, use our custom PromptTextArea component
+    // Check if this is the prompt field
     if (id.endsWith('_prompt') && schema.title === 'Prompt') {
+      // Skip rendering this field if it's a FileSystem action (safer check)
+      if (editingIndex !== null && Array.isArray(formData.actions) && formData.actions[editingIndex]) {
+        const actionType = formData.actions[editingIndex].type as ActionType;
+        // Check if this is a FileSystem action
+        if (actionConfigs[actionType] && actionConfigs[actionType].category === 'FileSystem') {
+          return null;
+        }
+      }
+      
       return (
         <div className="custom-field-template">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
@@ -409,7 +439,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
           </div>
           
           {/* If we need a prompt, we should use the action's prompt property, not a value in the form data */}
-          {formData.actions && editingIndex !== null && (
+          {editingIndex !== null && formData.actions && formData.actions[editingIndex] && (
             <PromptTextArea
               value={formData.actions[editingIndex].prompt}
               onChange={(value) => handlePromptChange(editingIndex, value)}
@@ -528,9 +558,9 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
 
   return (
     <div>
-      <Title level={4}>Configure AI Actions</Title>
+      <Title level={4}>Configure Actions</Title>
       <Paragraph>
-        Define the AI-driven actions that your application will perform.
+        Define the actions that your application will perform.
         Each action can use input fields and the results of previous actions.
       </Paragraph>
 
@@ -627,37 +657,39 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
                   
                   <Divider orientation="left" style={{ margin: '12px 0' }}>Configuration</Divider>
                   
-                  {/* Special handling for prompt field */}
-                  <div style={{ marginBottom: 24 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                      <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <span style={{ fontWeight: 'bold', marginRight: 8 }}>Prompt</span>
-                        <span className="ant-form-item-required" style={{ marginRight: 8 }}>*</span>
-                        <Tooltip title="Use @filename.ext to reference inputs and other actions">
-                          <InfoCircleOutlined style={{ color: 'rgba(0, 0, 0, 0.45)' }} />
-                        </Tooltip>
+                  {/* Only show the prompt field for AI actions */}
+                  {actionConfigs[action.type].category === 'AI' && (
+                    <div style={{ marginBottom: 24 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 'bold', marginRight: 8 }}>Prompt</span>
+                          <span className="ant-form-item-required" style={{ marginRight: 8 }}>*</span>
+                          <Tooltip title="Use @filename.ext to reference inputs and other actions">
+                            <InfoCircleOutlined style={{ color: 'rgba(0, 0, 0, 0.45)' }} />
+                          </Tooltip>
+                        </div>
+                        <Button 
+                          type="primary" 
+                          size="middle"
+                          icon={<RobotOutlined />} 
+                          onClick={() => handleGeneratePrompt(index)}
+                          loading={isGenerating}
+                        >
+                          Use AI
+                        </Button>
                       </div>
-                      <Button 
-                        type="primary" 
-                        size="middle"
-                        icon={<RobotOutlined />} 
-                        onClick={() => handleGeneratePrompt(index)}
-                        loading={isGenerating}
-                      >
-                        Use AI
-                      </Button>
-                    </div>
 
-                    <div style={{ marginTop: 8 }}>
-                      <PromptTextArea
-                        value={action.prompt}
-                        onChange={(value) => handlePromptChange(index, value)}
-                        inputs={Array.isArray(formData.inputs) ? formData.inputs : []}
-                        actions={Array.isArray(formData.actions) ? formData.actions.filter((_: ActionData, i: number) => i !== index) : []}
-                        rows={8}
-                      />
+                      <div style={{ marginTop: 8 }}>
+                        <PromptTextArea
+                          value={action.prompt}
+                          onChange={(value) => handlePromptChange(index, value)}
+                          inputs={Array.isArray(formData.inputs) ? formData.inputs : []}
+                          actions={Array.isArray(formData.actions) ? formData.actions.filter((_: ActionData, i: number) => i !== index) : []}
+                          rows={8}
+                        />
+                      </div>
                     </div>
-                  </div>
+                  )}
                   
                   {/* AI Prompt Modal for the prompt field */}
                   <Modal
@@ -749,23 +781,63 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
                   <Paragraph ellipsis={{ rows: 2 }}>
                     {getLocalizedValue(action.description, DEFAULT_LANGUAGE)}
                   </Paragraph>
-                  <Row gutter={[16, 16]}>
-                    <Col span={24}>
-                      <Text strong>Prompt:</Text>
-                      <div style={{ 
-                        padding: '8px', 
-                        background: '#f5f5f5', 
-                        borderRadius: '4px',
-                        marginTop: '4px'
-                      }}>
-                        <Text code style={{ whiteSpace: 'pre-wrap' }}>
-                          {typeof action.prompt === 'object' 
-                            ? getLocalizedValue(action.prompt, DEFAULT_LANGUAGE) 
-                            : action.prompt}
-                        </Text>
-                      </div>
-                    </Col>
-                  </Row>
+                  {/* Display prompt for AI actions */}
+                  {actionConfigs[action.type].category === 'AI' && (
+                    <Row gutter={[16, 16]}>
+                      <Col span={24}>
+                        <Text strong>Prompt:</Text>
+                        <div style={{ 
+                          padding: '8px', 
+                          background: '#f5f5f5', 
+                          borderRadius: '4px',
+                          marginTop: '4px'
+                        }}>
+                          <Text code style={{ whiteSpace: 'pre-wrap' }}>
+                            {typeof action.prompt === 'object' 
+                              ? getLocalizedValue(action.prompt, DEFAULT_LANGUAGE) 
+                              : action.prompt}
+                          </Text>
+                        </div>
+                      </Col>
+                    </Row>
+                  )}
+                  {/* Display file path for FileSystem actions */}
+                  {actionConfigs[action.type].category === 'FileSystem' && (
+                    <Row gutter={[16, 16]}>
+                      <Col span={24}>
+                        <Text strong>File Path:</Text>
+                        <div style={{ 
+                          padding: '8px', 
+                          background: '#f5f5f5', 
+                          borderRadius: '4px',
+                          marginTop: '4px'
+                        }}>
+                          <Text code style={{ whiteSpace: 'pre-wrap' }}>
+                            {action.config.path || 'Not specified'}
+                          </Text>
+                        </div>
+                        
+                        {/* Show content preview for writeFile actions */}
+                        {action.type === 'writeFile' && action.config.content && (
+                          <>
+                            <Text strong style={{ marginTop: '12px', display: 'block' }}>Content:</Text>
+                            <div style={{ 
+                              padding: '8px', 
+                              background: '#f5f5f5', 
+                              borderRadius: '4px',
+                              marginTop: '4px',
+                              maxHeight: '100px',
+                              overflow: 'auto'
+                            }}>
+                              <Text code style={{ whiteSpace: 'pre-wrap' }}>
+                                {action.config.content}
+                              </Text>
+                            </div>
+                          </>
+                        )}
+                      </Col>
+                    </Row>
+                  )}
                 </div>
               )}
             </Card>
@@ -776,22 +848,42 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
       <Divider />
       
       <Title level={5}>Add New Action</Title>
-      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-        {Object.entries(actionConfigs).map(([type, config]) => (
-          <Col xs={12} sm={6} key={type}>
-            <Card
-              hoverable
-              style={{ textAlign: 'center' }}
-              onClick={() => handleAddAction(type as ActionType)}
-            >
-              <div style={{ fontSize: 24, marginBottom: 8 }}>
-                {actionIcons[type as ActionType]}
-              </div>
-              <div>{config.label}</div>
-            </Card>
-          </Col>
-        ))}
-      </Row>
+      
+      {/* Group actions by category */}
+      {['AI', 'FileSystem'].map((category) => (
+        <div key={category} style={{ marginBottom: 24 }}>
+          <div 
+            style={{ 
+              background: category === 'AI' ? '#e6f7ff' : '#f6ffed', 
+              borderLeft: `4px solid ${category === 'AI' ? '#1890ff' : '#52c41a'}`,
+              padding: '8px 16px',
+              borderRadius: '0 4px 4px 0',
+              marginTop: 16,
+              marginBottom: 16
+            }}
+          >
+            <Title level={5} style={{ margin: 0 }}>{category}</Title>
+          </div>
+          <Row gutter={[16, 16]}>
+            {Object.entries(actionConfigs)
+              .filter(([_, config]) => config.category === category)
+              .map(([type, config]) => (
+                <Col xs={12} sm={6} key={type}>
+                  <Card
+                    hoverable
+                    style={{ textAlign: 'center' }}
+                    onClick={() => handleAddAction(type as ActionType)}
+                  >
+                    <div style={{ fontSize: 24, marginBottom: 8 }}>
+                      {actionIcons[type as ActionType]}
+                    </div>
+                    <div>{config.label}</div>
+                  </Card>
+                </Col>
+              ))}
+          </Row>
+        </div>
+      ))}
     </div>
   );
 } 

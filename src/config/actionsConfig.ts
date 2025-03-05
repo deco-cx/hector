@@ -9,6 +9,7 @@ export const availableActions: Record<ActionType, ActionConfig> = {
     description: 'Generate text content using AI models',
     icon: 'FileTextOutlined',
     fileExtension: '.md',
+    category: 'AI',
     schema: {
       type: 'object',
       required: ['prompt'],
@@ -78,6 +79,7 @@ export const availableActions: Record<ActionType, ActionConfig> = {
     description: 'Generate structured JSON data',
     icon: 'CodeOutlined',
     fileExtension: '.json',
+    category: 'AI',
     schema: {
       type: 'object',
       required: ['prompt', 'schema'],
@@ -146,6 +148,7 @@ export const availableActions: Record<ActionType, ActionConfig> = {
     description: 'Generate image content using AI models',
     icon: 'FileImageOutlined',
     fileExtension: '.png',
+    category: 'AI',
     schema: {
       type: 'object',
       required: ['prompt', 'model'],
@@ -216,6 +219,7 @@ export const availableActions: Record<ActionType, ActionConfig> = {
     description: 'Generate audio content using AI models',
     icon: 'SoundOutlined',
     fileExtension: '.mp3',
+    category: 'AI',
     schema: {
       type: 'object',
       required: ['prompt', 'model'],
@@ -250,6 +254,7 @@ export const availableActions: Record<ActionType, ActionConfig> = {
     description: 'Generate video content using AI models',
     icon: 'PlayCircleOutlined',
     fileExtension: '.mp4',
+    category: 'AI',
     schema: {
       type: 'object',
       required: ['prompt', 'model'],
@@ -277,6 +282,70 @@ export const availableActions: Record<ActionType, ActionConfig> = {
     },
     defaultProps: {
       model: 'Best',
+    },
+  },
+  readFile: {
+    type: 'readFile',
+    label: 'Read File',
+    description: 'Read content from a file',
+    icon: 'FileOutlined',
+    fileExtension: '.txt',
+    category: 'FileSystem',
+    schema: {
+      type: 'object',
+      required: ['path'],
+      properties: {
+        path: {
+          type: 'string',
+          title: 'File Path',
+          description: 'Path to the file to read',
+        },
+        encoding: {
+          type: 'string',
+          title: 'Encoding',
+          description: 'File encoding',
+          default: 'utf-8',
+        },
+      },
+    },
+    defaultProps: {
+      path: '',
+      encoding: 'utf-8',
+    },
+  },
+  writeFile: {
+    type: 'writeFile',
+    label: 'Write File',
+    description: 'Write content to a file',
+    icon: 'SaveOutlined',
+    fileExtension: '.txt',
+    category: 'FileSystem',
+    schema: {
+      type: 'object',
+      required: ['path', 'content'],
+      properties: {
+        path: {
+          type: 'string',
+          title: 'File Path',
+          description: 'Path to the file to write',
+        },
+        content: {
+          type: 'string',
+          title: 'Content',
+          description: 'Content to write to the file',
+        },
+        encoding: {
+          type: 'string',
+          title: 'Encoding',
+          description: 'File encoding',
+          default: 'utf-8',
+        },
+      },
+    },
+    defaultProps: {
+      path: '',
+      content: '',
+      encoding: 'utf-8',
     },
   },
 };
