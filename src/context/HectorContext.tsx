@@ -20,6 +20,8 @@ export interface HectorContextType {
   setEditorLanguage: (lang: string) => void;
   availableLanguages: string[];
   setAvailableLanguages: (languages: string[]) => void;
+  // Navigation function for language settings
+  navigateToLanguageSettings: () => void;
 }
 
 // Create the context with a default value
@@ -142,6 +144,14 @@ export function HectorProvider({ children }: HectorProviderProps) {
     loadUser();
   }, [sdk, isSDKAvailable, reloadCounter]);
   
+  // Function to navigate to language settings
+  const navigateToLanguageSettings = () => {
+    // This would typically use a router to navigate to language settings
+    // For now, we'll just provide this function as a hook for components to use
+    console.log('Navigate to language settings requested');
+    // If using react-router, you would use navigate('/settings/languages')
+  };
+  
   // Provide the context value
   return (
     <HectorContext.Provider 
@@ -159,7 +169,8 @@ export function HectorProvider({ children }: HectorProviderProps) {
         editorLanguage,
         setEditorLanguage,
         availableLanguages,
-        setAvailableLanguages
+        setAvailableLanguages,
+        navigateToLanguageSettings
       }}>
       {children}
     </HectorContext.Provider>
