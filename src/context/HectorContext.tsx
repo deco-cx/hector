@@ -1,31 +1,19 @@
-import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, ReactNode, useEffect, useCallback } from 'react';
 import { HectorService } from '../services/HectorService';
-import { WebdrawSDK, DEFAULT_LANGUAGE, AVAILABLE_LANGUAGES } from '../types/types';
+import { WebdrawSDK, DEFAULT_LANGUAGE, AVAILABLE_LANGUAGES, STORAGE_KEYS, AppConfig } from '../types/types';
+import { hectorReducer, initialState, ActionType } from './HectorReducer';
+import { HectorStateContext, useHectorState, HectorStateWithRefs } from './HectorStateContext';
+import { HectorDispatchContext, useHectorDispatch } from './HectorDispatchContext';
+import * as actions from './HectorActions';
 
 /**
- * Context type for accessing Hector services throughout the application
+ * Type definition for the Hector context with additional methods
  */
-export interface HectorContextType {
-  service: HectorService;
-  sdk: WebdrawSDK;
-  user: { username: string } | null;
-  isLoading: boolean;
-  error: Error | null;
-  isSDKAvailable: boolean;
+export interface HectorContextType extends HectorStateWithRefs {
+  // Additional methods
   reloadSDK: () => void;
-  // Language related properties
-  selectedLanguage: string;
-  setSelectedLanguage: (lang: string) => void;
-  editorLanguage: string;
-  setEditorLanguage: (lang: string) => void;
-  availableLanguages: string[];
-  setAvailableLanguages: (languages: string[]) => void;
-  // Navigation function for language settings
   navigateToLanguageSettings: () => void;
 }
-
-// Create the context with a default value
-export const HectorContext = createContext<HectorContextType | null>(null);
 
 /**
  * Props for the HectorProvider component
@@ -39,36 +27,55 @@ interface HectorProviderProps {
  * child component that calls useHector().
  */
 export function HectorProvider({ children }: HectorProviderProps) {
-  const [user, setUser] = useState<{ username: string } | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const [reloadCounter, setReloadCounter] = useState(0);
-  
-  // Language related state
-  const [selectedLanguage, setSelectedLanguage] = useState<string>(DEFAULT_LANGUAGE);
-  const [editorLanguage, setEditorLanguage] = useState<string>(DEFAULT_LANGUAGE);
-  const [availableLanguages, setAvailableLanguages] = useState<string[]>(AVAILABLE_LANGUAGES);
+  const [state, dispatch] = useReducer(hectorReducer, initialState);
   
   // Get service instance
   const hectorService = HectorService.getInstance();
   const sdk = hectorService.getSDK();
   
-  // Check if SDK is available
-  const isSDKAvailable = Boolean(sdk && sdk.fs && sdk.ai);
+  /**
+   * Reload SDK function
+   */
+  const reloadSDK = useCallback(() => {
+    dispatch({ type: ActionType.INCREMENT_RELOAD_COUNTER });
+  }, []);
   
-  // Force reload of SDK
-  const reloadSDK = () => {
-    setReloadCounter(prev => prev + 1);
-  };
-  
-  // Initialize language from browser or localStorage on first load
+  // Check SDK availability when reload counter changes
   useEffect(() => {
-    // Try to get from local storage first
-    const storedLanguage = localStorage.getItem('preferredLanguage');
+    const checkSDKAvailability = async () => {
+      try {
+        dispatch({ type: ActionType.SET_LOADING, payload: true });
+        dispatch({ type: ActionType.SET_SDK_AVAILABLE, payload: Boolean(sdk) });
+        
+        // Only try to load user if SDK is available
+        if (sdk) {
+          await loadUser();
+        }
+      } catch (error) {
+        dispatch({ 
+          type: ActionType.SET_ERROR, 
+          payload: error instanceof Error ? error : new Error(String(error)) 
+        });
+        dispatch({ type: ActionType.SET_SDK_AVAILABLE, payload: false });
+      } finally {
+        dispatch({ type: ActionType.SET_LOADING, payload: false });
+      }
+    };
     
-    if (storedLanguage && AVAILABLE_LANGUAGES.includes(storedLanguage)) {
-      setSelectedLanguage(storedLanguage);
-      setEditorLanguage(storedLanguage);
+    checkSDKAvailability();
+  }, [sdk, state.reloadCounter]);
+  
+  /**
+   * Initialize language settings from browser or localStorage
+   */
+  useEffect(() => {
+    if (!state.appConfig) return;
+    
+    // Try to get from local storage first
+    const storedLanguage = localStorage.getItem(STORAGE_KEYS.PREFERRED_LANGUAGE);
+    
+    if (storedLanguage && state.appConfig.supportedLanguages?.includes(storedLanguage)) {
+      dispatch({ type: ActionType.UPDATE_APP_LANGUAGE, payload: storedLanguage });
       return;
     }
     
@@ -76,125 +83,117 @@ export function HectorProvider({ children }: HectorProviderProps) {
     const urlParams = new URLSearchParams(window.location.search);
     const langParam = urlParams.get('lang');
     
-    if (langParam && AVAILABLE_LANGUAGES.includes(langParam)) {
-      setSelectedLanguage(langParam);
-      setEditorLanguage(langParam);
+    if (langParam && state.appConfig.supportedLanguages?.includes(langParam)) {
+      dispatch({ type: ActionType.UPDATE_APP_LANGUAGE, payload: langParam });
       return;
     }
     
     // Fall back to browser language if available and supported
     const browserLang = navigator.language;
     
-    // Check if the browser language exactly matches one of our available languages
-    if (AVAILABLE_LANGUAGES.includes(browserLang)) {
-      setSelectedLanguage(browserLang);
-      setEditorLanguage(browserLang);
+    // Check for exact or partial match with supported languages
+    if (state.appConfig.supportedLanguages?.includes(browserLang)) {
+      dispatch({ type: ActionType.UPDATE_APP_LANGUAGE, payload: browserLang });
       return;
     }
     
-    // Check if just the language part (without region) matches
-    const browserLangPrefix = browserLang.split('-')[0].toLowerCase();
-    const matchingLang = AVAILABLE_LANGUAGES.find(
-      lang => lang.split('-')[0].toLowerCase() === browserLangPrefix
+    // Check if language prefix matches any supported language
+    const browserLangPrefix = browserLang.split('-')[0];
+    const matchingLang = state.appConfig.supportedLanguages?.find(
+      (lang: string) => lang.split('-')[0] === browserLangPrefix
     );
     
     if (matchingLang) {
-      setSelectedLanguage(matchingLang);
-      setEditorLanguage(matchingLang);
+      dispatch({ type: ActionType.UPDATE_APP_LANGUAGE, payload: matchingLang });
       return;
     }
     
     // Default fallback
-    setSelectedLanguage(DEFAULT_LANGUAGE);
-    setEditorLanguage(DEFAULT_LANGUAGE);
-  }, []);
+    if (state.appConfig.supportedLanguages?.length) {
+      dispatch({ type: ActionType.UPDATE_APP_LANGUAGE, payload: state.appConfig.supportedLanguages[0] });
+    }
+  }, [state.appConfig]);
   
   // Save language preference when it changes
   useEffect(() => {
-    localStorage.setItem('preferredLanguage', selectedLanguage);
+    if (!state.appConfig?.selectedLanguage) return;
+    
+    localStorage.setItem(STORAGE_KEYS.PREFERRED_LANGUAGE, state.appConfig.selectedLanguage);
     
     // Update URL parameter without reloading the page
     const url = new URL(window.location.href);
-    url.searchParams.set('lang', selectedLanguage);
+    url.searchParams.set('lang', state.appConfig.selectedLanguage);
     window.history.replaceState({}, '', url.toString());
-  }, [selectedLanguage]);
+  }, [state.appConfig?.selectedLanguage]);
   
-  // Load user on mount
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        
-        // Get user info from SDK
-        if (isSDKAvailable) {
-          const userInfo = await sdk.getUser();
-          setUser(userInfo);
-        } else {
-          setError(new Error('SDK not available'));
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error('Unknown error'));
-        console.error('Error loading user:', err);
-      } finally {
-        setIsLoading(false);
+  /**
+   * Load user information
+   */
+  const loadUser = async () => {
+    try {
+      if (!sdk) {
+        dispatch({ type: ActionType.SET_USER, payload: null });
+        return;
       }
-    };
-    
-    loadUser();
-  }, [sdk, isSDKAvailable, reloadCounter]);
-  
-  // Function to navigate to language settings
+      
+      const user = await sdk.getUser();
+      dispatch({ type: ActionType.SET_USER, payload: user });
+    } catch (error) {
+      dispatch({ 
+        type: ActionType.SET_ERROR, 
+        payload: error instanceof Error ? error : new Error(String(error)) 
+      });
+      dispatch({ type: ActionType.SET_USER, payload: null });
+    }
+  };
+
+  /**
+   * Navigation function for language settings
+   */
   const navigateToLanguageSettings = () => {
-    // This would typically use a router to navigate to language settings
-    // For now, we'll just provide this function as a hook for components to use
-    console.log('Navigate to language settings requested');
-    // If using react-router, you would use navigate('/settings/languages')
+    window.location.href = '/settings/languages';
   };
   
-  // Provide the context value
+  // Create the context value with service and SDK references
+  const contextValue = {
+    ...state,
+    service: hectorService,
+    sdk
+  };
+  
   return (
-    <HectorContext.Provider 
-      value={{ 
-        service: hectorService, 
-        sdk, 
-        user, 
-        isLoading, 
-        error, 
-        isSDKAvailable,
-        reloadSDK,
-        // Language related properties
-        selectedLanguage,
-        setSelectedLanguage,
-        editorLanguage,
-        setEditorLanguage,
-        availableLanguages,
-        setAvailableLanguages,
-        navigateToLanguageSettings
-      }}>
-      {children}
-    </HectorContext.Provider>
+    <HectorStateContext.Provider value={contextValue}>
+      <HectorDispatchContext.Provider value={dispatch}>
+        {children}
+      </HectorDispatchContext.Provider>
+    </HectorStateContext.Provider>
   );
 }
 
 /**
  * Hook to use the Hector context
+ * This provides a unified interface for components
  */
 export function useHector(): HectorContextType {
-  const context = useContext(HectorContext);
+  const state = useHectorState();
+  const dispatch = useHectorDispatch();
   
-  if (!context) {
-    throw new Error('useHector must be used within a HectorProvider');
-  }
+  const reloadSDK = useCallback(
+    () => actions.reloadSDK(dispatch),
+    [dispatch]
+  );
   
-  return context;
+  // Return the extended state with methods
+  return {
+    ...state,
+    reloadSDK,
+    navigateToLanguageSettings: actions.navigateToLanguageSettings
+  };
 }
 
 /**
- * @deprecated Use useHector instead
- * Legacy hook to maintain compatibility with existing components
+ * Alias for useHector to maintain backward compatibility
  */
 export function useWebdraw(): HectorContextType {
-  console.warn('useWebdraw is deprecated. Please use useHector instead.');
   return useHector();
 } 

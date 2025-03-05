@@ -11,15 +11,15 @@ import { ExecutionMetadata } from '../components/Runtime/ExecutionContext';
 // ============================================================================
 
 /**
- * Supported languages in the system
+ * Default language for the application
+ */
+export const DEFAULT_LANGUAGE = 'en-US';
+
+/**
+ * List of available languages in the application
  * Using BCP 47 language tags (language-REGION)
  */
 export const AVAILABLE_LANGUAGES = ['en-US', 'pt-BR', 'es-ES', 'fr-FR', 'de-DE', 'it-IT', 'ja-JP', 'ko-KR', 'zh-CN'];
-
-/**
- * Default fallback language
- */
-export const DEFAULT_LANGUAGE = 'en-US';
 
 /**
  * Type for localizable content
@@ -88,6 +88,7 @@ export interface AppConfig {
   actions: ActionData[];
   output: OutputTemplate[];
   supportedLanguages?: string[];
+  selectedLanguage?: string;
   currentExecution?: {
     values: Record<string, any>;
     executionMeta: Record<string, ExecutionMetadata>;
@@ -642,4 +643,21 @@ export function isComplete<T>(
   if (!obj) return false;
   
   return requiredLanguages.every(lang => obj[lang] !== undefined);
-} 
+}
+
+/**
+ * Application routes
+ */
+export const ROUTES = {
+  HOME: '/',
+  SETTINGS: '/settings',
+  LANGUAGE_SETTINGS: '/settings/languages',
+  APP_EDITOR: '/app/:appName',
+};
+
+/**
+ * Local storage keys
+ */
+export const STORAGE_KEYS = {
+  PREFERRED_LANGUAGE: 'preferredLanguage',
+}; 

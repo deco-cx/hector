@@ -1,17 +1,18 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Tabs, message, Spin, Alert, Button, Input, Card, Space, Typography, Row, Col, Radio } from 'antd';
+import { Tabs, message, Spin, Alert, Button, Typography, Space } from 'antd';
 import { useHector } from '../../context/HectorContext';
+import { useHectorState } from '../../context/HectorStateContext';
+import { useHectorActions } from '../../hooks/useHectorActions';
 import { StyleGuide } from './steps/StyleGuide';
 import { InputsConfig } from './steps/InputsConfig';
 import { ActionsConfig as ActionsConfigStep } from './steps/ActionsConfig';
 import { OutputConfig } from './steps/OutputConfig';
-import { AppConfig, getLocalizedValue, DEFAULT_LANGUAGE, OutputTemplate, createDefaultLocalizable, WebdrawSDK } from '../../types/types';
+import { getLocalizedValue, WebdrawSDK, AppConfig } from '../../types/types';
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons';
 import LanguageSettings from '../LanguageSettings/LanguageSettings';
 import JSONViewer from '../JSONViewer/JSONViewer';
 import ExportsView from '../Exports/ExportsView';
-import { createOutputTemplate } from '../../config/outputsConfig';
 import { RuntimeProvider } from '../../components/Runtime';
 import { ExecutionPill } from '../../components/Runtime/ExecutionPill';
 
@@ -26,36 +27,43 @@ interface AppEditorProps {
   tab?: string;
 }
 
-// Define a type that combines AppConfig with the expected component props
-interface ExtendedAppConfig extends Omit<AppConfig, 'output'> {
-  output: OutputTemplate[];
-}
-
 export function AppEditor({ tab = 'style' }: AppEditorProps) {
-  const { service, sdk, isSDKAvailable } = useHector();
+  console.log('AppEditor component rendering');
+  
+  // Use the new state and actions hooks for accessing our context
+  const { service, sdk, isSDKAvailable } = useHectorState();
+  console.log('useHectorState values:', { serviceAvailable: !!service, sdkAvailable: !!sdk });
+  
+  const { 
+    loadAppConfig, 
+    saveAppConfig, 
+    setActiveTab, 
+    setAppSaving,
+    setAppConfig
+  } = useHectorActions();
+  
+  // For backward compatibility, also use useHector to ensure all references work
+  const hectorContext = useHector();
+  
   const { appName: appId } = useParams<{ appName: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { selectedLanguage, setAvailableLanguages } = useHector();
   
-  // State for the form data
-  const [formData, setFormData] = useState<ExtendedAppConfig | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState(tab || 'style');
-  const [inputsKey, setInputsKey] = useState(0); // Used to force re-render of inputs tab
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  // Get app state from our centralized store
+  const { 
+    appConfig, 
+    appLoading, 
+    appSaving, 
+    activeTab: currentTab,
+    lastSaved 
+  } = useHectorState();
+  
+  // Get the selected language from the app config
+  const selectedLanguage = appConfig?.selectedLanguage || 'en-US';
   
   // Handle tab change
   const handleTabChange = (key: string) => {
-    console.log('Tab changed to:', key, 'from:', activeTab);
-    
-    // When switching to the inputs tab, force a re-render to ensure we have fresh data
-    if (key === 'inputs') {
-      setInputsKey(prevKey => prevKey + 1);
-    }
-    
-    // Set the active tab
+    console.log('Tab changed to:', key, 'from:', currentTab);
     setActiveTab(key);
   };
   
@@ -66,90 +74,81 @@ export function AppEditor({ tab = 'style' }: AppEditorProps) {
     } else if ((location.state as any)?.activeTab) {
       setActiveTab((location.state as any).activeTab);
     }
-  }, [tab, location.state]);
+  }, [tab, location.state, setActiveTab]);
   
   // Load app data
   useEffect(() => {
-    const loadAppData = async () => {
-      if (!isSDKAvailable || !appId) {
-        setLoading(false);
-        return;
-      }
-      
-      try {
-        // Get app data - it's already normalized by the service
-        const appData = await service.getApp(appId);
-        setFormData(appData as ExtendedAppConfig);
-      } catch (error) {
-        console.error('Failed to load app:', error);
-        message.error('Failed to load app');
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    loadAppData();
-  }, [appId, isSDKAvailable, service]);
+    console.log('AppEditor useEffect for appId dependency triggered:', appId);
+    if (appId) {
+      loadAppConfig(appId);
+    }
+  }, [appId, loadAppConfig]);
   
   // Save the app to the backend
-  const saveApp = async () => {
-    if (!formData) {
+  const handleSaveApp = async () => {
+    if (!appConfig) {
       message.error('No app data to save');
       return;
     }
     
     try {
-      setSaving(true);
+      setAppSaving(true);
+      const success = await saveAppConfig(appConfig);
       
-      // Save the app using the service
-      await service.saveApp(formData);
-      message.success('App saved successfully');
-      
-      // Update the lastSaved date
-      setLastSaved(new Date());
+      if (success) {
+        message.success('App saved successfully');
+      } else {
+        message.error('Error saving app');
+      }
     } catch (error) {
       console.error('Error saving app:', error);
       message.error('Error saving app');
     } finally {
-      setSaving(false);
+      setAppSaving(false);
     }
   };
   
-  // Handle form data changes - this only updates the React state
-  const handleFormDataChange = useCallback((newData: Partial<ExtendedAppConfig> | ((prev: ExtendedAppConfig) => ExtendedAppConfig)) => {
-    console.log('handleFormDataChange called with:', newData);
+  // Handler for updating form data in child components
+  const handleFormDataChange = (newData: Partial<AppConfig>) => {
+    if (!appConfig) return;
     
-    // Handle both direct data updates and function updates
-    if (typeof newData === 'function') {
-      setFormData(prevData => {
-        if (!prevData) {
-          console.error('Cannot update with a function when previous data is null');
-          return prevData;
-        }
-        
-        const updatedData = newData(prevData);
-        console.log('Updated form data (function update):', updatedData);
-        return updatedData;
-      });
-    } else {
-      setFormData(prevData => {
-        if (!prevData) {
-          return newData as ExtendedAppConfig;
-        }
-        
-        // Use a proper deep merge to ensure all properties are correctly updated
-        const mergedData = JSON.parse(JSON.stringify({
-          ...prevData,
-          ...newData
-        }));
-        
-        // Log what's being updated
-        console.log('Updated form data (direct update):', mergedData);
-        
-        return mergedData;
-      });
+    // Merge the new data with existing app config
+    setAppConfig({
+      ...appConfig,
+      ...newData
+    });
+  };
+  
+  // Memoize the app name to avoid recalculation on every render
+  const appNameString = useMemo(() => {
+    if (!appConfig) return appId || 'app';
+    
+    return appConfig.name 
+      ? getLocalizedValue(appConfig.name, selectedLanguage) || String(appId) 
+      : String(appId) || 'app';
+  }, [appConfig, selectedLanguage, appId]);
+  
+  // Create a wrapper for the RuntimeProvider that removes the mode-related functionality
+  const RuntimeProviderWrapper: React.FC<React.PropsWithChildren> = ({ children }) => {
+    // This will be rendered inside the RuntimeContext, allowing us to use the already defined state
+    console.log('RuntimeProvider render cycle - service type:', service);
+    
+    if (!appConfig) {
+      return <>{children}</>;
     }
-  }, []);
+    
+    // Use the getSDK() method to access the WebdrawSDK instance
+    return (
+      <RuntimeProvider
+        sdk={service.getSDK() as WebdrawSDK}
+        appId={appId || ''}
+        inputs={appConfig.inputs || []}
+        actions={appConfig.actions || []}
+      >
+        {children}
+      </RuntimeProvider>
+    );
+  };
   
   if (!isSDKAvailable) {
     return (
@@ -171,7 +170,7 @@ export function AppEditor({ tab = 'style' }: AppEditorProps) {
     );
   }
   
-  if (loading) {
+  if (appLoading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <Spin size="large" tip="Loading app..." />
@@ -179,7 +178,7 @@ export function AppEditor({ tab = 'style' }: AppEditorProps) {
     );
   }
   
-  if (!formData) {
+  if (!appConfig) {
     return (
       <div style={{ padding: 20 }}>
         <Alert
@@ -197,34 +196,8 @@ export function AppEditor({ tab = 'style' }: AppEditorProps) {
     );
   }
   
-  // Get the app name as string for use in RuntimeProvider
-  const appNameString = formData.name 
-    ? (typeof formData.name === 'object' 
-        ? getLocalizedValue(formData.name, selectedLanguage) || String(appId) 
-        : String(formData.name))
-    : String(appId) || 'app';
-    
-  // Create a wrapper for the RuntimeProvider that removes the mode-related functionality
-  const RuntimeProviderWrapper: React.FC<React.PropsWithChildren> = ({ children }) => {
-    // This will be rendered inside the RuntimeContext, allowing us to use the already defined state
-    console.log('RuntimeProvider service type:', service);
-    
-    // Use the getSDK() method to access the WebdrawSDK instance
-    // We explicitly cast to WebdrawSDK from types.ts to ensure interface compatibility with RuntimeProvider
-    return (
-      <RuntimeProvider
-        sdk={service.getSDK() as WebdrawSDK}
-        appId={appId || ''}
-        inputs={formData?.inputs || []}
-        actions={formData?.actions || []}
-      >
-        {children}
-      </RuntimeProvider>
-    );
-  };
-  
   // If the SDK service is not available, show a loading message
-  if (!service || !formData) {
+  if (!service) {
     return (
       <div style={{ padding: 24 }}>
         <Spin tip="Loading..."/>
@@ -252,7 +225,7 @@ export function AppEditor({ tab = 'style' }: AppEditorProps) {
               Back
             </Button>
             <Typography.Title level={4} style={{ margin: 0 }}>
-              {getLocalizedValue(formData.name, selectedLanguage) || appId}
+              {getLocalizedValue(appConfig.name, selectedLanguage) || appId}
             </Typography.Title>
           </Space>
           
@@ -261,8 +234,8 @@ export function AppEditor({ tab = 'style' }: AppEditorProps) {
             <Button 
               type="primary" 
               icon={<SaveOutlined />} 
-              onClick={saveApp} 
-              loading={saving}
+              onClick={handleSaveApp} 
+              loading={appSaving}
             >
               Save
             </Button>
@@ -271,7 +244,7 @@ export function AppEditor({ tab = 'style' }: AppEditorProps) {
         
         <div className="app-editor-content" style={{ padding: 16 }}>
           <Tabs 
-            activeKey={activeTab} 
+            activeKey={currentTab} 
             onChange={handleTabChange}
             destroyInactiveTabPane={false}
             items={[
@@ -280,8 +253,8 @@ export function AppEditor({ tab = 'style' }: AppEditorProps) {
                 label: 'Style Guide',
                 children: (
                   <StyleGuide 
-                    formData={formData} 
-                    setFormData={handleFormDataChange} 
+                    formData={appConfig} 
+                    setFormData={handleFormDataChange}
                   />
                 )
               },
@@ -290,9 +263,8 @@ export function AppEditor({ tab = 'style' }: AppEditorProps) {
                 label: 'Inputs',
                 children: (
                   <InputsConfig 
-                    key={inputsKey}
-                    formData={formData} 
-                    setFormData={handleFormDataChange} 
+                    formData={appConfig} 
+                    setFormData={handleFormDataChange}
                   />
                 )
               },
@@ -301,8 +273,8 @@ export function AppEditor({ tab = 'style' }: AppEditorProps) {
                 label: 'Actions',
                 children: (
                   <ActionsConfigStep 
-                    formData={formData} 
-                    setFormData={handleFormDataChange} 
+                    formData={appConfig} 
+                    setFormData={handleFormDataChange}
                   />
                 )
               },
@@ -311,8 +283,8 @@ export function AppEditor({ tab = 'style' }: AppEditorProps) {
                 label: 'Output',
                 children: (
                   <OutputConfig 
-                    formData={formData} 
-                    setFormData={handleFormDataChange} 
+                    formData={appConfig} 
+                    setFormData={handleFormDataChange}
                   />
                 )
               },
@@ -321,7 +293,7 @@ export function AppEditor({ tab = 'style' }: AppEditorProps) {
                 label: 'Languages',
                 children: (
                   <LanguageSettings 
-                    formData={formData} 
+                    formData={appConfig} 
                     setFormData={handleFormDataChange}
                   />
                 )
@@ -329,12 +301,12 @@ export function AppEditor({ tab = 'style' }: AppEditorProps) {
               {
                 key: 'json',
                 label: 'JSON View',
-                children: <JSONViewer data={formData} />
+                children: <JSONViewer data={appConfig} />
               },
               {
                 key: 'exports',
                 label: 'Export',
-                children: <ExportsView data={formData} />
+                children: <ExportsView data={appConfig} />
               }
             ]}
           />
