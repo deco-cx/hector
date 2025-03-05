@@ -41,10 +41,10 @@ const LocalizableInput: React.FC<LocalizableInputProps> = memo(({
   showLanguageButtons = false,
 }) => {
   const [fieldLanguage, setFieldLanguage] = useState<string | null>(null);
-  const { availableLanguages, editorLanguage, navigateToLanguageSettings } = useHector();
+  const { appConfig, navigateToLanguageSettings } = useHector();
   
   // The language to edit - either the field-specific language or the global editor language
-  const currentLanguage = fieldLanguage || editorLanguage;
+  const currentLanguage = fieldLanguage || (appConfig?.selectedLanguage || 'en-US');
   
   // Handle changes to the input value - optimized with useCallback
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -59,6 +59,9 @@ const LocalizableInput: React.FC<LocalizableInputProps> = memo(({
   const handleLanguageClick = useCallback((lang: string) => {
     setFieldLanguage(lang);
   }, []);
+  
+  // Get supported languages from appConfig or use a fallback
+  const supportedLanguages = appConfig?.supportedLanguages || ['en-US'];
   
   return (
     <div className="localizable-input-container">
@@ -79,7 +82,7 @@ const LocalizableInput: React.FC<LocalizableInputProps> = memo(({
         {(showLanguageButtons && !hideLanguageButtons) && (
           <div className="language-buttons">
             <Space size={4}>
-              {availableLanguages.map(lang => (
+              {supportedLanguages.map((lang: string) => (
                 <Tooltip key={lang} title={lang}>
                   <Button
                     type={lang === currentLanguage ? 'primary' : 'default'}

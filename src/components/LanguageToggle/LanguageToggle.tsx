@@ -3,6 +3,8 @@ import { Button, Tooltip, Space } from 'antd';
 import { useHector } from '../../context/HectorContext';
 import { CheckOutlined, GlobalOutlined } from '@ant-design/icons';
 import './LanguageToggle.css';
+import { ActionType } from '../../context/HectorReducer';
+import { useHectorDispatch } from '../../context/HectorDispatchContext';
 
 // Language display names for each code
 const LANGUAGE_NAMES: Record<string, string> = {
@@ -31,27 +33,35 @@ const LanguageToggle: React.FC<LanguageToggleProps> = ({
   size = 'middle',
   availableLanguages: propAvailableLanguages,
 }) => {
-  const { 
-    selectedLanguage, 
-    setSelectedLanguage, 
-    editorLanguage, 
-    setEditorLanguage,
-    availableLanguages: contextAvailableLanguages 
-  } = useHector();
-
-  // Use provided value or editorLanguage from context
-  const activeLanguage = value || editorLanguage;
+  const { appConfig } = useHector();
+  const dispatch = useHectorDispatch();
   
-  // Use provided onChange or setEditorLanguage from context
-  const handleLanguageChange = onChange || setEditorLanguage;
+  // Get the selected language from appConfig
+  const selectedLanguage = appConfig?.selectedLanguage || 'en-US';
+  
+  // Function to update the selected language
+  const setSelectedLanguage = (lang: string) => {
+    if (appConfig) {
+      dispatch({ 
+        type: ActionType.UPDATE_APP_LANGUAGE, 
+        payload: lang 
+      });
+    }
+  };
 
-  // Use prop availableLanguages if provided, otherwise use context availableLanguages
-  const availableLanguages = propAvailableLanguages || contextAvailableLanguages;
+  // Use provided value or selectedLanguage from context
+  const activeLanguage = value || selectedLanguage;
+  
+  // Use provided onChange or setSelectedLanguage from context
+  const handleLanguageChange = onChange || setSelectedLanguage;
+
+  // Use prop availableLanguages if provided, otherwise use context supportedLanguages
+  const availableLanguages = propAvailableLanguages || appConfig?.supportedLanguages || ['en-US'];
 
   return (
     <div className="language-toggle">
       <Space size={size === 'small' ? 2 : 4}>
-        {availableLanguages.map(lang => (
+        {availableLanguages.map((lang: string) => (
           <Tooltip key={lang} title={LANGUAGE_NAMES[lang]} placement="bottom">
             <Button
               type={lang === activeLanguage ? 'primary' : 'default'}
@@ -81,10 +91,24 @@ export interface AppLanguageToggleProps {
 export const AppLanguageToggle: React.FC<AppLanguageToggleProps> = ({
   availableLanguages: propAvailableLanguages,
 }) => {
-  const { selectedLanguage, setSelectedLanguage, availableLanguages: contextAvailableLanguages } = useHector();
+  const { appConfig } = useHector();
+  const dispatch = useHectorDispatch();
   
-  // Use prop availableLanguages if provided, otherwise use context availableLanguages
-  const availableLanguages = propAvailableLanguages || contextAvailableLanguages;
+  // Get the selected language from appConfig
+  const selectedLanguage = appConfig?.selectedLanguage || 'en-US';
+  
+  // Function to update the selected language
+  const setSelectedLanguage = (lang: string) => {
+    if (appConfig) {
+      dispatch({ 
+        type: ActionType.UPDATE_APP_LANGUAGE, 
+        payload: lang 
+      });
+    }
+  };
+  
+  // Use prop availableLanguages if provided, otherwise use context supportedLanguages
+  const availableLanguages = propAvailableLanguages || appConfig?.supportedLanguages || ['en-US'];
   
   return (
     <Tooltip title="Change application language">

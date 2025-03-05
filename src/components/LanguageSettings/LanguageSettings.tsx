@@ -6,6 +6,8 @@ import { translateAppConfig } from '../../services/translationService';
 import LanguageToggle from '../LanguageToggle/LanguageToggle';
 import './LanguageSettings.css';
 import { useHector } from '../../context/HectorContext';
+import { useHectorDispatch } from '../../context/HectorDispatchContext';
+import { ActionType } from '../../context/HectorReducer';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -30,13 +32,40 @@ const LanguageSettings: React.FC<LanguageSettingsProps> = ({
   formData,
   setFormData,
 }) => {
-  const { service, selectedLanguage, setSelectedLanguage, setAvailableLanguages } = useHector();
+  const { service, appConfig } = useHector();
+  const dispatch = useHectorDispatch();
   const [translationProgress, setTranslationProgress] = useState(0);
   const [isTranslating, setIsTranslating] = useState(false);
   
   // Refs to track previous values and avoid infinite loops
   const prevSupportedLanguagesRef = useRef<string[]>([]);
   const initialSetupDoneRef = useRef(false);
+  
+  // Get the current selected language from appConfig
+  const selectedLanguage = appConfig?.selectedLanguage || DEFAULT_LANGUAGE;
+  
+  // Function to update the selected language
+  const setSelectedLanguage = (lang: string) => {
+    if (appConfig) {
+      dispatch({ 
+        type: ActionType.UPDATE_APP_LANGUAGE, 
+        payload: lang 
+      });
+    }
+  };
+  
+  // Function to update the supported languages in the app config
+  const setAppConfigSupportedLanguages = (languages: string[]) => {
+    if (appConfig) {
+      dispatch({
+        type: ActionType.SET_APP_CONFIG,
+        payload: {
+          ...appConfig,
+          supportedLanguages: languages
+        }
+      });
+    }
+  };
   
   // Get the current supported languages from the app config (with null safety)
   const supportedLanguages = formData?.supportedLanguages || [DEFAULT_LANGUAGE];
@@ -57,7 +86,7 @@ const LanguageSettings: React.FC<LanguageSettingsProps> = ({
     
     // Set available languages and update refs
     console.log('Updating language settings with supported languages:', supported);
-    setAvailableLanguages(supported);
+    setAppConfigSupportedLanguages(supported);
     prevSupportedLanguagesRef.current = [...supported];
     
     // Check if current language needs to be changed
@@ -69,7 +98,7 @@ const LanguageSettings: React.FC<LanguageSettingsProps> = ({
     // Mark initial setup as complete
     initialSetupDoneRef.current = true;
     
-  }, [supportedLanguages, selectedLanguage, setSelectedLanguage, setAvailableLanguages]);
+  }, [supportedLanguages, selectedLanguage, setSelectedLanguage, setAppConfigSupportedLanguages]);
   
   const startTranslation = async (sourceLang: string, targetLang: string) => {
     setIsTranslating(true);

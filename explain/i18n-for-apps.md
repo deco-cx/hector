@@ -216,7 +216,7 @@ The i18n system has been implemented with a streamlined approach focused on simp
 
 #### Context Provider
 - **src/context/HectorContext.tsx**: Provides language state management integrated with other app state
-  - Contains language-related state including `selectedLanguage`, `editorLanguage`, and `availableLanguages`
+  - Contains language-related state in `appConfig` including `selectedLanguage` and `supportedLanguages`
   - Manages language initialization from browser, localStorage, or URL parameters
   - Simplifies state management by keeping all app context in one place
 

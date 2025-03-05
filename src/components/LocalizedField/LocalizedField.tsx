@@ -50,8 +50,9 @@ const LocalizedField: React.FC<LocalizedFieldProps> = ({
   type = 'input',
   rows = 4,
 }) => {
-  const { editorLanguage, availableLanguages } = useHector();
-  const [fieldLanguage, setFieldLanguage] = useState(editorLanguage);
+  const { appConfig } = useHector();
+  const selectedLanguage = appConfig?.selectedLanguage || 'en-US';
+  const [fieldLanguage, setFieldLanguage] = useState(selectedLanguage);
   const [translationVisible, setTranslationVisible] = useState(false);
   const [translationSource, setTranslationSource] = useState('');
   const [translationTarget, setTranslationTarget] = useState('');
@@ -61,8 +62,11 @@ const LocalizedField: React.FC<LocalizedFieldProps> = ({
   // Get the current value for the active language
   const currentValue = getLocalizedValue(value, fieldLanguage) || '';
   
+  // Get supported languages from appConfig or use a fallback
+  const supportedLanguages = appConfig?.supportedLanguages || ['en-US'];
+  
   // Check which languages have content
-  const languagesWithContent = availableLanguages.filter(lang => 
+  const languagesWithContent = supportedLanguages.filter((lang: string) => 
     hasLanguage(value, lang) && getLocalizedValue(value, lang) !== ''
   );
   

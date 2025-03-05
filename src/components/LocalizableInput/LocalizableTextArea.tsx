@@ -39,10 +39,13 @@ const LocalizableTextArea: React.FC<LocalizableTextAreaProps> = ({
   rows = 4
 }) => {
   const [fieldLanguage, setFieldLanguage] = useState<string | null>(null);
-  const { availableLanguages, editorLanguage, navigateToLanguageSettings } = useHector();
+  const { appConfig, navigateToLanguageSettings } = useHector();
   
   // The language to edit - either the field-specific language or the global editor language
-  const currentLanguage = fieldLanguage || editorLanguage;
+  const currentLanguage = fieldLanguage || (appConfig?.selectedLanguage || 'en-US');
+  
+  // Get supported languages from appConfig or use a fallback
+  const supportedLanguages = appConfig?.supportedLanguages || ['en-US'];
   
   // Handle changes to the textarea value
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -73,7 +76,7 @@ const LocalizableTextArea: React.FC<LocalizableTextAreaProps> = ({
         
         <div className="language-buttons">
           <Space size={4} direction="vertical">
-            {availableLanguages.map(lang => (
+            {supportedLanguages.map((lang: string) => (
               <Tooltip key={lang} title={lang}>
                 <Button
                   type={lang === currentLanguage ? 'primary' : 'default'}

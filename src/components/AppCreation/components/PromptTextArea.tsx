@@ -28,10 +28,11 @@ const PromptTextArea: React.FC<PromptTextAreaProps> = ({
   rows = 10,
 }) => {
   // Get the editor language to use for variable insertion
-  const { editorLanguage = DEFAULT_LANGUAGE, availableLanguages } = useHector();
+  const { appConfig } = useHector();
+  const selectedLanguage = appConfig?.selectedLanguage || DEFAULT_LANGUAGE;
   
   // Make sure value is a Localizable object
-  const localValue = typeof value === 'string' ? { [editorLanguage]: value } : value;
+  const localValue = typeof value === 'string' ? { [selectedLanguage]: value } : value;
   
   // Handle changes to the textarea
   const handleChange = (newValue: Localizable<string>) => {
@@ -63,9 +64,9 @@ const PromptTextArea: React.FC<PromptTextAreaProps> = ({
               style={{ cursor: 'pointer' }}
               onClick={() => {
                 const newValue = { ...localValue };
-                const currentText = newValue[editorLanguage] || '';
+                const currentText = newValue[selectedLanguage] || '';
                 const variable = `{{${input.filename}}}`;
-                newValue[editorLanguage] = currentText + (currentText ? ' ' : '') + variable;
+                newValue[selectedLanguage] = currentText + (currentText ? ' ' : '') + variable;
                 onChange(newValue);
               }}
             >
@@ -80,9 +81,9 @@ const PromptTextArea: React.FC<PromptTextAreaProps> = ({
               style={{ cursor: 'pointer' }}
               onClick={() => {
                 const newValue = { ...localValue };
-                const currentText = newValue[editorLanguage] || '';
+                const currentText = newValue[selectedLanguage] || '';
                 const variable = `{{${action.filename}}}`;
-                newValue[editorLanguage] = currentText + (currentText ? ' ' : '') + variable;
+                newValue[selectedLanguage] = currentText + (currentText ? ' ' : '') + variable;
                 onChange(newValue);
               }}
             >
