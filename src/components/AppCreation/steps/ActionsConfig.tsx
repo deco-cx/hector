@@ -22,6 +22,9 @@ import validator from '@rjsf/validator-ajv8';
 import PromptTextArea from '../components/PromptTextArea';
 import { availableActions as actionConfigs, generateActionFilename as generateFilename } from '../../../config/actionsConfig';
 import LocalizableTextArea from '../../../components/LocalizableInput/LocalizableTextArea';
+import { useRuntime } from '../../../components/Runtime';
+import { PlayActionButton } from '../../../components/Runtime';
+import { ResultVisualization } from '../../../components/Runtime';
 
 const { Title, Paragraph, Text } = Typography;
 const { TextArea } = Input;
@@ -54,6 +57,9 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
   const [currentPromptIndex, setCurrentPromptIndex] = useState<number | null>(null);
   const { editorLanguage } = useLanguage();
   const [form] = Form.useForm();
+  const runtimeContext = useRuntime();
+  const executionContext = runtimeContext?.executionContext;
+  const sdk = runtimeContext?.sdk;
   
   // Direct update to parent
   const updateActions = (actions: ActionData[]) => {
@@ -558,14 +564,20 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
                     {actionIcons[action.type]}
                     <span>{getLocalizedValue(action.title, DEFAULT_LANGUAGE)}</span>
                   </Space>
-                  <Tooltip title={editingIndex === index ? "View action" : "Edit action"}>
-                    <Button 
-                      type="text" 
-                      size="small"
-                      icon={editingIndex === index ? <EyeOutlined /> : <EditOutlined />} 
-                      onClick={() => handleCardFlip(index)}
-                    />
-                  </Tooltip>
+                  <Space>
+                    {/* Add PlayActionButton when in runtime mode */}
+                    {executionContext && executionContext.hasValue && executionContext.hasValue(action.id) && (
+                      <PlayActionButton action={action} />
+                    )}
+                    <Tooltip title={editingIndex === index ? "View action" : "Edit action"}>
+                      <Button 
+                        type="text" 
+                        size="small"
+                        icon={editingIndex === index ? <EyeOutlined /> : <EditOutlined />} 
+                        onClick={() => handleCardFlip(index)}
+                      />
+                    </Tooltip>
+                  </Space>
                 </div>
               }
               actions={[
@@ -749,16 +761,42 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
                 </Space>
               ) : (
                 // View Mode
-                <div style={{ padding: '0 0 8px 0' }}>
-                  <Paragraph style={{ marginBottom: '8px' }}>
-                    <Text type="secondary">Type:</Text> {actionConfigs[action.type].label}
+                <div>
+                  <Paragraph ellipsis={{ rows: 2 }}>
+                    {getLocalizedValue(action.description, DEFAULT_LANGUAGE)}
                   </Paragraph>
-                  <Paragraph style={{ marginBottom: '8px' }}>
-                    <Text type="secondary">Output:</Text> <code>{action.filename}</code>
-                  </Paragraph>
-                  <Paragraph ellipsis={{ rows: 2 }} style={{ marginBottom: '0' }}>
-                    <Text type="secondary">Prompt:</Text> {getLocalizedValue(action.prompt, DEFAULT_LANGUAGE) || 'No prompt configured'}
-                  </Paragraph>
+                  <Row gutter={[16, 16]}>
+                    <Col span={24}>
+                      <Text strong>Prompt:</Text>
+                      <div style={{ 
+                        padding: '8px', 
+                        background: '#f5f5f5', 
+                        borderRadius: '4px',
+                        marginTop: '4px'
+                      }}>
+                        <Text code style={{ whiteSpace: 'pre-wrap' }}>
+                          {typeof action.prompt === 'object' 
+                            ? getLocalizedValue(action.prompt, DEFAULT_LANGUAGE) 
+                            : action.prompt}
+                        </Text>
+                      </div>
+                    </Col>
+                    
+                    {/* Add ResultVisualization when in runtime mode */}
+                    {executionContext && executionContext.hasValue && executionContext.hasValue(action.id) && (
+                      <Col span={24}>
+                        <Divider style={{ margin: '12px 0' }} />
+                        <Text strong>Result:</Text>
+                        <div style={{ marginTop: '8px' }}>
+                          <ResultVisualization
+                            result={executionContext.getValue(action.id)}
+                            actionName={action.id}
+                            title={`${getLocalizedValue(action.title, DEFAULT_LANGUAGE)} Result`}
+                          />
+                        </div>
+                      </Col>
+                    )}
+                  </Row>
                 </div>
               )}
             </Card>
