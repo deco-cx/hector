@@ -48,11 +48,18 @@ export const LocalizableTextArea: React.FC<LocalizableTextAreaProps> = ({
     if (onChange) {
       const newValue = { ...value };
       newValue[activeLanguage] = e.target.value;
+      console.log('[LocalizableTextArea] handleInputChange:', {
+        activeLanguage,
+        inputValue: e.target.value,
+        previousValue: value,
+        newValue
+      });
       onChange(newValue);
     }
   };
 
   const handleLanguageChange = (lang: string) => {
+    console.log('[LocalizableTextArea] Language changed from', activeLanguage, 'to', lang, 'Current value:', value);
     setActiveLanguage(lang);
   };
 

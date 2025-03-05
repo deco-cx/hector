@@ -33,6 +33,36 @@ export class HectorService {
   }
   
   /**
+   * Normalize app data to ensure it has all required fields and correct structure
+   */
+  private normalizeAppData(appData: Partial<AppConfig>): AppConfig {
+    // Normalize the app data to ensure it has all required fields
+    let outputConfig: any[] = [];
+    
+    // Handle conversion from legacy format to new OutputTemplate[] format
+    if (Array.isArray(appData.output)) {
+      // Already in the new format
+      outputConfig = appData.output;
+    } else if (appData.output && typeof appData.output === 'object') {
+      // Convert from legacy format
+      outputConfig = [appData.output];
+    }
+    
+    // Return normalized app data with required fields and types
+    return {
+      id: appData.id || '',
+      name: appData.name || {},
+      inputs: Array.isArray(appData.inputs) ? appData.inputs : [],
+      actions: Array.isArray(appData.actions) ? appData.actions : [],
+      output: outputConfig,
+      style: appData.style || '',
+      template: appData.template || '',
+      supportedLanguages: Array.isArray(appData.supportedLanguages) ? 
+        appData.supportedLanguages : ['en-US']
+    };
+  }
+  
+  /**
    * Get the underlying SDK
    */
   public getSDK(): WebdrawSDK {
@@ -132,38 +162,41 @@ export class HectorService {
   }
   
   /**
-   * Get a specific app by ID
+   * Get an app by ID
    */
   public async getApp(id: string): Promise<AppConfig> {
-    const path = `${this.APPS_PATH}${id}.json`;
-    console.log("Reading app file from path:", path);
+    console.log(`[HectorService] Getting app: ${id}`);
     
     try {
-      // Check if the file exists
-      const exists = await this.getSDK().fs.exists(path);
-      if (!exists) {
-        throw new Error(`App not found: ${id}`);
+      // In a real app, this would load from a server or database
+      // For this demo, we'll simulate loading from local storage or create a default
+      const storedData = localStorage.getItem(`${this.APPS_PATH}${id}`);
+      
+      if (!storedData) {
+        console.log(`App not found: ${id}, creating default`);
+        
+        // Create a default app if none exists
+        const defaultApp: AppConfig = {
+          id,
+          name: { 'en-US': id },
+          inputs: [],
+          actions: [],
+          output: [],
+          supportedLanguages: ['en-US'],
+          template: '',
+          style: ''
+        };
+        
+        return defaultApp;
       }
       
-      const content = await this.getSDK().fs.read(path);
-      console.log("File content loaded successfully");
+      // Parse and normalize the stored data
+      const appData = JSON.parse(storedData);
+      return this.normalizeAppData(appData);
       
-      // Parse the content
-      const appData = JSON.parse(content) as AppConfig;
-      
-      // Log the loaded app data (for debugging)
-      console.log("Loaded app data:", {
-        id: appData.id,
-        name: appData.name,
-        hasOutputProp: Boolean(appData.output),
-        hasInputsProp: Boolean(appData.inputs),
-        hasActionsProp: Boolean(appData.actions)
-      });
-      
-      return appData;
     } catch (error) {
-      console.error("Error reading app file:", error);
-      throw error;
+      console.error('Error getting app:', error);
+      throw new Error(`Failed to get app: ${id}`);
     }
   }
   
@@ -171,29 +204,23 @@ export class HectorService {
    * Save an app
    */
   public async saveApp(app: AppConfig): Promise<void> {
-    if (!app) {
-      throw new Error("Cannot save null or undefined app");
-    }
-    
-    if (!app.id) {
-      throw new Error("App ID is required for saving");
-    }
-    
-    const path = `${this.APPS_PATH}${app.id}.json`;
-    console.log("Saving app file to path:", path);
+    console.log(`[HectorService] Saving app: ${app.id}`);
     
     try {
-      // Make sure directory exists
-      await this.ensureDirectory(this.APPS_PATH);
+      // Normalize the app data before saving
+      const normalizedApp = this.normalizeAppData(app);
       
-      // Serialize and save
-      const serializedApp = JSON.stringify(app, null, 2);
-      await this.getSDK().fs.write(path, serializedApp);
+      // In a real app, this would save to a server or database
+      // For this demo, we'll simulate saving to local storage
+      localStorage.setItem(
+        `${this.APPS_PATH}${app.id}`, 
+        JSON.stringify(normalizedApp)
+      );
       
-      console.log(`App saved successfully to ${path}`);
+      console.log(`App saved: ${app.id}`);
     } catch (error) {
-      console.error("Error saving app file:", error);
-      throw error;
+      console.error('Error saving app:', error);
+      throw new Error(`Failed to save app: ${app.id}`);
     }
   }
   

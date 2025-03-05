@@ -61,7 +61,7 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
   
   // Handle form values change
   const onValuesChange = (changedValues: any, allValues: any) => {
-    console.log("onValuesChange called with:", { 
+    console.log("[InputsConfig] onValuesChange called with:", { 
       changedValues: JSON.stringify(changedValues, null, 2), 
       allValues: JSON.stringify(allValues, null, 2) 
     });
@@ -81,13 +81,27 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
           newInput.required = newInput.required === true || String(newInput.required) === 'true';
         }
         
+        console.log(`[InputsConfig] Processing input ${index}:`, {
+          title: newInput.title,
+          filename: newInput.filename,
+          required: newInput.required,
+          type: newInput.type,
+          placeholder: newInput.placeholder
+        });
+        
         return newInput;
       });
       
-      setFormData((prev: any) => ({
-        ...prev,
-        inputs: newInputs
-      }));
+      console.log('[InputsConfig] Setting updated inputs:', newInputs);
+      
+      setFormData((prev: any) => {
+        const updated = {
+          ...prev,
+          inputs: newInputs
+        };
+        console.log('[InputsConfig] New formData:', updated);
+        return updated;
+      });
     }
   };
   

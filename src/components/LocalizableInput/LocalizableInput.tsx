@@ -34,19 +34,32 @@ export const LocalizableInput: React.FC<LocalizableInputProps> = ({
   const { availableLanguages } = useLanguage();
   const navigate = useNavigate();
   const { appName } = useParams<{ appName: string }>();
-  const [activeLanguage, setActiveLanguage] = useState<string>(
-    defaultLanguage || availableLanguages[0] || DEFAULT_LANGUAGE
-  );
+  
+  // Initialize with default language, first available language, or fallback
+  const initialLanguage = defaultLanguage || 
+    (availableLanguages.length > 0 ? availableLanguages[0] : DEFAULT_LANGUAGE);
+  
+  const [activeLanguage, setActiveLanguage] = useState<string>(initialLanguage);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (onChange) {
+      // Create a deep copy of the value object to ensure we don't lose other language values
       const newValue = { ...value };
+      
+      // Set the value for the current active language
       newValue[activeLanguage] = e.target.value;
+      
+      console.log('LocalizableInput updating value:', newValue);
       onChange(newValue);
     }
   };
 
   const handleLanguageChange = (lang: string) => {
+    // Log current value before switching language
+    console.log('Changing language from', activeLanguage, 'to', lang);
+    console.log('Current value before language change:', { ...value });
+    
+    // Set the active language
     setActiveLanguage(lang);
   };
 
@@ -56,17 +69,17 @@ export const LocalizableInput: React.FC<LocalizableInputProps> = ({
   };
 
   const renderLanguageToggle = () => {
-    // If only one language is available, show the default language and "+" button
+    // If only one language is available, just show it with a "+" button
     if (availableLanguages.length <= 1) {
       return (
         <div className="language-indicator">
-          <Tooltip key={DEFAULT_LANGUAGE} title={DEFAULT_LANGUAGE}>
+          <Tooltip key={availableLanguages[0] || DEFAULT_LANGUAGE} title={availableLanguages[0] || DEFAULT_LANGUAGE}>
             <Button
               type="text"
               size="small"
               className="active-language"
             >
-              {languageEmojis[DEFAULT_LANGUAGE] || <GlobalOutlined />}
+              {languageEmojis[availableLanguages[0] || DEFAULT_LANGUAGE] || <GlobalOutlined />}
             </Button>
           </Tooltip>
           <Tooltip title="Add more languages">
@@ -81,7 +94,7 @@ export const LocalizableInput: React.FC<LocalizableInputProps> = ({
       );
     }
 
-    // Otherwise, show all available languages
+    // Otherwise, show only the supported languages for this app
     return (
       <div className="language-indicator">
         {availableLanguages.map((lang: string) => (
@@ -99,6 +112,13 @@ export const LocalizableInput: React.FC<LocalizableInputProps> = ({
       </div>
     );
   };
+
+  // Log current value to help debugging
+  console.log('Rendering LocalizableInput', { 
+    activeLanguage, 
+    value,
+    currentValue: value[activeLanguage] || ''
+  });
 
   return (
     <div className="localizable-input-container">

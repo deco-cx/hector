@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Button, Input, Select, Switch, Space, Form, Tooltip, Empty } from 'antd';
 import { PlusOutlined, DeleteOutlined, EditOutlined, EyeOutlined, FileTextOutlined, PictureOutlined, AudioOutlined } from '@ant-design/icons';
 import { DEFAULT_LANGUAGE, Localizable, InputField } from '../../types/types';
 import { useRuntime } from '../../components/Runtime';
+import { LocalizableInput } from '../../components/LocalizableInput/LocalizableInput';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -27,7 +28,7 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
   const [flippedCards, setFlippedCards] = useState<number[]>([]);
   const [form] = Form.useForm();
   const { executionContext } = useRuntime();
-
+  
   // Generate a unique filename based on the title
   const generateFilename = (title: Localizable<string>): string => {
     // Get the title in the default language or the first available
@@ -54,24 +55,66 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
 
   // Handle form value changes
   const onValuesChange = (changedValues: any, allValues: any) => {
+    console.log('Form values changed:', JSON.stringify(changedValues, null, 2), 'All values:', JSON.stringify(allValues, null, 2));
+    
     if (changedValues.editingInput) {
       const index = changedValues.editingInput.index;
       const updatedInput = { ...changedValues.editingInput };
       delete updatedInput.index;
       
-      // Generate filename if title changed
+      // Generate filename if title changed and no filename exists
       if (updatedInput.title && !updatedInput.filename) {
-        updatedInput.filename = generateFilename(updatedInput.title);
+        // Use the default language title for filename generation
+        const titleForFilename = typeof updatedInput.title === 'object' 
+          ? updatedInput.title[DEFAULT_LANGUAGE] || Object.values(updatedInput.title)[0] 
+          : updatedInput.title;
+        
+        updatedInput.filename = generateFilename(titleForFilename);
       }
       
-      // Update the input at the specified index
+      // Ensure required is a boolean
+      if ('required' in updatedInput) {
+        updatedInput.required = Boolean(updatedInput.required);
+      }
+      
+      // Create a deep copy of the inputs array
       const updatedInputs = [...formData.inputs];
+      
+      // Ensure proper merging of localizable fields (title, placeholder)
+      if (updatedInput.title && typeof updatedInput.title === 'object') {
+        updatedInputs[index].title = {
+          ...(typeof updatedInputs[index].title === 'object' ? updatedInputs[index].title : {}),
+          ...updatedInput.title
+        };
+        // Remove from updatedInput to prevent double-application
+        delete updatedInput.title;
+      }
+      
+      if (updatedInput.placeholder && typeof updatedInput.placeholder === 'object') {
+        updatedInputs[index].placeholder = {
+          ...(typeof updatedInputs[index].placeholder === 'object' ? updatedInputs[index].placeholder : {}),
+          ...updatedInput.placeholder
+        };
+        // Remove from updatedInput to prevent double-application
+        delete updatedInput.placeholder;
+      }
+      
+      // Update the input with remaining fields
       updatedInputs[index] = {
         ...updatedInputs[index],
         ...updatedInput
       };
       
-      setFormData({ ...formData, inputs: updatedInputs });
+      console.log('Updated input:', JSON.stringify(updatedInputs[index], null, 2));
+      
+      // Create a deep copy of the form data
+      const updatedFormData = {
+        ...formData,
+        inputs: updatedInputs
+      };
+      
+      console.log('Sending updated form data to parent:', JSON.stringify(updatedFormData, null, 2));
+      setFormData(updatedFormData);
     }
   };
 
@@ -94,7 +137,6 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
 
   // Handle adding a new input field
   const handleAddField = () => {
-    // Create a default title
     const defaultTitle: Localizable<string> = {};
     defaultTitle[DEFAULT_LANGUAGE] = `Field ${formData.inputs.length + 1}`;
     
@@ -103,18 +145,28 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
       title: defaultTitle,
       type: 'text',
       required: false,
-      filename: generateFilename(defaultTitle)
+      filename: `field_${formData.inputs.length + 1}.md`,
+      placeholder: { [DEFAULT_LANGUAGE]: '' }
     };
     
-    // Add the new input to the form data
+    console.log('Adding new field with required=false:', newInput);
+    
+    // Create a complete new array and update directly
+    const updatedInputs = [...(formData?.inputs || []), newInput];
+    console.log('[InputsConfig] Setting updated inputs:', updatedInputs);
+    
+    // Update with a direct object to ensure the parent component gets the change
     setFormData({
       ...formData,
-      inputs: [...formData.inputs, newInput]
+      inputs: updatedInputs
     });
     
-    // Flip the new card for editing
-    const newIndex = formData.inputs.length;
-    handleCardFlip(newIndex);
+    // Flip the new card for editing after the update is complete
+    setTimeout(() => {
+      const newIndex = updatedInputs.length - 1;
+      console.log("Added new field, total inputs:", updatedInputs.length);
+      handleCardFlip(newIndex);
+    }, 50);
   };
 
   // Handle removing an input field
@@ -345,8 +397,8 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
                 }
               }}
             >
-              <Form.Item label="Title" name={['editingInput', 'title', DEFAULT_LANGUAGE]}>
-                <Input />
+              <Form.Item label="Title" name={['editingInput', 'title']}>
+                <LocalizableInput />
               </Form.Item>
               
               <Form.Item label="Type" name={['editingInput', 'type']}>
@@ -363,8 +415,8 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
                 <Switch />
               </Form.Item>
               
-              <Form.Item label="Placeholder" name={['editingInput', 'placeholder', DEFAULT_LANGUAGE]}>
-                <Input />
+              <Form.Item label="Placeholder" name={['editingInput', 'placeholder']}>
+                <LocalizableInput />
               </Form.Item>
               
               {input.type === 'text' && (

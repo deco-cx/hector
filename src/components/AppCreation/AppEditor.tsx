@@ -45,16 +45,19 @@ export function AppEditor({ tab = 'style' }: AppEditorProps) {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState(tab || 'style');
   const [inputsKey, setInputsKey] = useState(0); // Used to force re-render of inputs tab
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
   
-  // Handle tab selection
+  // Handle tab change
   const handleTabChange = (key: string) => {
-    console.log('Tab changed to:', key);
-    setActiveTab(key);
+    console.log('Tab changed to:', key, 'from:', activeTab);
     
-    // Force refresh of the Inputs tab when selecting it
+    // When switching to the inputs tab, force a re-render to ensure we have fresh data
     if (key === 'inputs') {
-      setInputsKey(prev => prev + 1);
+      setInputsKey(prevKey => prevKey + 1);
     }
+    
+    // Set the active tab
+    setActiveTab(key);
   };
   
   // Update activeTab when tab prop or location state changes
@@ -75,58 +78,9 @@ export function AppEditor({ tab = 'style' }: AppEditorProps) {
       }
       
       try {
+        // Get app data - it's already normalized by the service
         const appData = await service.getApp(appId);
-        
-        // Normalize the app data to ensure it has all required fields
-        let outputConfig: OutputTemplate[] = [];
-        
-        // Handle conversion from legacy format to new OutputTemplate[] format
-        if (Array.isArray(appData.output)) {
-          // Already in the new format
-          outputConfig = appData.output;
-        } else if (appData.output && typeof appData.output === 'object') {
-          // Convert from legacy format
-          // If there are files in the legacy format, create a Story template
-          const legacyOutput = appData.output as any;
-          if (legacyOutput.files && legacyOutput.files.length > 0) {
-            const storyTemplate = createOutputTemplate('Story');
-            storyTemplate.title = createDefaultLocalizable('Output Story');
-            
-            // If there's a content file (e.g., .md file), use it
-            const contentFile = legacyOutput.files.find((file: string) => 
-              file.endsWith('.md') || file.endsWith('.txt'));
-            if (contentFile) {
-              storyTemplate.content = contentFile;
-            }
-            
-            // If there's an image file, use it as background
-            const imageFile = legacyOutput.files.find((file: string) => 
-              file.endsWith('.png') || file.endsWith('.jpg') || file.endsWith('.jpeg'));
-            if (imageFile) {
-              storyTemplate.backgroundImage = imageFile;
-            }
-            
-            // If there's an audio file, use it
-            const audioFile = legacyOutput.files.find((file: string) => 
-              file.endsWith('.mp3') || file.endsWith('.wav'));
-            if (audioFile) {
-              storyTemplate.audio = audioFile;
-            }
-            
-            outputConfig.push(storyTemplate);
-          }
-        }
-        
-        const normalizedAppData = {
-          ...appData,
-          inputs: Array.isArray(appData.inputs) ? appData.inputs : [],
-          actions: Array.isArray(appData.actions) ? appData.actions : [],
-          output: outputConfig,
-          style: appData.style || '',
-          template: appData.template || '',
-        };
-        
-        setFormData(normalizedAppData as ExtendedAppConfig);
+        setFormData(appData as ExtendedAppConfig);
       } catch (error) {
         console.error('Failed to load app:', error);
         message.error('Failed to load app');
@@ -138,98 +92,65 @@ export function AppEditor({ tab = 'style' }: AppEditorProps) {
     loadAppData();
   }, [appId, isSDKAvailable, service]);
   
-  // Save app data
-  const saveApp = useCallback(async () => {
-    if (!isSDKAvailable || !formData || !appId) {
-      message.error('Cannot save app: missing data or SDK');
+  // Save the app to the backend
+  const saveApp = async () => {
+    if (!formData) {
+      message.error('No app data to save');
       return;
     }
     
-    setSaving(true);
-    
     try {
-      // Create a proper AppConfig object from our ExtendedAppConfig
-      // We don't need to convert the output format since we want to use the new format
-      const appConfig: AppConfig = {
-        ...formData
-      };
+      setSaving(true);
       
-      await service.saveApp(appConfig);
+      // Save the app using the service
+      await service.saveApp(formData);
       message.success('App saved successfully');
+      
+      // Update the lastSaved date
+      setLastSaved(new Date());
     } catch (error) {
-      console.error('Failed to save app:', error);
-      message.error('Failed to save app');
+      console.error('Error saving app:', error);
+      message.error('Error saving app');
     } finally {
       setSaving(false);
     }
-  }, [formData, service, isSDKAvailable, appId]);
+  };
   
   // Handle form data changes - this only updates the React state
-  const handleFormDataChange = useCallback((newData: Partial<ExtendedAppConfig>) => {
+  const handleFormDataChange = useCallback((newData: Partial<ExtendedAppConfig> | ((prev: ExtendedAppConfig) => ExtendedAppConfig)) => {
     console.log('handleFormDataChange called with:', newData);
     
-    setFormData(prevData => {
-      if (!prevData) {
-        console.log('No previous data, returning new data');
-        return newData as ExtendedAppConfig;
-      }
-      
-      // Create a merged version with the new data
-      const mergedData = {
-        ...prevData,
-        ...newData,
-        // Ensure output is properly merged if it exists in newData
-        ...(newData.output ? { output: [...newData.output] } : {})
-      };
-      
-      console.log('Merged data:', mergedData);
-      
-      // Skip the comparison for output updates - always update
-      if (newData.output) {
-        console.log('Output data detected, forcing update');
+    // Handle both direct data updates and function updates
+    if (typeof newData === 'function') {
+      setFormData(prevData => {
+        if (!prevData) {
+          console.error('Cannot update with a function when previous data is null');
+          return prevData;
+        }
+        
+        const updatedData = newData(prevData);
+        console.log('Updated form data (function update):', updatedData);
+        return updatedData;
+      });
+    } else {
+      setFormData(prevData => {
+        if (!prevData) {
+          return newData as ExtendedAppConfig;
+        }
+        
+        // Use a proper deep merge to ensure all properties are correctly updated
+        const mergedData = JSON.parse(JSON.stringify({
+          ...prevData,
+          ...newData
+        }));
+        
+        // Log what's being updated
+        console.log('Updated form data (direct update):', mergedData);
+        
         return mergedData;
-      }
-      
-      // Only update if something has actually changed
-      // We do a shallow comparison of stringified versions to avoid insignificant changes
-      if (JSON.stringify(mergedData) === JSON.stringify(prevData)) {
-        console.log('No changes detected, returning previous data');
-        return prevData;
-      }
-      
-      console.log('Changes detected, returning merged data');
-      return mergedData;
-    });
-  }, []);
-  
-  // Monitor formData changes for debugging
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-      console.log('Form data updated:', {
-        hasInputs: Boolean(formData?.inputs),
-        inputsLength: Array.isArray(formData?.inputs) ? formData.inputs.length : 'not an array',
-        inputs: formData?.inputs,
-        hasActions: Boolean(formData?.actions),
-        actionsLength: Array.isArray(formData?.actions) ? formData.actions.length : 'not an array',
-        actions: formData?.actions
       });
     }
-  }, [formData]);
-  
-  // Create a memoized version of the language settings data to prevent unnecessary re-renders
-  const languageSettingsData = useMemo(() => {
-    // Always return a valid object even if formData is null
-    if (!formData) return { supportedLanguages: [DEFAULT_LANGUAGE] };
-    
-    // Create a proper deep clone to avoid reference issues
-    return {
-      ...formData,
-      // Make sure the actions array is properly cloned if it exists
-      actions: formData.actions ? [...formData.actions] : [],
-      // Ensure supportedLanguages is always a valid array
-      supportedLanguages: formData.supportedLanguages || [DEFAULT_LANGUAGE]
-    };
-  }, [formData]); // Depend on the entire formData to ensure all changes are captured
+  }, []);
   
   if (!isSDKAvailable) {
     return (
@@ -353,6 +274,7 @@ export function AppEditor({ tab = 'style' }: AppEditorProps) {
           <Tabs 
             activeKey={activeTab} 
             onChange={handleTabChange}
+            destroyInactiveTabPane={false}
             items={[
               {
                 key: 'style',
@@ -400,7 +322,7 @@ export function AppEditor({ tab = 'style' }: AppEditorProps) {
                 label: 'Languages',
                 children: (
                   <LanguageSettings 
-                    formData={languageSettingsData} 
+                    formData={formData} 
                     setFormData={handleFormDataChange}
                   />
                 )
