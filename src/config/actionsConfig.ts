@@ -242,10 +242,17 @@ export const availableActions: Record<ActionType, ActionConfig> = {
           ],
           default: 'Best',
         },
+        voiceId: {
+          type: 'string',
+          title: 'Voice ID',
+          description: 'ElevenLabs voice ID (only used with elevenlabs:tts model)',
+          default: 'ZqvIIuD5aI9JFejebHiH',
+        }
       },
     },
     defaultProps: {
       model: 'Best',
+      voiceId: 'ZqvIIuD5aI9JFejebHiH',
     },
   },
   generateVideo: {

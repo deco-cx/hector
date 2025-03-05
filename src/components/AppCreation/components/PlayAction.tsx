@@ -19,6 +19,7 @@ export function PlayAction({ actionIndex }: PlayActionProps) {
   const dispatch = useHectorDispatch();
   const [isHovered, setIsHovered] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const [isRunning, setIsRunning] = useState(false);
 
   // Reset abort controller on unmount
   useEffect(() => {
@@ -43,85 +44,70 @@ export function PlayAction({ actionIndex }: PlayActionProps) {
 
   // Handle action execution
   const handlePlay = async () => {
-    if (!isSDKAvailable || !sdk) {
-      message.error('SDK is not available');
+    if (!isSDKAvailable || !sdk || !action || !isPlayable || isRunning) {
       return;
     }
 
-    // If already running, cancel the operation
-    if (isLoading && abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-      
-      // Reset action state
-      dispatch({
-        type: HectorActionType.SET_ACTION_STATE,
-        payload: { index: actionIndex, state: 'idle' }
-      });
-      
-      return;
-    }
-
-    // Don't run if dependencies aren't met
-    if (!isPlayable) {
-      message.error(`Cannot run action. Missing dependencies: ${missingDependencies.join(', ')}`);
-      return;
-    }
-
+    // Start execution
+    setIsRunning(true);
+    
+    // Create abort controller for cancellation
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    
     try {
-      // Set action state to loading
+      // Update action state to loading
       dispatch({
         type: HectorActionType.SET_ACTION_STATE,
-        payload: { index: actionIndex, state: 'loading' }
+        payload: {
+          index: actionIndex,
+          state: 'loading'
+        }
       });
-
-      // Create an AbortController for cancellation
-      abortControllerRef.current = new AbortController();
-      const signal = abortControllerRef.current.signal;
-
-      // Execute the action based on its type
-      const result = await executeAction(action, signal);
-
-      // If the operation was not aborted, update the execution bag
-      if (!signal.aborted) {
-        // Set the result in the execution bag
-        dispatch({
-          type: HectorActionType.SET_EXECUTION_BAG_FOR_FILE,
-          payload: {
-            filename: action.filename,
-            content: {
-              textValue: result.text,
-              path: result.filepath
-            }
+      
+      // Execute the action
+      const result = await executeAction(action, controller.signal);
+      
+      // Store the result in the execution bag
+      dispatch({
+        type: HectorActionType.SET_EXECUTION_BAG_FOR_FILE,
+        payload: {
+          filename: action.filename,
+          content: {
+            textValue: result.text,
+            path: result.filepath
           }
-        });
-
-        // Update action state to idle
-        dispatch({
-          type: HectorActionType.SET_ACTION_STATE,
-          payload: { index: actionIndex, state: 'idle' }
-        });
-
-        // Show success message
-        message.success(`Successfully executed ${action.type}`);
-      }
+        }
+      });
+      
+      // Set action state back to idle
+      dispatch({
+        type: HectorActionType.SET_ACTION_STATE,
+        payload: {
+          index: actionIndex,
+          state: 'idle'
+        }
+      });
+      
+      console.log(`Executed action: ${action.type}`, result);
     } catch (error) {
-      // Only update state if not aborted
-      if (abortControllerRef.current && !abortControllerRef.current.signal.aborted) {
+      // Only handle error if not cancelled
+      if (!controller.signal.aborted) {
         console.error('Error executing action:', error);
         
         // Update action state to error
         dispatch({
           type: HectorActionType.SET_ACTION_STATE,
-          payload: { index: actionIndex, state: 'error' }
+          payload: {
+            index: actionIndex,
+            state: 'error'
+          }
         });
-
-        // Show error message
-        message.error(`Error executing action: ${error instanceof Error ? error.message : String(error)}`);
       }
     } finally {
-      // Reset abort controller if not aborted
-      if (abortControllerRef.current && !abortControllerRef.current.signal.aborted) {
+      // Clean up if not aborted
+      if (!controller.signal.aborted) {
+        setIsRunning(false);
         abortControllerRef.current = null;
       }
     }
@@ -228,6 +214,50 @@ export function PlayAction({ actionIndex }: PlayActionProps) {
         return { 
           text: `Image generated at: ${result.filepath}`, 
           filepath: result.filepath 
+        };
+      }
+
+      case 'generateAudio': {
+        const config = action.config || {};
+        
+        // Create payload with ElevenLabs configuration
+        const payload: any = {
+          prompt: processedPrompt,
+          providerOptions: {
+            elevenLabs: {
+              voiceId: config.voiceId || 'ZqvIIuD5aI9JFejebHiH',
+              model_id: "eleven_turbo_v2_5",
+              optimize_streaming_latency: 0,
+              voice_settings: {
+                speed: 0.9,
+                similarity_boost: 0.85,
+                stability: 0.75,
+                style: 0,
+              },
+            },
+          },
+        };
+        
+        // Default to elevenlabs:tts if not specified or Best is selected
+        if (config.model && config.model !== 'Best') {
+          payload.model = config.model;
+        } else {
+          payload.model = "elevenlabs:tts";
+        }
+        
+        const result = await sdk.ai.generateAudio(payload);
+
+        // Set permissions on the file - handle both string and array return types
+        if (typeof result.filepath === 'string') {
+          await sdk.fs.chmod(result.filepath, 0o744);
+        } else if (Array.isArray(result.filepath) && result.filepath.length > 0) {
+          await sdk.fs.chmod(result.filepath[0], 0o744);
+        }
+
+        // Return the audio file info
+        return { 
+          text: `Audio generated at: ${result.filepath}`, 
+          filepath: typeof result.filepath === 'string' ? result.filepath : result.filepath[0]
         };
       }
 

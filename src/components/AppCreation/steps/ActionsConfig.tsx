@@ -21,6 +21,7 @@ import validator from '@rjsf/validator-ajv8';
 import PromptTextArea from '../components/PromptTextArea';
 import { availableActions as actionConfigs, generateActionFilename as generateFilename } from '../../../config/actionsConfig';
 import { PlayAction } from '../components/PlayAction';
+import { AudioPlayer } from '../components/AudioPlayer';
 
 const { Title, Paragraph, Text } = Typography;
 const { TextArea } = Input;
@@ -881,6 +882,7 @@ function ResultDisplay({ actionIndex }: { actionIndex: number }) {
   
   // Get result from execution bag
   const resultContent = appConfig.lastExecution?.bag?.[action.filename]?.textValue || '';
+  const resultFilePath = appConfig.lastExecution?.bag?.[action.filename]?.path || '';
   
   // Show loading state
   if (isLoading) {
@@ -892,7 +894,27 @@ function ResultDisplay({ actionIndex }: { actionIndex: number }) {
     return <div className="action-result-error">Error executing action</div>;
   }
   
-  // Show result or empty state
+  // For audio actions, show the audio player component if we have a file path
+  if (action.type === 'generateAudio' && resultFilePath) {
+    return (
+      <div className="action-result-with-audio">
+        <div className="action-result-text" style={{ marginBottom: '10px' }}>
+          <TextArea
+            value={resultContent}
+            placeholder="Action has not been executed yet. Click the Play button to run this action."
+            autoSize={{ minRows: 2, maxRows: 4 }}
+            readOnly
+            style={{ 
+              backgroundColor: resultContent ? '#f8f8f8' : '#f0f0f0',
+            }}
+          />
+        </div>
+        <AudioPlayer filepath={resultFilePath} />
+      </div>
+    );
+  }
+  
+  // Show result or empty state for other action types
   return (
     <TextArea
       value={resultContent}

@@ -202,3 +202,23 @@ Dependency Chain: If Action B depends on Action A's output, and Action A hasn't 
 Dependencies Between Files: The example shows dependencies like {{plot.json}}. How should the system handle extracting values from structured files like JSON? Should it read the entire file content, or is there a way to access specific properties within?
 - For now, just assume the plot.json textValue will have the current value to be replaced
 
+## Audio Generation
+
+For audio generation using ElevenLabs, the following default values should be used:
+- model_id: "eleven_turbo_v2_5"
+- optimize_streaming_latency: 0
+- voiceId: "ZqvIIuD5aI9JFejebHiH"
+
+These defaults provide a good starting point for TTS (Text-to-Speech) generation.
+
+When an audio file is generated, the system will:
+1. Store the filepath in the execution bag's `path` property
+2. Display an AudioPlayer component in the result area
+3. The AudioPlayer will poll the web-accessible URL (fs.webdraw.com) until the file is available
+   - The component checks once per second for up to 60 seconds (1 minute)
+   - It displays the current retry attempt number during the loading state
+   - The component shows detailed console logs for troubleshooting
+4. Once available, the component will render an HTML audio player for immediate playback
+
+The audio files will be available at the URL pattern: `https://fs.webdraw.com/users/{userId}/Audio/{filename}.mp3`
+
