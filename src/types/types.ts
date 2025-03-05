@@ -88,6 +88,10 @@ export interface AppConfig {
   output: OutputTemplate[];
   supportedLanguages?: string[];
   selectedLanguage?: string;
+  /**
+   * Last execution data for runtime
+   */
+  lastExecution?: Execution;
 }
 
 /**
@@ -143,6 +147,10 @@ export interface ActionData {
   filename: string;
   prompt: Localizable<string>;
   config: Record<string, any>;
+  /**
+   * State of execution for this action
+   */
+  state?: 'idle' | 'loading' | 'error';
 }
 
 // ============================================================================
@@ -688,4 +696,32 @@ export function isValidAppConfig(appConfig: any): appConfig is AppConfig {
   if (appConfig.selectedLanguage !== undefined && typeof appConfig.selectedLanguage !== 'string') return false;
   
   return true;
+}
+
+// ============================================================================
+// RUNTIME TYPES
+// ============================================================================
+
+/**
+ * Represents the content of a file in the execution context
+ */
+export interface FileContent {
+  path?: string;
+  textValue?: string;
+}
+
+/**
+ * Represents a single execution of the app with input values and action results
+ */
+export interface Execution {
+  /**
+   * Holds values for inputs and results from actions.
+   * Keys are filenames, values are file contents
+   */
+  bag: Record<string, FileContent>;
+  
+  /**
+   * Timestamp when this execution was created/updated
+   */
+  timestamp: number;
 } 

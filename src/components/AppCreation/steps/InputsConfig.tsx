@@ -6,7 +6,8 @@ import {
   DEFAULT_LANGUAGE, 
   createLocalizable, 
   getLocalizedValue,
-  InputField
+  InputField,
+  FileContent
 } from '../../../types/types';
 import LocalizableInput from '../../../components/LocalizableInput/LocalizableInput';
 import { useHectorState } from '../../../context/HectorStateContext';
@@ -138,6 +139,34 @@ export function InputsConfig({ formData, navigateToLanguageTab, setFormData }: I
     console.log("Removed field at index:", index);
   };
   
+  // Handle input value change in view mode (runtime functionality)
+  const handleInputValueChange = (index: number, value: string) => {
+    const input = formData.inputs[index];
+    if (!input || !input.filename) return;
+    
+    console.log(`[InputsConfig] Setting input value for ${input.filename}:`, value);
+    
+    // Update the execution bag with the new value
+    dispatch({
+      type: ActionType.SET_INPUT_VALUE,
+      payload: {
+        filename: input.filename,
+        content: {
+          textValue: value
+        }
+      }
+    });
+  };
+  
+  // Get current value for an input from the execution bag
+  const getInputValue = (filename: string): string => {
+    if (!appConfig?.lastExecution?.bag?.[filename]?.textValue) {
+      return '';
+    }
+    
+    return appConfig.lastExecution.bag[filename].textValue || '';
+  };
+  
   // Initialize form with current values
   useEffect(() => {
     if (formData && Array.isArray(formData.inputs)) {
@@ -154,6 +183,65 @@ export function InputsConfig({ formData, navigateToLanguageTab, setFormData }: I
     // Check what's actually in appConfig
     console.log("Current appConfig.inputs:", appConfig ? JSON.stringify(appConfig.inputs, null, 2) : "No appConfig");
   };
+  
+  /**
+   * Component for rendering runtime inputs
+   */
+  function RuntimeInput({ 
+    inputType, 
+    filename, 
+    placeholder, 
+    options = [],
+    onValueChange
+  }: {
+    inputType: string;
+    filename: string;
+    placeholder: string;
+    options?: Array<{ value: string; label: Localizable<string> }>;
+    onValueChange: (value: string) => void;
+  }) {
+    const { appConfig } = useHectorState();
+    
+    // Get current value for the input from the execution bag
+    const currentValue = appConfig?.lastExecution?.bag?.[filename]?.textValue || '';
+    
+    switch (inputType) {
+      case 'text':
+        return (
+          <Input
+            placeholder={placeholder}
+            value={currentValue}
+            onChange={(e) => onValueChange(e.target.value)}
+          />
+        );
+      
+      case 'select':
+        return (
+          <Select
+            style={{ width: '100%' }}
+            placeholder={placeholder}
+            value={currentValue || undefined}
+            onChange={(value: string) => onValueChange(value)}
+          >
+            {Array.isArray(options) && options.map((opt) => (
+              <Select.Option key={opt.value} value={opt.value}>
+                {getLocalizedValue(opt.label, DEFAULT_LANGUAGE) || opt.value}
+              </Select.Option>
+            ))}
+          </Select>
+        );
+      
+      // For now, other input types just use a text field
+      default:
+        return (
+          <Input
+            placeholder={`Enter ${inputType} value...`}
+            value={currentValue}
+            onChange={(e) => onValueChange(e.target.value)}
+          />
+        );
+    }
+  }
   
   return (
     <div>
@@ -212,19 +300,28 @@ export function InputsConfig({ formData, navigateToLanguageTab, setFormData }: I
                   }
                 >
                   {isViewMode ? (
-                    // View mode - Show a simple view of the input field
+                    // View mode - Show a runtime input field that updates the execution bag
                     <div className="input-field-view">
                       <Typography.Title level={5}>
                         {getLocalizedValue(form.getFieldValue(['inputs', name, 'title']), DEFAULT_LANGUAGE)}
                       </Typography.Title>
-                      <Typography.Paragraph type="secondary">
-                        Type: {form.getFieldValue(['inputs', name, 'type'])}
-                      </Typography.Paragraph>
+                      
                       {form.getFieldValue(['inputs', name, 'description']) && (
                         <Typography.Paragraph>
                           {getLocalizedValue(form.getFieldValue(['inputs', name, 'description']), DEFAULT_LANGUAGE)}
                         </Typography.Paragraph>
                       )}
+                      
+                      <RuntimeInput
+                        inputType={form.getFieldValue(['inputs', name, 'type']) || 'text'}
+                        filename={form.getFieldValue(['inputs', name, 'filename']) || ''}
+                        placeholder={getLocalizedValue(
+                          form.getFieldValue(['inputs', name, 'placeholder']), 
+                          DEFAULT_LANGUAGE
+                        ) || 'Enter value...'}
+                        options={form.getFieldValue(['inputs', name, 'options'])}
+                        onValueChange={(value) => handleInputValueChange(name, value)}
+                      />
                     </div>
                   ) : (
                     // Edit mode - Show the configuration form

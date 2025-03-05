@@ -12,6 +12,7 @@ import {
 } from '@ant-design/icons';
 import { v4 as uuidv4 } from 'uuid';
 import { useHector } from '../../../context/HectorContext';
+import { useHectorState } from '../../../context/HectorStateContext';
 import AvailableVariables from '../components/AvailableVariables';
 import { ActionData, ActionType, Localizable, DEFAULT_LANGUAGE, getLocalizedValue, createDefaultLocalizable, InputField } from '../../../types/types';
 import { RJSFSchema } from '@rjsf/utils';
@@ -19,6 +20,7 @@ import RJSFForm from '@rjsf/antd';
 import validator from '@rjsf/validator-ajv8';
 import PromptTextArea from '../components/PromptTextArea';
 import { availableActions as actionConfigs, generateActionFilename as generateFilename } from '../../../config/actionsConfig';
+import { PlayAction } from '../components/PlayAction';
 
 const { Title, Paragraph, Text } = Typography;
 const { TextArea } = Input;
@@ -571,277 +573,251 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
         />
       ) : (
         <Space direction="vertical" style={{ width: '100%' }} size="middle">
-          {actions.map((action, index) => (
-            <Card
-              key={action.id}
-              size="small"
-              style={{ width: '100%', marginBottom: '16px' }}
-              bodyStyle={{ padding: '12px' }}
-              title={
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+          {actions.map((action, index) => {
+            const isEditing = editingIndex === index;
+            const actionType = action?.type as ActionType || 'generateText';
+            const actionConfig = actionConfigs[actionType] || actionConfigs.generateText;
+            
+            return (
+              <Card
+                key={action.id || index}
+                title={
                   <Space>
-                    {actionIcons[action.type]}
-                    <span>{getLocalizedValue(action.title, DEFAULT_LANGUAGE)}</span>
+                    {/* Add Play button before the Edit/View toggle */}
+                    <PlayAction actionIndex={index} />
+                    
+                    {actionIcons[actionType] || <RobotOutlined />}
+                    <span>{getLocalizedValue(action.title, selectedLanguage) || 'Unnamed Action'}</span>
                   </Space>
+                }
+                extra={
                   <Space>
-                    <Tooltip title={editingIndex === index ? "View action" : "Edit action"}>
-                      <Button 
-                        type="text" 
-                        size="small"
-                        icon={editingIndex === index ? <EyeOutlined /> : <EditOutlined />} 
+                    <Tooltip title={isEditing ? "View Action" : "Edit Action"}>
+                      <Button
+                        type="text"
+                        icon={isEditing ? <EyeOutlined /> : <EditOutlined />}
                         onClick={() => handleCardFlip(index)}
                       />
                     </Tooltip>
+                    <Tooltip title="Delete Action">
+                      <Button
+                        type="text"
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={() => handleDeleteAction(index)}
+                      />
+                    </Tooltip>
                   </Space>
-                </div>
-              }
-              actions={[
-                <Tooltip title="Delete action" key="delete">
-                  <Button
-                    type="text"
-                    danger
-                    icon={<DeleteOutlined />}
-                    onClick={() => handleDeleteAction(index)}
-                  />
-                </Tooltip>
-              ]}
-            >
-              {editingIndex === index ? (
-                // Edit Mode
-                <Space direction="vertical" style={{ width: '100%', marginBottom: 0 }} size="small">
-                  <Form.Item
-                    label="Action Type"
-                    required
-                    style={{ marginBottom: 12 }}
-                  >
-                    <Select
-                      value={action.type}
-                      onChange={(value) => handleActionChange(index, 'type', value)}
-                      options={Object.entries(actionConfigs).map(([type, config]) => ({
-                        label: (
-                          <Space>
-                            {actionIcons[type as ActionType]}
-                            <span>{config.label}</span>
-                          </Space>
-                        ),
-                        value: type,
-                      }))}
-                    />
-                  </Form.Item>
-
-                  <Form.Item
-                    label="Action Title"
-                    required
-                    tooltip="A descriptive name for this action"
-                    style={{ marginBottom: 12 }}
-                  >
-                    <Input
-                      placeholder="Enter action title"
-                      value={getLocalizedValue(action.title, DEFAULT_LANGUAGE)}
-                      onChange={(e) => handleActionChange(index, 'title', e.target.value)}
-                    />
-                  </Form.Item>
-                  
-                  <Form.Item
-                    label="Output Filename (auto-generated)"
-                    tooltip="This filename will be used to reference this action's output"
-                    style={{ marginBottom: 12 }}
-                  >
-                    <Input
-                      placeholder="Auto-generated filename"
-                      value={action.filename}
-                      disabled
-                      addonAfter={<InfoCircleOutlined />}
-                    />
-                  </Form.Item>
-                  
-                  <Divider orientation="left" style={{ margin: '12px 0' }}>Configuration</Divider>
-                  
-                  {/* Only show the prompt field for AI actions */}
-                  {actionConfigs[action.type].category === 'AI' && (
-                    <div style={{ marginBottom: 24 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                        <div style={{ display: 'flex', alignItems: 'center' }}>
-                          <span style={{ fontWeight: 'bold', marginRight: 8 }}>Prompt</span>
-                          <span className="ant-form-item-required" style={{ marginRight: 8 }}>*</span>
-                          <Tooltip title="Use @filename.ext to reference inputs and other actions">
-                            <InfoCircleOutlined style={{ color: 'rgba(0, 0, 0, 0.45)' }} />
-                          </Tooltip>
-                        </div>
-                        <Button 
-                          type="primary" 
-                          size="middle"
-                          icon={<RobotOutlined />} 
-                          onClick={() => handleGeneratePrompt(index)}
-                          loading={isGenerating}
-                        >
-                          Use AI
-                        </Button>
-                      </div>
-
-                      <div style={{ marginTop: 8 }}>
-                        <PromptTextArea
-                          value={action.prompt}
-                          onChange={(value) => handlePromptChange(index, value)}
-                          inputs={Array.isArray(formData.inputs) ? formData.inputs : []}
-                          actions={Array.isArray(formData.actions) ? formData.actions.filter((_: ActionData, i: number) => i !== index) : []}
-                          rows={8}
-                        />
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* AI Prompt Modal for the prompt field */}
-                  <Modal
-                    title="Generate with AI"
-                    open={isModalVisible}
-                    onOk={handleModalSubmit}
-                    onCancel={handleModalCancel}
-                    confirmLoading={isGenerating}
-                    width={500}
-                  >
+                }
+                className="mb-4"
+              >
+                {isEditing ? (
+                  // Edit Mode
+                  <Space direction="vertical" style={{ width: '100%', marginBottom: 0 }} size="small">
                     <Form.Item
-                      label="What would you like to generate?"
+                      label="Action Type"
                       required
-                      labelCol={{ span: 24 }}
-                      wrapperCol={{ span: 24 }}
+                      style={{ marginBottom: 12 }}
                     >
-                      <Input.TextArea
-                        value={userPrompt}
-                        onChange={(e) => setUserPrompt(e.target.value)}
-                        placeholder="Enter your prompt here..."
-                        rows={4}
+                      <Select
+                        value={action.type}
+                        onChange={(value) => handleActionChange(index, 'type', value)}
+                        options={Object.entries(actionConfigs).map(([type, config]) => ({
+                          label: (
+                            <Space>
+                              {actionIcons[type as ActionType]}
+                              <span>{config.label}</span>
+                            </Space>
+                          ),
+                          value: type,
+                        }))}
+                      />
+                    </Form.Item>
+
+                    <Form.Item
+                      label="Action Title"
+                      required
+                      tooltip="A descriptive name for this action"
+                      style={{ marginBottom: 12 }}
+                    >
+                      <Input
+                        placeholder="Enter action title"
+                        value={getLocalizedValue(action.title, DEFAULT_LANGUAGE)}
+                        onChange={(e) => handleActionChange(index, 'title', e.target.value)}
                       />
                     </Form.Item>
                     
-                    {/* Display available variables */}
-                    <AvailableVariables 
-                      inputs={Array.isArray(formData.inputs) ? formData.inputs : []}
-                      actions={Array.isArray(formData.actions) ? formData.actions.slice(0, currentPromptIndex || 0) : []}
-                      currentActionIndex={currentPromptIndex !== null ? currentPromptIndex : 0}
-                      onVariableClick={(variable) => {
-                        setUserPrompt((prev) => prev + ' ' + variable);
-                      }}
-                    />
+                    <Form.Item
+                      label="Output Filename (auto-generated)"
+                      tooltip="This filename will be used to reference this action's output"
+                      style={{ marginBottom: 12 }}
+                    >
+                      <Input
+                        placeholder="Auto-generated filename"
+                        value={action.filename}
+                        disabled
+                        addonAfter={<InfoCircleOutlined />}
+                      />
+                    </Form.Item>
                     
-                    <div style={{ marginTop: '8px', color: '#888' }}>
-                      <p>You can include any of the variables above in your prompt. For example: "Create a story about @child_name.md"</p>
-                    </div>
-                  </Modal>
-                  
-                  {/* Using React JSON Schema Form for other fields */}
-                  <div className="json-schema-form-wrapper" style={{ height: 'auto', maxHeight: 'none', overflow: 'visible' }}>
-                    <RJSFForm
-                      schema={{
-                        ...actionConfigs[action.type].schema as RJSFSchema,
-                        // Remove prompt from schema since we handle it separately
-                        properties: Object.fromEntries(
-                          Object.entries((actionConfigs[action.type].schema as RJSFSchema).properties || {})
-                            .filter(([key]) => key !== 'prompt')
-                        )
-                      }}
-                      formData={{
-                        ...action.config,
-                        // Exclude prompt from formData since we handle it separately
-                        prompt: undefined
-                      }}
-                      validator={validator}
-                      onChange={(e) => {
-                        // Don't include prompt in the config since it's stored directly on the action
-                        handleConfigFormChange(index, {
-                          ...e.formData
-                        });
-                      }}
-                      uiSchema={{
-                        // Customize UI as needed
-                        "ui:submitButtonOptions": {
-                          norender: true, // Hide submit button
-                        },
-                        // Custom UI for specific fields
-                        schema: {
-                          "ui:widget": "textarea",
-                          "ui:options": {
-                            rows: 8,
-                            // Add explicit field type identifier for the schema field
-                            isJsonSchemaField: action.type === 'generateJSON'
-                          }
-                        }
-                      }}
-                      // Pass our custom field template to render the "Use AI" button
-                      templates={{ 
-                        FieldTemplate: CustomFieldTemplate 
-                      }}
-                      className="rjsf-no-margin"
-                    />
-                  </div>
-                </Space>
-              ) : (
-                // View Mode
-                <div>
-                  <Paragraph ellipsis={{ rows: 2 }}>
-                    {getLocalizedValue(action.description, DEFAULT_LANGUAGE)}
-                  </Paragraph>
-                  {/* Display prompt for AI actions */}
-                  {actionConfigs[action.type].category === 'AI' && (
-                    <Row gutter={[16, 16]}>
-                      <Col span={24}>
-                        <Text strong>Prompt:</Text>
-                        <div style={{ 
-                          padding: '8px', 
-                          background: '#f5f5f5', 
-                          borderRadius: '4px',
-                          marginTop: '4px'
-                        }}>
-                          <Text code style={{ whiteSpace: 'pre-wrap' }}>
-                            {typeof action.prompt === 'object' 
-                              ? getLocalizedValue(action.prompt, DEFAULT_LANGUAGE) 
-                              : action.prompt}
-                          </Text>
+                    <Divider orientation="left" style={{ margin: '12px 0' }}>Configuration</Divider>
+                    
+                    {/* Only show the prompt field for AI actions */}
+                    {actionConfigs[action.type].category === 'AI' && (
+                      <div style={{ marginBottom: 24 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                          <div style={{ display: 'flex', alignItems: 'center' }}>
+                            <span style={{ fontWeight: 'bold', marginRight: 8 }}>Prompt</span>
+                            <span className="ant-form-item-required" style={{ marginRight: 8 }}>*</span>
+                            <Tooltip title="Use @filename.ext to reference inputs and other actions">
+                              <InfoCircleOutlined style={{ color: 'rgba(0, 0, 0, 0.45)' }} />
+                            </Tooltip>
+                          </div>
+                          <Button 
+                            type="primary" 
+                            size="middle"
+                            icon={<RobotOutlined />} 
+                            onClick={() => handleGeneratePrompt(index)}
+                            loading={isGenerating}
+                          >
+                            Use AI
+                          </Button>
                         </div>
-                      </Col>
-                    </Row>
-                  )}
-                  {/* Display file path for FileSystem actions */}
-                  {actionConfigs[action.type].category === 'FileSystem' && (
-                    <Row gutter={[16, 16]}>
+
+                        <div style={{ marginTop: 8 }}>
+                          <PromptTextArea
+                            value={action.prompt}
+                            onChange={(value) => handlePromptChange(index, value)}
+                            inputs={Array.isArray(formData.inputs) ? formData.inputs : []}
+                            actions={Array.isArray(formData.actions) ? formData.actions.filter((_: ActionData, i: number) => i !== index) : []}
+                            rows={8}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* AI Prompt Modal for the prompt field */}
+                    <Modal
+                      title="Generate with AI"
+                      open={isModalVisible}
+                      onOk={handleModalSubmit}
+                      onCancel={handleModalCancel}
+                      confirmLoading={isGenerating}
+                      width={500}
+                    >
+                      <Form.Item
+                        label="What would you like to generate?"
+                        required
+                        labelCol={{ span: 24 }}
+                        wrapperCol={{ span: 24 }}
+                      >
+                        <Input.TextArea
+                          value={userPrompt}
+                          onChange={(e) => setUserPrompt(e.target.value)}
+                          placeholder="Enter your prompt here..."
+                          rows={4}
+                        />
+                      </Form.Item>
+                      
+                      {/* Display available variables */}
+                      <AvailableVariables 
+                        inputs={Array.isArray(formData.inputs) ? formData.inputs : []}
+                        actions={Array.isArray(formData.actions) ? formData.actions.slice(0, currentPromptIndex || 0) : []}
+                        currentActionIndex={currentPromptIndex !== null ? currentPromptIndex : 0}
+                        onVariableClick={(variable) => {
+                          setUserPrompt((prev) => prev + ' ' + variable);
+                        }}
+                      />
+                      
+                      <div style={{ marginTop: '8px', color: '#888' }}>
+                        <p>You can include any of the variables above in your prompt. For example: "Create a story about @child_name.md"</p>
+                      </div>
+                    </Modal>
+                    
+                    {/* Using React JSON Schema Form for other fields */}
+                    <div className="json-schema-form-wrapper" style={{ height: 'auto', maxHeight: 'none', overflow: 'visible' }}>
+                      <RJSFForm
+                        schema={{
+                          ...actionConfigs[action.type].schema as RJSFSchema,
+                          // Remove prompt from schema since we handle it separately
+                          properties: Object.fromEntries(
+                            Object.entries((actionConfigs[action.type].schema as RJSFSchema).properties || {})
+                              .filter(([key]) => key !== 'prompt')
+                          )
+                        }}
+                        formData={{
+                          ...action.config,
+                          // Exclude prompt from formData since we handle it separately
+                          prompt: undefined
+                        }}
+                        validator={validator}
+                        onChange={(e) => {
+                          // Don't include prompt in the config since it's stored directly on the action
+                          handleConfigFormChange(index, {
+                            ...e.formData
+                          });
+                        }}
+                        uiSchema={{
+                          // Customize UI as needed
+                          "ui:submitButtonOptions": {
+                            norender: true, // Hide submit button
+                          },
+                          // Custom UI for specific fields
+                          schema: {
+                            "ui:widget": "textarea",
+                            "ui:options": {
+                              rows: 8,
+                              // Add explicit field type identifier for the schema field
+                              isJsonSchemaField: action.type === 'generateJSON'
+                            }
+                          }
+                        }}
+                        // Pass our custom field template to render the "Use AI" button
+                        templates={{ 
+                          FieldTemplate: CustomFieldTemplate 
+                        }}
+                        className="rjsf-no-margin"
+                      />
+                    </div>
+                  </Space>
+                ) : (
+                  // View Mode - show details and now also show the result
+                  <div>
+                    <Row gutter={16}>
                       <Col span={24}>
-                        <Text strong>File Path:</Text>
-                        <div style={{ 
-                          padding: '8px', 
-                          background: '#f5f5f5', 
-                          borderRadius: '4px',
-                          marginTop: '4px'
-                        }}>
-                          <Text code style={{ whiteSpace: 'pre-wrap' }}>
-                            {action.config.path || 'Not specified'}
-                          </Text>
+                        <div className="mb-4">
+                          <Title level={5}>Type</Title>
+                          <Text>{actionConfig.label}</Text>
                         </div>
                         
-                        {/* Show content preview for writeFile actions */}
-                        {action.type === 'writeFile' && action.config.content && (
-                          <>
-                            <Text strong style={{ marginTop: '12px', display: 'block' }}>Content:</Text>
-                            <div style={{ 
-                              padding: '8px', 
-                              background: '#f5f5f5', 
-                              borderRadius: '4px',
-                              marginTop: '4px',
-                              maxHeight: '100px',
-                              overflow: 'auto'
-                            }}>
-                              <Text code style={{ whiteSpace: 'pre-wrap' }}>
-                                {action.config.content}
-                              </Text>
-                            </div>
-                          </>
+                        {/* Only show prompt for AI actions, not file system actions */}
+                        {actionConfig.category === 'AI' && (
+                          <div className="mb-4">
+                            <Title level={5}>Prompt</Title>
+                            <Text>{getLocalizedValue(action.prompt, selectedLanguage) || 'No prompt specified'}</Text>
+                          </div>
                         )}
+                        
+                        {action.description && (
+                          <div className="mb-4">
+                            <Title level={5}>Description</Title>
+                            <Text>{getLocalizedValue(action.description, selectedLanguage) || ''}</Text>
+                          </div>
+                        )}
+                        
+                        {/* Add result display section */}
+                        <Divider />
+                        <div className="action-result-section">
+                          <Title level={5} style={{ marginBottom: '16px', color: '#1890ff' }}>Result</Title>
+                          <ResultDisplay actionIndex={index} />
+                        </div>
                       </Col>
                     </Row>
-                  )}
-                </div>
-              )}
-            </Card>
-          ))}
+                  </div>
+                )}
+              </Card>
+            );
+          })}
         </Space>
       )}
 
@@ -885,5 +861,48 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
         </div>
       ))}
     </div>
+  );
+}
+
+/**
+ * Component to display the execution result for an action
+ */
+function ResultDisplay({ actionIndex }: { actionIndex: number }) {
+  const { appConfig } = useHectorState();
+  
+  if (!appConfig || !appConfig.actions || !appConfig.actions[actionIndex]) {
+    return <div>Action not found</div>;
+  }
+  
+  const action = appConfig.actions[actionIndex];
+  const actionState = action.state || 'idle';
+  const isLoading = actionState === 'loading';
+  const isError = actionState === 'error';
+  
+  // Get result from execution bag
+  const resultContent = appConfig.lastExecution?.bag?.[action.filename]?.textValue || '';
+  
+  // Show loading state
+  if (isLoading) {
+    return <div className="action-result-loading">Loading...</div>;
+  }
+  
+  // Show error state
+  if (isError) {
+    return <div className="action-result-error">Error executing action</div>;
+  }
+  
+  // Show result or empty state
+  return (
+    <TextArea
+      value={resultContent}
+      placeholder="Action has not been executed yet. Click the Play button to run this action."
+      autoSize={{ minRows: 4, maxRows: 12 }}
+      readOnly
+      style={{ 
+        backgroundColor: resultContent ? '#f8f8f8' : '#f0f0f0',
+        fontFamily: action.type === 'generateJSON' ? 'monospace' : 'inherit'
+      }}
+    />
   );
 } 

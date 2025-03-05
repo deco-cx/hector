@@ -1,4 +1,4 @@
-import { WebdrawSDK, AppConfig, InputField, ActionData, OutputTemplate, DEFAULT_LANGUAGE, AVAILABLE_LANGUAGES, Localizable } from '../types/types';
+import { WebdrawSDK, AppConfig, InputField, ActionData, OutputTemplate, DEFAULT_LANGUAGE, AVAILABLE_LANGUAGES, Localizable, FileContent, Execution } from '../types/types';
 import { HectorService } from '../services/HectorService';
 import { getLocalizedValue } from '../types/types';
 
@@ -90,7 +90,13 @@ export enum ActionType {
   SET_ACTIVE_TAB = 'SET_ACTIVE_TAB',
 
   // SDK action
-  SET_SDK = 'SET_SDK'
+  SET_SDK = 'SET_SDK',
+
+  // Runtime actions
+  SET_INPUT_VALUE = 'SET_INPUT_VALUE',
+  SET_ACTION_STATE = 'SET_ACTION_STATE',
+  SET_EXECUTION = 'SET_EXECUTION', 
+  SET_EXECUTION_BAG_FOR_FILE = 'SET_EXECUTION_BAG_FOR_FILE'
 }
 
 // Define action interfaces
@@ -213,6 +219,27 @@ interface SetSDKAction {
   payload: WebdrawSDK | null;
 }
 
+// Runtime action interfaces
+interface SetInputValueAction {
+  type: ActionType.SET_INPUT_VALUE;
+  payload: { filename: string; content: FileContent };
+}
+
+interface SetActionStateAction {
+  type: ActionType.SET_ACTION_STATE;
+  payload: { index: number; state: 'idle' | 'loading' | 'error' };
+}
+
+interface SetExecutionAction {
+  type: ActionType.SET_EXECUTION;
+  payload: Execution;
+}
+
+interface SetExecutionBagForFileAction {
+  type: ActionType.SET_EXECUTION_BAG_FOR_FILE;
+  payload: { filename: string; content: FileContent };
+}
+
 export type HectorAction =
   | SetUserAction
   | SetLoadingAction
@@ -237,7 +264,11 @@ export type HectorAction =
   | RemoveOutputAction
   | SetOutputsLoadingAction
   | SetActiveTabAction
-  | SetSDKAction;
+  | SetSDKAction
+  | SetInputValueAction
+  | SetActionStateAction
+  | SetExecutionAction
+  | SetExecutionBagForFileAction;
 
 // Reducer function
 export function hectorReducer(
@@ -456,7 +487,78 @@ export function hectorReducer(
     // SDK action
     case ActionType.SET_SDK:
       return { ...state, sdk: action.payload };
+    
+    // Runtime action handlers
+    case ActionType.SET_INPUT_VALUE: {
+      if (!state.appConfig) return state;
       
+      const newLastExecution = {
+        bag: {
+          ...(state.appConfig.lastExecution?.bag || {}),
+          [action.payload.filename]: action.payload.content
+        },
+        timestamp: Date.now()
+      };
+      
+      return {
+        ...state,
+        appConfig: {
+          ...state.appConfig,
+          lastExecution: newLastExecution
+        }
+      };
+    }
+    
+    case ActionType.SET_ACTION_STATE: {
+      if (!state.appConfig?.actions) return state;
+      
+      const newActions = [...state.appConfig.actions];
+      newActions[action.payload.index] = {
+        ...newActions[action.payload.index],
+        state: action.payload.state
+      };
+      
+      return {
+        ...state,
+        appConfig: {
+          ...state.appConfig,
+          actions: newActions
+        }
+      };
+    }
+    
+    case ActionType.SET_EXECUTION: {
+      if (!state.appConfig) return state;
+      
+      return {
+        ...state,
+        appConfig: {
+          ...state.appConfig,
+          lastExecution: action.payload
+        }
+      };
+    }
+    
+    case ActionType.SET_EXECUTION_BAG_FOR_FILE: {
+      if (!state.appConfig) return state;
+      
+      const newLastExecution = {
+        bag: {
+          ...(state.appConfig.lastExecution?.bag || {}),
+          [action.payload.filename]: action.payload.content
+        },
+        timestamp: Date.now()
+      };
+      
+      return {
+        ...state,
+        appConfig: {
+          ...state.appConfig,
+          lastExecution: newLastExecution
+        }
+      };
+    }
+
     default:
       return state;
   }
