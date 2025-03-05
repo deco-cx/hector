@@ -21,7 +21,6 @@ import validator from '@rjsf/validator-ajv8';
 import PromptTextArea from '../components/PromptTextArea';
 import { availableActions as actionConfigs, generateActionFilename as generateFilename } from '../../../config/actionsConfig';
 import LocalizableTextArea from '../../../components/LocalizableInput/LocalizableTextArea';
-import { useRuntime } from '../../../components/Runtime';
 import { PlayActionButton } from '../../../components/Runtime';
 import { ResultVisualization } from '../../../components/Runtime';
 
@@ -49,16 +48,13 @@ interface ActionsConfigProps {
 
 export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const { service, isSDKAvailable } = useHector();
+  const { service, isSDKAvailable, executionContext, sdk, appConfig } = useHector();
+  const selectedLanguage = appConfig?.selectedLanguage || DEFAULT_LANGUAGE;
   const [isGenerating, setIsGenerating] = useState(false);
   const [userPrompt, setUserPrompt] = useState('');
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [currentPromptIndex, setCurrentPromptIndex] = useState<number | null>(null);
-  const { editorLanguage } = useHector();
   const [form] = Form.useForm();
-  const runtimeContext = useRuntime();
-  const executionContext = runtimeContext?.executionContext;
-  const sdk = runtimeContext?.sdk;
   
   // Direct update to parent
   const updateActions = (actions: ActionData[]) => {
@@ -241,7 +237,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
     
     // If the value is a string, convert it to a Localizable object
     const localizedValue = typeof value === 'string'
-      ? { [editorLanguage]: value }
+      ? { [selectedLanguage]: value }
       : value;
     
     newActions[index] = {

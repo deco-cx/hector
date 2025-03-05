@@ -9,7 +9,7 @@ import {
   InputField
 } from '../../../types/types';
 import LocalizableInput from '../../../components/LocalizableInput/LocalizableInput';
-import { useRuntime } from '../../../components/Runtime/RuntimeContext';
+import { useHector } from '../../../context/HectorContext';
 import { InputTest } from '../../../components/Runtime/InputTest';
 
 const { Title, Paragraph, Text } = Typography;
@@ -33,7 +33,7 @@ const inputTypes = [
 
 export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
   const [form] = Form.useForm();
-  const runtime = useRuntime();
+  const { executionContext } = useHector();
   
   // Track which inputs are in view mode
   const [viewModeInputs, setViewModeInputs] = useState<Record<number, boolean>>({});
