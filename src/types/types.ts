@@ -654,4 +654,37 @@ export const ROUTES = {
  */
 export const STORAGE_KEYS = {
   PREFERRED_LANGUAGE: 'preferredLanguage',
-}; 
+};
+
+/**
+ * Validates an AppConfig object to ensure it has all required fields
+ * Returns true if valid, false otherwise
+ */
+export function isValidAppConfig(appConfig: any): appConfig is AppConfig {
+  if (!appConfig) return false;
+  
+  // Check required fields
+  if (typeof appConfig.id !== 'string' || !appConfig.id) return false;
+  
+  // Check name is a valid Localizable object with at least one language
+  if (!appConfig.name || typeof appConfig.name !== 'object' || Object.keys(appConfig.name).length === 0) return false;
+  
+  // Check template and style
+  if (typeof appConfig.template !== 'string') return false;
+  if (typeof appConfig.style !== 'string') return false;
+  
+  // Check inputs and actions are arrays
+  if (!Array.isArray(appConfig.inputs)) return false;
+  if (!Array.isArray(appConfig.actions)) return false;
+  
+  // Check output is an array
+  if (!Array.isArray(appConfig.output)) return false;
+  
+  // Check supportedLanguages is an array if present
+  if (appConfig.supportedLanguages !== undefined && !Array.isArray(appConfig.supportedLanguages)) return false;
+  
+  // Check selectedLanguage is a string if present
+  if (appConfig.selectedLanguage !== undefined && typeof appConfig.selectedLanguage !== 'string') return false;
+  
+  return true;
+} 

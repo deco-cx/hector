@@ -1,5 +1,5 @@
 import webdrawSDK from '../sdk/WebdrawSDK';
-import { AppConfig, WebdrawSDK } from '../types/types';
+import { AppConfig, WebdrawSDK, isValidAppConfig } from '../types/types';
 
 /**
  * Service for Hector-specific operations.
@@ -32,19 +32,31 @@ export class HectorService {
   }
   
   /**
-   * Normalize app data with defaults when fields are missing
+   * Validate app data and return a boolean indicating if it's valid
+   * Logs errors to console if validation fails
    */
-  private normalizeAppData(appData: Partial<AppConfig>): AppConfig {
+  private validateAppData(appData: any, source: string = 'unknown'): boolean {
+    if (!isValidAppConfig(appData)) {
+      console.error(`Invalid app data from ${source}:`, appData);
+      return false;
+    }
+    return true;
+  }
+  
+  /**
+   * Create a default app with the given ID
+   */
+  private createDefaultApp(id: string): AppConfig {
     return {
-      id: appData.id || crypto.randomUUID(),
-      name: appData.name || { en: 'Untitled App' },
-      template: appData.template || 'default',
-      style: appData.style || '',
-      inputs: appData.inputs || [],
-      actions: appData.actions || [],
-      output: appData.output || [],
-      supportedLanguages: appData.supportedLanguages || ['en'],
-      selectedLanguage: appData.selectedLanguage || 'en'
+      id,
+      name: { 'en-US': 'Untitled App' },
+      template: 'default',
+      style: '',
+      inputs: [],
+      actions: [],
+      output: [],
+      supportedLanguages: ['en-US'],
+      selectedLanguage: 'en-US'
     };
   }
   
@@ -105,12 +117,18 @@ export class HectorService {
       
       for (const file of appFiles) {
         try {
-          const appPath = `${this.APPS_PATH}${file}`;
-          const appContent = await sdk.fs.read(appPath);
+          // Use the file path directly as it's already absolute
+          const appContent = await sdk.fs.read(file);
           
           if (typeof appContent === 'string') {
-            const appData = JSON.parse(appContent);
-            apps.push(this.normalizeAppData(appData));
+            try {
+              const appData = JSON.parse(appContent);
+              if (this.validateAppData(appData, file)) {
+                apps.push(appData as AppConfig);
+              }
+            } catch (parseError) {
+              console.error(`Error parsing JSON from ${file}:`, parseError);
+            }
           }
         } catch (err) {
           console.error(`Error loading app from ${file}:`, err);
@@ -134,6 +152,7 @@ export class HectorService {
     }
     
     try {
+      // The full path is constructed only when checking existence or reading
       const appPath = `${this.APPS_PATH}${id}.json`;
       
       // Check if the file exists
@@ -141,17 +160,33 @@ export class HectorService {
       
       if (!exists) {
         // Create a new app if it doesn't exist
-        const newApp = this.normalizeAppData({ id });
+        const newApp = this.createDefaultApp(id);
         await this.saveApp(newApp);
         return newApp;
       }
       
-      // Load existing app
+      // Load existing app - since exists() was successful, we know the path works
       const appContent = await sdk.fs.read(appPath);
       
       if (typeof appContent === 'string') {
-        const appData = JSON.parse(appContent);
-        return this.normalizeAppData(appData);
+        try {
+          const appData = JSON.parse(appContent);
+          if (this.validateAppData(appData, appPath)) {
+            return appData as AppConfig;
+          } else {
+            // If validation fails, create a new default app
+            console.warn(`App ${id} failed validation, creating a new default app`);
+            const newApp = this.createDefaultApp(id);
+            await this.saveApp(newApp);
+            return newApp;
+          }
+        } catch (parseError) {
+          console.error(`Error parsing JSON from ${appPath}:`, parseError);
+          // If parsing fails, create a new default app
+          const newApp = this.createDefaultApp(id);
+          await this.saveApp(newApp);
+          return newApp;
+        }
       }
       
       throw new Error('Invalid app data format');
@@ -174,14 +209,16 @@ export class HectorService {
       // Ensure the apps directory exists
       await this.ensureDirectory(this.APPS_PATH);
       
-      // Normalize the app data
-      const normalizedApp = this.normalizeAppData(app);
+      // Validate the app data
+      if (!this.validateAppData(app, 'saveApp')) {
+        throw new Error('Invalid app data');
+      }
       
-      // Save the app
-      const appPath = `${this.APPS_PATH}${normalizedApp.id}.json`;
-      await sdk.fs.write(appPath, JSON.stringify(normalizedApp, null, 2));
+      // Save the app - using full path
+      const appPath = `${this.APPS_PATH}${app.id}.json`;
+      await sdk.fs.write(appPath, JSON.stringify(app, null, 2));
       
-      console.log(`App ${normalizedApp.id} saved`);
+      console.log(`App ${app.id} saved`);
     } catch (error) {
       console.error('Error saving app:', error);
       throw error;
@@ -198,6 +235,7 @@ export class HectorService {
     }
     
     try {
+      // Create the full path
       const appPath = `${this.APPS_PATH}${id}.json`;
       
       // Check if the file exists
