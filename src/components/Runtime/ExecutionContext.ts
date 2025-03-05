@@ -1,5 +1,6 @@
 import { ActionData, InputField, WebdrawSDK } from '../../types/types';
 import { extractInputReferences, buildDependencyGraph } from './actionExecutor';
+import { WebdrawService } from '../../services/WebdrawService';
 
 /**
  * Metadata for an action execution
@@ -415,32 +416,31 @@ export class ExecutionContext {
    */
   private async saveCurrentExecutionToAppConfig(sdk: any, appName: string): Promise<void> {
     try {
-      // Try to get the app config file
-      const appConfigPath = `apps/${appName}/config.json`;
-      let appConfig: any = {};
+      // Initialize WebdrawService if not already done
+      WebdrawService.initialize(sdk);
+      const webdrawService = WebdrawService.getInstance();
       
       try {
-        // Read the current app config if it exists
-        const appConfigContent = await sdk.fs.read(appConfigPath);
-        appConfig = JSON.parse(appConfigContent);
+        // Get the existing app configuration
+        const appConfig = await webdrawService.loadApp(appName);
+        
+        // Make a deep copy of values and executionMeta to avoid reference issues
+        const valuesCopy = JSON.parse(JSON.stringify(this.values));
+        const executionMetaCopy = JSON.parse(JSON.stringify(this.executionMeta));
+        
+        // Add/update the current execution state
+        appConfig.currentExecution = {
+          values: valuesCopy,
+          executionMeta: executionMetaCopy,
+          timestamp: new Date().toISOString()
+        };
+        
+        // Use the service to save the app
+        await webdrawService.saveApp(appConfig.id, appConfig);
+        console.log(`Current execution state saved to app config for ${appName}`);
       } catch (error) {
-        console.log('App config may not exist yet, creating new one');
+        console.error('Error loading or saving app config:', error);
       }
-      
-      // Make a deep copy of values and executionMeta to avoid reference issues
-      const valuesCopy = JSON.parse(JSON.stringify(this.values));
-      const executionMetaCopy = JSON.parse(JSON.stringify(this.executionMeta));
-      
-      // Add/update the current execution state
-      appConfig.currentExecution = {
-        values: valuesCopy,
-        executionMeta: executionMetaCopy,
-        updatedAt: new Date().toISOString()
-      };
-      
-      // Write the updated config back
-      await sdk.fs.write(appConfigPath, JSON.stringify(appConfig, null, 2));
-      console.log(`Current execution state saved to app config at ${appConfigPath}`);
     } catch (error) {
       console.error('Failed to save current execution to app config:', error);
     }
@@ -486,13 +486,13 @@ export class ExecutionContext {
    */
   async loadCurrentExecution(sdk: any, appName: string): Promise<void> {
     try {
-      // Try to get the app config file
-      const appConfigPath = `apps/${appName}/config.json`;
+      // Initialize WebdrawService if not already done
+      WebdrawService.initialize(sdk);
+      const webdrawService = WebdrawService.getInstance();
       
       try {
-        // Read the current app config if it exists
-        const appConfigContent = await sdk.fs.read(appConfigPath);
-        const appConfig = JSON.parse(appConfigContent);
+        // Load the app config using the service
+        const appConfig = await webdrawService.loadApp(appName);
         
         // Check if there's a current execution
         if (appConfig.currentExecution) {
@@ -512,8 +512,8 @@ export class ExecutionContext {
           this.values = { ...currentValues, ...valuesCopy };
           this.executionMeta = executionMetaCopy;
           
-          if (appConfig.currentExecution.updatedAt) {
-            this.lastExecutionTime = appConfig.currentExecution.updatedAt;
+          if (appConfig.currentExecution.timestamp) {
+            this.lastExecutionTime = appConfig.currentExecution.timestamp;
           }
           
           this.notifySubscribers();

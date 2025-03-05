@@ -4,6 +4,7 @@
  */
 
 import { JSONSchema7 } from 'json-schema';
+import { ExecutionMetadata } from '../components/Runtime/ExecutionContext';
 
 // ============================================================================
 // INTERNATIONALIZATION TYPES
@@ -87,6 +88,11 @@ export interface AppConfig {
   actions: ActionData[];
   output: OutputTemplate[];
   supportedLanguages?: string[];
+  currentExecution?: {
+    values: Record<string, any>;
+    executionMeta: Record<string, ExecutionMetadata>;
+    timestamp: string;
+  };
 }
 
 /**
