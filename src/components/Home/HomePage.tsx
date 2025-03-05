@@ -162,6 +162,7 @@ export function HomePage() {
                 </div>
               }
               hoverable
+              onClick={() => handleEditApp(app.id)}
               style={{
                 borderRadius: '12px',
                 overflow: 'hidden',
@@ -170,6 +171,7 @@ export function HomePage() {
                 flexDirection: 'column',
                 boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
                 transition: 'all 0.3s ease',
+                cursor: 'pointer'
               }}
               styles={{
                 header: {
@@ -221,7 +223,10 @@ export function HomePage() {
                 <Button
                   type="primary"
                   icon={<PlayCircleOutlined />}
-                  onClick={() => handlePlayApp(app.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handlePlayApp(app.id);
+                  }}
                   style={{ 
                     backgroundColor: '#52c41a', 
                     borderColor: '#52c41a'
@@ -233,7 +238,10 @@ export function HomePage() {
                 <Button 
                   type="primary"
                   icon={<EditOutlined />}
-                  onClick={() => handleEditApp(app.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEditApp(app.id);
+                  }}
                   style={{ 
                     backgroundColor: '#7B2CBF',
                     borderColor: '#7B2CBF'
@@ -244,7 +252,10 @@ export function HomePage() {
                 
                 <Button 
                   icon={<GlobalOutlined />}
-                  onClick={() => handleLanguageSettings(app.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleLanguageSettings(app.id);
+                  }}
                 >
                   Languages
                 </Button>
@@ -252,7 +263,10 @@ export function HomePage() {
                 <Button 
                   danger
                   icon={<DeleteOutlined />}
-                  onClick={() => handleDeleteApp(app.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteApp(app.id);
+                  }}
                 >
                   Delete
                 </Button>

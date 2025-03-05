@@ -32,7 +32,7 @@ interface ExtendedAppConfig extends Omit<AppConfig, 'output'> {
   output: OutputTemplate[];
 }
 
-export function AppEditor({ tab = 'editor' }: AppEditorProps) {
+export function AppEditor({ tab = 'style' }: AppEditorProps) {
   const { service, sdk, isSDKAvailable } = useHector();
   const { appName: appId } = useParams<{ appName: string }>();
   const navigate = useNavigate();
