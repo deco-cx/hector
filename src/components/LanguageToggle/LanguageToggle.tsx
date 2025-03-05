@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button, Tooltip, Space } from 'antd';
-import { useLanguage } from '../../contexts/LanguageContext';
+import { useHector } from '../../context/HectorContext';
 import { CheckOutlined, GlobalOutlined } from '@ant-design/icons';
 import './LanguageToggle.css';
 
@@ -32,12 +32,12 @@ const LanguageToggle: React.FC<LanguageToggleProps> = ({
   availableLanguages: propAvailableLanguages,
 }) => {
   const { 
-    currentLanguage, 
-    setCurrentLanguage, 
+    selectedLanguage, 
+    setSelectedLanguage, 
     editorLanguage, 
     setEditorLanguage,
     availableLanguages: contextAvailableLanguages 
-  } = useLanguage();
+  } = useHector();
 
   // Use provided value or editorLanguage from context
   const activeLanguage = value || editorLanguage;
@@ -81,7 +81,7 @@ export interface AppLanguageToggleProps {
 export const AppLanguageToggle: React.FC<AppLanguageToggleProps> = ({
   availableLanguages: propAvailableLanguages,
 }) => {
-  const { currentLanguage, setCurrentLanguage, availableLanguages: contextAvailableLanguages } = useLanguage();
+  const { selectedLanguage, setSelectedLanguage, availableLanguages: contextAvailableLanguages } = useHector();
   
   // Use prop availableLanguages if provided, otherwise use context availableLanguages
   const availableLanguages = propAvailableLanguages || contextAvailableLanguages;
@@ -93,12 +93,12 @@ export const AppLanguageToggle: React.FC<AppLanguageToggleProps> = ({
         icon={<GlobalOutlined />}
         onClick={() => {
           // Toggle between available languages
-          const currentIndex = availableLanguages.indexOf(currentLanguage);
+          const currentIndex = availableLanguages.indexOf(selectedLanguage);
           const nextIndex = (currentIndex + 1) % availableLanguages.length;
-          setCurrentLanguage(availableLanguages[nextIndex]);
+          setSelectedLanguage(availableLanguages[nextIndex]);
         }}
       >
-        {currentLanguage.split('-')[0].toUpperCase()}
+        {selectedLanguage.split('-')[0].toUpperCase()}
       </Button>
     </Tooltip>
   );

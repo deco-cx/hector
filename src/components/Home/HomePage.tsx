@@ -5,14 +5,12 @@ import { useNavigate } from 'react-router-dom';
 import { CreateAppModal } from '../AppCreation/CreateAppModal';
 import { useHector } from '../../context/HectorContext';
 import { AppConfig, getLocalizedValue, DEFAULT_LANGUAGE } from '../../types/types';
-import { useLanguage } from '../../contexts/LanguageContext';
 
 const { Title, Paragraph } = Typography;
 
 export function HomePage() {
   const navigate = useNavigate();
-  const { service, isSDKAvailable, reloadSDK } = useHector();
-  const { currentLanguage } = useLanguage();
+  const { service, isSDKAvailable, reloadSDK, selectedLanguage } = useHector();
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [apps, setApps] = useState<AppConfig[]>([]);
   const [loading, setLoading] = useState(true);
@@ -158,7 +156,7 @@ export function HomePage() {
                   textOverflow: 'ellipsis'
                 }}>
                   <AppstoreOutlined style={{ color: '#7B2CBF' }} />
-                  <span style={{ color: '#333' }}>{getLocalizedValue(app.name, currentLanguage) || app.id}</span>
+                  <span style={{ color: '#333' }}>{getLocalizedValue(app.name, selectedLanguage) || app.id}</span>
                 </div>
               }
               hoverable

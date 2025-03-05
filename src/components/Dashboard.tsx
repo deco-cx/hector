@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Layout, Typography, Button, List, Card, Spin } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useHector } from '../context/HectorContext';
-import { useLanguage } from '../contexts/LanguageContext';
-import { getLocalizedValue, AppConfig } from '../types/types';
+import { AppConfig, getLocalizedValue } from '../types/types';
 
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
@@ -11,8 +10,7 @@ const { Title, Text } = Typography;
 export default function Dashboard() {
   const [apps, setApps] = useState<AppConfig[]>([]);
   const [loading, setLoading] = useState(true);
-  const { service } = useHector();
-  const { currentLanguage } = useLanguage();
+  const { service, selectedLanguage } = useHector();
 
   useEffect(() => {
     loadApps();
@@ -52,7 +50,7 @@ export default function Dashboard() {
           renderItem={(app) => (
             <List.Item>
               <Card
-                title={getLocalizedValue(app.name, currentLanguage) || app.id}
+                title={getLocalizedValue(app.name, selectedLanguage) || app.id}
                 actions={[
                   <Button key="edit" type="link">Edit</Button>,
                   <Button key="run" type="link">Run</Button>,

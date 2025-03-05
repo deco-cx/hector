@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Input, Form, Tooltip, Button, Modal, Spin, message } from 'antd';
 import { TranslationOutlined } from '@ant-design/icons';
 import LanguageToggle from '../LanguageToggle/LanguageToggle';
-import { useLanguage } from '../../contexts/LanguageContext';
+import { useHector } from '../../context/HectorContext';
 import { Localizable, getLocalizedValue, setLocalizedValue, hasLanguage } from '../../types/types';
 import './LocalizedField.css';
 
@@ -50,7 +50,7 @@ const LocalizedField: React.FC<LocalizedFieldProps> = ({
   type = 'input',
   rows = 4,
 }) => {
-  const { editorLanguage, availableLanguages } = useLanguage();
+  const { editorLanguage, availableLanguages } = useHector();
   const [fieldLanguage, setFieldLanguage] = useState(editorLanguage);
   const [translationVisible, setTranslationVisible] = useState(false);
   const [translationSource, setTranslationSource] = useState('');

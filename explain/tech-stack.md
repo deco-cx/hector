@@ -216,25 +216,13 @@ Build reusable components following the Hector project's pattern:
 For a custom i18n solution similar to Hector:
 
 ```tsx
-// src/types/i18n.ts
+// src/types/types.ts
 export type Localizable<T> = {
   [lang: string]: T;
 };
 
 export const DEFAULT_LANGUAGE = 'en-US';
 export const AVAILABLE_LANGUAGES = ['en-US', 'pt-BR'];
-
-export function getLocalizedValue<T>(obj: Localizable<T>, lang: string, fallback = DEFAULT_LANGUAGE): T | undefined {
-  if (!obj) return undefined;
-  return obj[lang] || obj[fallback] || Object.values(obj)[0];
-}
-
-export function setLocalizedValue<T>(obj: Localizable<T> = {}, lang: string, value: T): Localizable<T> {
-  return {
-    ...obj,
-    [lang]: value
-  };
-}
 ```
 
 ## Best Practices

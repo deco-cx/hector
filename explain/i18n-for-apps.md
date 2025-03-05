@@ -205,32 +205,30 @@ Based on development discussions, the following specific implementation decision
 
 ### 7.5 Implementation Structure
 
-The i18n system has been implemented across the following files and components:
+The i18n system has been implemented with a streamlined approach focused on simplicity:
 
 #### Core Types and Utilities
-- **src/types/i18n.ts**: Contains the fundamental types and utility functions
+- **src/types/types.ts**: Contains all fundamental types and utility functions
   - `Localizable<T>` type definition
   - `AVAILABLE_LANGUAGES` constant
   - `DEFAULT_LANGUAGE` constant
-  - Utility functions like `getLocalizedValue`, `setLocalizedValue`, etc.
+  - Utility functions including `getLocalizedValue`, `setLocalizedValue`, `hasLanguage`, and `isComplete`, etc.
 
 #### Context Provider
-- **src/contexts/LanguageContext.tsx**: Provides language state management for the application
-  - `LanguageProvider` component for wrapping the application
-  - `useLanguage` hook for accessing language state
-  - Manages `currentLanguage`, `editorLanguage`, and `availableLanguages`
-  - Handles language initialization from browser, localStorage, or URL parameters
+- **src/context/HectorContext.tsx**: Provides language state management integrated with other app state
+  - Contains language-related state including `selectedLanguage`, `editorLanguage`, and `availableLanguages`
+  - Manages language initialization from browser, localStorage, or URL parameters
+  - Simplifies state management by keeping all app context in one place
 
 #### UI Components
 - **src/components/LanguageToggle/LanguageToggle.tsx**: Reusable language selection components
   - `LanguageToggle` for switching between languages in the editor
   - `AppLanguageToggle` for changing the user's application language
   - Shows flag icons with language codes
-- **src/components/LocalizableInput/LocalizableInput.tsx**: New field-level localizable input component
+- **src/components/LocalizableInput/LocalizableInput.tsx**: Field-level localizable input component
   - Independent language selection for each text field
   - Displays language toggle buttons within each input field
-  - Allows editing content in different languages without affecting the global editor language
-  - Shows visual indicators for the active language
+  - Allows editing content in different languages
 
 #### Language Management
 - **src/components/LanguageSettings/LanguageSettings.tsx**: Complete language management interface
@@ -239,26 +237,19 @@ The i18n system has been implemented across the following files and components:
   - Initiating translations between languages
   - Manages app-specific language settings
 
-#### Form Components 
-- **src/components/AppCreation/steps/InputsConfig.tsx**: Updated to use LocalizableInput
-  - All text fields (`label`, `placeholder`) now use `Localizable<string>` type
-  - Each field has its own language toggle independent of the global language setting
-  - Auto-generates filenames from the default language's label
-
-This structured approach ensures separation of concerns:
-- Type definitions are centralized
-- State management is handled by the context
-- UI components are reusable across the application
-- App-specific language management is consolidated in one place
-- Field-level language toggling provides a more intuitive editing experience
+The key improvements in this approach are:
+1. **Simplified State Management**: Language state is now part of the main HectorContext, eliminating an extra context provider
+2. **Reduced Component Complexity**: Components now have a single source of truth for all application state
+3. **Cleaner Data Flow**: The language selection in the app gets propagated through a single context
+4. **Maintained Functionality**: All language features are preserved with a leaner implementation
+5. **Improved Performance**: Fewer context providers means fewer re-renders
 
 ### 7.6 Field-Level Language Toggling
 
-The enhanced i18n implementation introduces field-level language toggling through the `LocalizableInput` component:
+The simplified i18n implementation maintains field-level language toggling through the `LocalizableInput` component:
 
 - Each localizable text field has its own language selector
 - Users can edit different fields in different languages simultaneously
-- Language selection for a field is independent from the global editor language
 - Visual indicators show which language is currently being edited for each field
 - Empty language fields are automatically initialized when first edited
 

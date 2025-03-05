@@ -626,8 +626,20 @@ export function hasLanguage<T>(obj: Localizable<T> | undefined, lang: string): b
  * Get available languages in the app config
  */
 export function getAvailableLanguages(appConfig?: any): string[] {
-  if (!appConfig?.supportedLanguages?.length) {
-    return [DEFAULT_LANGUAGE];
+  if (!appConfig?.supportedLanguages || !Array.isArray(appConfig.supportedLanguages)) {
+    return AVAILABLE_LANGUAGES;
   }
   return appConfig.supportedLanguages;
+}
+
+/**
+ * Determines if a Localizable object is complete (has values for all required languages)
+ */
+export function isComplete<T>(
+  obj: Localizable<T> | undefined,
+  requiredLanguages: string[] = AVAILABLE_LANGUAGES
+): boolean {
+  if (!obj) return false;
+  
+  return requiredLanguages.every(lang => obj[lang] !== undefined);
 } 

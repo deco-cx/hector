@@ -15,7 +15,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { useHector } from '../../../context/HectorContext';
 import AvailableVariables from '../components/AvailableVariables';
 import { ActionData, ActionType, Localizable, DEFAULT_LANGUAGE, getLocalizedValue, createDefaultLocalizable, InputField } from '../../../types/types';
-import { useLanguage } from '../../../contexts/LanguageContext';
 import { RJSFSchema } from '@rjsf/utils';
 import RJSFForm from '@rjsf/antd';
 import validator from '@rjsf/validator-ajv8';
@@ -55,7 +54,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
   const [userPrompt, setUserPrompt] = useState('');
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [currentPromptIndex, setCurrentPromptIndex] = useState<number | null>(null);
-  const { editorLanguage } = useLanguage();
+  const { editorLanguage } = useHector();
   const [form] = Form.useForm();
   const runtimeContext = useRuntime();
   const executionContext = runtimeContext?.executionContext;
@@ -422,11 +421,9 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
             <PromptTextArea
               value={formData.actions[editingIndex].prompt}
               onChange={(value) => handlePromptChange(editingIndex, value)}
-              placeholder={schema.description || 'Enter your prompt here...'}
-              rows={4}
               inputs={Array.isArray(formData.inputs) ? formData.inputs : []}
               actions={Array.isArray(formData.actions) ? formData.actions : []}
-              currentActionIndex={editingIndex}
+              rows={8}
             />
           )}
           
@@ -668,9 +665,8 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
                         value={action.prompt}
                         onChange={(value) => handlePromptChange(index, value)}
                         inputs={Array.isArray(formData.inputs) ? formData.inputs : []}
-                        actions={actions}
-                        currentActionIndex={index}
-                        rows={5} // Increased rows for more space
+                        actions={Array.isArray(formData.actions) ? formData.actions : []}
+                        rows={8}
                       />
                     </div>
                   </div>

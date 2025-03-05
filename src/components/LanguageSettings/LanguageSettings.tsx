@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, Typography, Button, Space, Modal, Progress, message, Alert, Divider, Tooltip } from 'antd';
 import { TranslationOutlined, GlobalOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
-import { useLanguage } from '../../contexts/LanguageContext';
 import { AVAILABLE_LANGUAGES, DEFAULT_LANGUAGE, getAvailableLanguages } from '../../types/types';
 import { translateAppConfig } from '../../services/translationService';
 import LanguageToggle from '../LanguageToggle/LanguageToggle';
@@ -31,8 +30,7 @@ const LanguageSettings: React.FC<LanguageSettingsProps> = ({
   formData,
   setFormData,
 }) => {
-  const { service } = useHector();
-  const { currentLanguage, setCurrentLanguage, setAvailableLanguages } = useLanguage();
+  const { service, selectedLanguage, setSelectedLanguage, setAvailableLanguages } = useHector();
   const [translationProgress, setTranslationProgress] = useState(0);
   const [isTranslating, setIsTranslating] = useState(false);
   
@@ -63,15 +61,15 @@ const LanguageSettings: React.FC<LanguageSettingsProps> = ({
     prevSupportedLanguagesRef.current = [...supported];
     
     // Check if current language needs to be changed
-    if (!supported.includes(currentLanguage)) {
+    if (!supported.includes(selectedLanguage)) {
       console.log('Current language not supported, switching to default:', DEFAULT_LANGUAGE);
-      setCurrentLanguage(DEFAULT_LANGUAGE);
+      setSelectedLanguage(DEFAULT_LANGUAGE);
     }
     
     // Mark initial setup as complete
     initialSetupDoneRef.current = true;
     
-  }, [supportedLanguages, currentLanguage, setCurrentLanguage, setAvailableLanguages]);
+  }, [supportedLanguages, selectedLanguage, setSelectedLanguage, setAvailableLanguages]);
   
   const startTranslation = async (sourceLang: string, targetLang: string) => {
     setIsTranslating(true);
@@ -140,7 +138,7 @@ const LanguageSettings: React.FC<LanguageSettingsProps> = ({
           <p>You can choose to:</p>
           <ul>
             <li>Add empty fields (you'll need to fill in translations manually)</li>
-            <li>Translate existing content from {LANGUAGE_NAMES[currentLanguage]} (using AI)</li>
+            <li>Translate existing content from {LANGUAGE_NAMES[selectedLanguage]} (using AI)</li>
           </ul>
         </div>
       ),
@@ -181,7 +179,7 @@ const LanguageSettings: React.FC<LanguageSettingsProps> = ({
               }
               
               setFormData(updatedConfig);
-              startTranslation(currentLanguage, lang);
+              startTranslation(selectedLanguage, lang);
             }}
             icon={<TranslationOutlined />}
           >
@@ -264,8 +262,8 @@ const LanguageSettings: React.FC<LanguageSettingsProps> = ({
         setFormData(cleanedConfig);
         
         // If the current language was removed, switch to the default language
-        if (currentLanguage === lang) {
-          setCurrentLanguage(DEFAULT_LANGUAGE);
+        if (selectedLanguage === lang) {
+          setSelectedLanguage(DEFAULT_LANGUAGE);
         }
         
         message.success(`Removed ${LANGUAGE_NAMES[lang]} support`);
@@ -291,8 +289,8 @@ const LanguageSettings: React.FC<LanguageSettingsProps> = ({
             Select the language you want to edit content in:
           </Paragraph>
           <LanguageToggle 
-            value={currentLanguage}
-            onChange={setCurrentLanguage}
+            value={selectedLanguage}
+            onChange={setSelectedLanguage}
             showLabel
           />
         </div>

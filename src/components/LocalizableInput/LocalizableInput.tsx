@@ -1,133 +1,89 @@
 import React, { useState } from 'react';
-import { Input, Button, Space, Tooltip, InputProps } from 'antd';
-import { GlobalOutlined, PlusOutlined } from '@ant-design/icons';
-import { Localizable, AVAILABLE_LANGUAGES, DEFAULT_LANGUAGE } from '../../types/types';
-import { useLanguage } from '../../contexts/LanguageContext';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Input, Tooltip, Button } from 'antd';
+import { GlobalOutlined } from '@ant-design/icons';
+import { useHector } from '../../context/HectorContext';
+import LanguageToggle from '../LanguageToggle/LanguageToggle';
 import './LocalizableInput.css';
 
-export interface LocalizableInputProps extends Omit<InputProps, 'value' | 'onChange'> {
-  value?: Localizable<string>;
-  onChange?: (value: Localizable<string>) => void;
-  defaultLanguage?: string;
+interface LocalizableInputProps {
+  value?: Record<string, string>;
+  onChange?: (value: Record<string, string>) => void;
+  placeholder?: string;
+  name?: string;
+  disabled?: boolean;
+  label?: string;
+  maxLength?: number;
+  showCount?: boolean;
+  autoSize?: boolean | { minRows?: number; maxRows?: number };
+  enableRichText?: boolean;
 }
 
-const languageEmojis: Record<string, string> = {
-  'en-US': '🇺🇸',
-  'es-ES': '🇪🇸',
-  'fr-FR': '🇫🇷',
-  'de-DE': '🇩🇪',
-  'it-IT': '🇮🇹',
-  'pt-BR': '🇧🇷',
-  'zh-CN': '🇨🇳',
-  'ja-JP': '🇯🇵',
-  'ko-KR': '🇰🇷',
-  'ru-RU': '🇷🇺',
-};
-
-export const LocalizableInput: React.FC<LocalizableInputProps> = ({
+// Component for editing localizable text values
+const LocalizableInput: React.FC<LocalizableInputProps> = ({
   value = {},
   onChange,
-  defaultLanguage,
-  ...props
+  placeholder = 'Enter text...',
+  name,
+  disabled = false,
+  label,
+  maxLength,
+  showCount = false,
+  autoSize,
+  enableRichText = false,
 }) => {
-  const { availableLanguages } = useLanguage();
-  const navigate = useNavigate();
-  const { appName } = useParams<{ appName: string }>();
+  const [isLanguagePickerVisible, setIsLanguagePickerVisible] = useState(false);
+  const { availableLanguages, editorLanguage, setEditorLanguage } = useHector();
   
-  // Initialize with default language, first available language, or fallback
-  const initialLanguage = defaultLanguage || 
-    (availableLanguages.length > 0 ? availableLanguages[0] : DEFAULT_LANGUAGE);
-  
-  const [activeLanguage, setActiveLanguage] = useState<string>(initialLanguage);
-
+  // Handle changes to the input value
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (onChange) {
-      // Create a deep copy of the value object to ensure we don't lose other language values
       const newValue = { ...value };
-      
-      // Set the value for the current active language
-      newValue[activeLanguage] = e.target.value;
-      
-      console.log('LocalizableInput updating value:', newValue);
+      newValue[editorLanguage] = e.target.value;
       onChange(newValue);
     }
   };
-
-  const handleLanguageChange = (lang: string) => {
-    // Log current value before switching language
-    console.log('Changing language from', activeLanguage, 'to', lang);
-    console.log('Current value before language change:', { ...value });
-    
-    // Set the active language
-    setActiveLanguage(lang);
+  
+  // Toggle language picker visibility
+  const toggleLanguagePicker = () => {
+    setIsLanguagePickerVisible(!isLanguagePickerVisible);
   };
-
-  const navigateToLanguageTab = () => {
-    // Navigate to the language tab in AppEditor
-    navigate(`/app/${appName}`, { state: { activeTab: 'languages' } });
-  };
-
-  const renderLanguageToggle = () => {
-    // If only one language is available, just show it with a "+" button
-    if (availableLanguages.length <= 1) {
-      return (
-        <div className="language-indicator">
-          <Tooltip key={availableLanguages[0] || DEFAULT_LANGUAGE} title={availableLanguages[0] || DEFAULT_LANGUAGE}>
-            <Button
-              type="text"
-              size="small"
-              className="active-language"
-            >
-              {languageEmojis[availableLanguages[0] || DEFAULT_LANGUAGE] || <GlobalOutlined />}
-            </Button>
-          </Tooltip>
-          <Tooltip title="Add more languages">
-            <Button
-              type="text"
-              size="small"
-              icon={<PlusOutlined />}
-              onClick={navigateToLanguageTab}
-            />
-          </Tooltip>
-        </div>
-      );
-    }
-
-    // Otherwise, show only the supported languages for this app
-    return (
-      <div className="language-indicator">
-        {availableLanguages.map((lang: string) => (
-          <Tooltip key={lang} title={lang}>
-            <Button
-              type="text"
-              size="small"
-              onClick={() => handleLanguageChange(lang)}
-              className={activeLanguage === lang ? 'active-language' : ''}
-            >
-              {languageEmojis[lang] || <GlobalOutlined />}
-            </Button>
-          </Tooltip>
-        ))}
-      </div>
-    );
-  };
-
-  // Log current value to help debugging
-  console.log('Rendering LocalizableInput', { 
-    activeLanguage, 
-    value,
-    currentValue: value[activeLanguage] || ''
-  });
-
+  
   return (
     <div className="localizable-input-container">
-      <Input
-        {...props}
-        value={value[activeLanguage] || ''}
-        onChange={handleInputChange}
-        suffix={renderLanguageToggle()}
-      />
+      {label && <div className="localizable-input-label">{label}</div>}
+      
+      <div className="localizable-input-wrapper">
+        <Input
+          value={value[editorLanguage] || ''}
+          onChange={handleInputChange}
+          placeholder={placeholder}
+          disabled={disabled}
+          name={name}
+          maxLength={maxLength}
+          showCount={showCount}
+          className="localizable-input"
+        />
+        
+        <Tooltip title="Change language">
+          <Button
+            type="text"
+            icon={<GlobalOutlined />}
+            onClick={toggleLanguagePicker}
+            className="language-toggle-button"
+          />
+        </Tooltip>
+      </div>
+      
+      {isLanguagePickerVisible && (
+        <div className="language-picker">
+          <LanguageToggle 
+            value={editorLanguage}
+            onChange={setEditorLanguage}
+            availableLanguages={availableLanguages}
+            showLabel
+          />
+        </div>
+      )}
     </div>
   );
 };

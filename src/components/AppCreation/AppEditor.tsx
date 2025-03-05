@@ -11,7 +11,6 @@ import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons';
 import LanguageSettings from '../LanguageSettings/LanguageSettings';
 import JSONViewer from '../JSONViewer/JSONViewer';
 import ExportsView from '../Exports/ExportsView';
-import { useLanguage } from '../../contexts/LanguageContext';
 import { createOutputTemplate } from '../../config/outputsConfig';
 import { RuntimeProvider } from '../../components/Runtime';
 import { ExecutionPill } from '../../components/Runtime/ExecutionPill';
@@ -37,7 +36,7 @@ export function AppEditor({ tab = 'style' }: AppEditorProps) {
   const { appName: appId } = useParams<{ appName: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentLanguage } = useLanguage();
+  const { selectedLanguage, setAvailableLanguages } = useHector();
   
   // State for the form data
   const [formData, setFormData] = useState<ExtendedAppConfig | null>(null);
@@ -201,7 +200,7 @@ export function AppEditor({ tab = 'style' }: AppEditorProps) {
   // Get the app name as string for use in RuntimeProvider
   const appNameString = formData.name 
     ? (typeof formData.name === 'object' 
-        ? getLocalizedValue(formData.name, currentLanguage) || String(appId) 
+        ? getLocalizedValue(formData.name, selectedLanguage) || String(appId) 
         : String(formData.name))
     : String(appId) || 'app';
     
@@ -253,7 +252,7 @@ export function AppEditor({ tab = 'style' }: AppEditorProps) {
               Back
             </Button>
             <Typography.Title level={4} style={{ margin: 0 }}>
-              {getLocalizedValue(formData.name, currentLanguage) || appId}
+              {getLocalizedValue(formData.name, selectedLanguage) || appId}
             </Typography.Title>
           </Space>
           

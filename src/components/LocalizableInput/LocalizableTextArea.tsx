@@ -1,116 +1,93 @@
 import React, { useState } from 'react';
-import { Input, Button, Space, Tooltip } from 'antd';
-import { GlobalOutlined, PlusOutlined } from '@ant-design/icons';
-import { Localizable, AVAILABLE_LANGUAGES, DEFAULT_LANGUAGE } from '../../types/types';
-import { useLanguage } from '../../contexts/LanguageContext';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Input, Tooltip, Button } from 'antd';
+import { GlobalOutlined } from '@ant-design/icons';
+import { useHector } from '../../context/HectorContext';
+import LanguageToggle from '../LanguageToggle/LanguageToggle';
 import './LocalizableInput.css';
 
 const { TextArea } = Input;
 
-export interface LocalizableTextAreaProps extends Omit<React.ComponentProps<typeof TextArea>, 'value' | 'onChange'> {
-  value?: Localizable<string>;
-  onChange?: (value: Localizable<string>) => void;
-  defaultLanguage?: string;
+interface LocalizableTextAreaProps {
+  value?: Record<string, string>;
+  onChange?: (value: Record<string, string>) => void;
+  placeholder?: string;
+  name?: string;
+  disabled?: boolean;
+  label?: string;
+  maxLength?: number;
+  showCount?: boolean;
+  autoSize?: boolean | { minRows?: number; maxRows?: number };
   rows?: number;
-  showLanguageToggle?: boolean;
 }
 
-const languageEmojis: Record<string, string> = {
-  'en-US': '🇺🇸',
-  'es-ES': '🇪🇸',
-  'fr-FR': '🇫🇷',
-  'de-DE': '🇩🇪',
-  'it-IT': '🇮🇹',
-  'pt-BR': '🇧🇷',
-  'zh-CN': '🇨🇳',
-  'ja-JP': '🇯🇵',
-  'ko-KR': '🇰🇷',
-  'ru-RU': '🇷🇺',
-};
-
-export const LocalizableTextArea: React.FC<LocalizableTextAreaProps> = ({
+// Component for editing localizable text values in a textarea
+const LocalizableTextArea: React.FC<LocalizableTextAreaProps> = ({
   value = {},
   onChange,
-  defaultLanguage,
-  rows = 4,
-  showLanguageToggle = true,
-  ...props
+  placeholder = 'Enter text...',
+  name,
+  disabled = false,
+  label,
+  maxLength,
+  showCount = false,
+  autoSize = { minRows: 4, maxRows: 8 },
+  rows = 4
 }) => {
-  const { availableLanguages } = useLanguage();
-  const navigate = useNavigate();
-  const { appName } = useParams<{ appName: string }>();
-  const [activeLanguage, setActiveLanguage] = useState<string>(
-    defaultLanguage || availableLanguages[0] || DEFAULT_LANGUAGE
-  );
-
+  const [isLanguagePickerVisible, setIsLanguagePickerVisible] = useState(false);
+  const { availableLanguages, editorLanguage, setEditorLanguage } = useHector();
+  
+  // Handle changes to the textarea value
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     if (onChange) {
       const newValue = { ...value };
-      newValue[activeLanguage] = e.target.value;
-      console.log('[LocalizableTextArea] handleInputChange:', {
-        activeLanguage,
-        inputValue: e.target.value,
-        previousValue: value,
-        newValue
-      });
+      newValue[editorLanguage] = e.target.value;
       onChange(newValue);
     }
   };
-
-  const handleLanguageChange = (lang: string) => {
-    console.log('[LocalizableTextArea] Language changed from', activeLanguage, 'to', lang, 'Current value:', value);
-    setActiveLanguage(lang);
+  
+  // Toggle language picker visibility
+  const toggleLanguagePicker = () => {
+    setIsLanguagePickerVisible(!isLanguagePickerVisible);
   };
-
-  const navigateToLanguageTab = () => {
-    if (appName) {
-      navigate(`/apps/${appName}/edit/languages`);
-    }
-  };
-
-  const renderLanguageToggle = () => {
-    // If language toggle is disabled or only one language is available, don't show anything
-    if (!showLanguageToggle || availableLanguages.length <= 1) {
-      return null;
-    }
-
-    // Otherwise, show all available languages
-    return (
-      <div className="language-indicator" style={{ display: 'flex', alignItems: 'center' }}>
-        {availableLanguages.map((lang: string) => (
-          <Tooltip key={lang} title={lang}>
-            <Button
-              type="text"
-              size="small"
-              onClick={() => handleLanguageChange(lang)}
-              className={activeLanguage === lang ? 'active-language' : ''}
-            >
-              {languageEmojis[lang] || <GlobalOutlined />}
-            </Button>
-          </Tooltip>
-        ))}
-      </div>
-    );
-  };
-
+  
   return (
-    <div>
-      <TextArea
-        {...props}
-        value={value[activeLanguage] || ''}
-        onChange={handleInputChange}
-        rows={rows}
-        style={{ 
-          resize: 'vertical',
-          minHeight: '120px',
-          borderRadius: '6px',
-          ...(props.style || {})
-        }}
-      />
-      <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'flex-end' }}>
-        {renderLanguageToggle()}
+    <div className="localizable-input-container">
+      {label && <div className="localizable-input-label">{label}</div>}
+      
+      <div className="localizable-textarea-wrapper">
+        <TextArea
+          value={value[editorLanguage] || ''}
+          onChange={handleInputChange}
+          placeholder={placeholder}
+          disabled={disabled}
+          name={name}
+          maxLength={maxLength}
+          showCount={showCount}
+          autoSize={autoSize}
+          rows={rows}
+          className="localizable-textarea"
+        />
+        
+        <Tooltip title="Change language">
+          <Button
+            type="text"
+            icon={<GlobalOutlined />}
+            onClick={toggleLanguagePicker}
+            className="language-toggle-button textarea-toggle"
+          />
+        </Tooltip>
       </div>
+      
+      {isLanguagePickerVisible && (
+        <div className="language-picker">
+          <LanguageToggle 
+            value={editorLanguage}
+            onChange={setEditorLanguage}
+            availableLanguages={availableLanguages}
+            showLabel
+          />
+        </div>
+      )}
     </div>
   );
 };
