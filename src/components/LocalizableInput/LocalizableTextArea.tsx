@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Input, Tooltip, Button, Space } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useHector } from '../../context/HectorContext';
@@ -23,6 +23,7 @@ interface LocalizableTextAreaProps {
   showCount?: boolean;
   autoSize?: boolean | { minRows?: number; maxRows?: number };
   rows?: number;
+  onLanguageChange?: (language: string) => void;
 }
 
 // Component for editing localizable text values in a textarea
@@ -36,7 +37,8 @@ const LocalizableTextArea: React.FC<LocalizableTextAreaProps> = ({
   maxLength,
   showCount = false,
   autoSize = { minRows: 4, maxRows: 8 },
-  rows = 4
+  rows = 4,
+  onLanguageChange
 }) => {
   const [fieldLanguage, setFieldLanguage] = useState<string | null>(null);
   const { appConfig, navigateToLanguageSettings } = useHector();
@@ -55,6 +57,22 @@ const LocalizableTextArea: React.FC<LocalizableTextAreaProps> = ({
       onChange(newValue);
     }
   };
+
+  // Handle language change and notify parent component
+  const handleLanguageChange = (lang: string) => {
+    setFieldLanguage(lang);
+    if (onLanguageChange) {
+      onLanguageChange(lang);
+    }
+  };
+  
+  // Notify parent of initial language and when language changes
+  useEffect(() => {
+    if (onLanguageChange) {
+      onLanguageChange(currentLanguage);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentLanguage]);
   
   return (
     <div className="localizable-input-container">
@@ -82,7 +100,7 @@ const LocalizableTextArea: React.FC<LocalizableTextAreaProps> = ({
                   type={lang === currentLanguage ? 'primary' : 'default'}
                   shape="circle"
                   size="small"
-                  onClick={() => setFieldLanguage(lang)}
+                  onClick={() => handleLanguageChange(lang)}
                   className={`language-flag-button ${lang === currentLanguage ? 'active' : ''}`}
                 >
                   {FLAG_EMOJI[lang]}

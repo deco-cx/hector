@@ -124,7 +124,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
       newActions[index].filename = generateFilename(
         title, 
         value as ActionType, 
-        formData.actions.filter((_, i) => i !== index)
+        formData.actions.filter((_: ActionData, i: number) => i !== index)
       );
     } else if (field === 'title') {
       // Update title as a Localizable object and regenerate filename
@@ -142,7 +142,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
       newActions[index].filename = generateFilename(
         titleStr, 
         newActions[index].type, 
-        formData.actions.filter((_, i) => i !== index)
+        formData.actions.filter((_: ActionData, i: number) => i !== index)
       );
     }
     
@@ -414,7 +414,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
               value={formData.actions[editingIndex].prompt}
               onChange={(value) => handlePromptChange(editingIndex, value)}
               inputs={Array.isArray(formData.inputs) ? formData.inputs : []}
-              actions={Array.isArray(formData.actions) ? formData.actions : []}
+              actions={Array.isArray(formData.actions) ? formData.actions.filter((_: ActionData, i: number) => i !== editingIndex) : []}
               rows={8}
             />
           )}
@@ -653,7 +653,7 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
                         value={action.prompt}
                         onChange={(value) => handlePromptChange(index, value)}
                         inputs={Array.isArray(formData.inputs) ? formData.inputs : []}
-                        actions={Array.isArray(formData.actions) ? formData.actions : []}
+                        actions={Array.isArray(formData.actions) ? formData.actions.filter((_: ActionData, i: number) => i !== index) : []}
                         rows={8}
                       />
                     </div>

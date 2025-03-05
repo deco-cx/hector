@@ -29,14 +29,26 @@ const PromptTextArea: React.FC<PromptTextAreaProps> = ({
 }) => {
   // Get the editor language to use for variable insertion
   const { appConfig } = useHector();
-  const selectedLanguage = appConfig?.selectedLanguage || DEFAULT_LANGUAGE;
+  const [currentLanguage, setCurrentLanguage] = useState<string>(appConfig?.selectedLanguage || DEFAULT_LANGUAGE);
+  
+  // Update currentLanguage when appConfig.selectedLanguage changes
+  useEffect(() => {
+    if (appConfig?.selectedLanguage) {
+      setCurrentLanguage(appConfig.selectedLanguage);
+    }
+  }, [appConfig?.selectedLanguage]);
   
   // Make sure value is a Localizable object
-  const localValue = typeof value === 'string' ? { [selectedLanguage]: value } : value;
+  const localValue = typeof value === 'string' ? { [currentLanguage]: value } : value;
   
   // Handle changes to the textarea
   const handleChange = (newValue: Localizable<string>) => {
     onChange(newValue);
+  };
+  
+  // Handle language change from LocalizableTextArea
+  const handleLanguageChange = (lang: string) => {
+    setCurrentLanguage(lang);
   };
   
   return (
@@ -49,6 +61,7 @@ const PromptTextArea: React.FC<PromptTextAreaProps> = ({
         label="Prompt"
         maxLength={10000}
         showCount
+        onLanguageChange={handleLanguageChange}
       />
       
       {/* Variable insertion UI */}
@@ -64,9 +77,9 @@ const PromptTextArea: React.FC<PromptTextAreaProps> = ({
               style={{ cursor: 'pointer' }}
               onClick={() => {
                 const newValue = { ...localValue };
-                const currentText = newValue[selectedLanguage] || '';
+                const currentText = newValue[currentLanguage] || '';
                 const variable = `{{${input.filename}}}`;
-                newValue[selectedLanguage] = currentText + (currentText ? ' ' : '') + variable;
+                newValue[currentLanguage] = currentText + (currentText ? ' ' : '') + variable;
                 onChange(newValue);
               }}
             >
@@ -81,9 +94,9 @@ const PromptTextArea: React.FC<PromptTextAreaProps> = ({
               style={{ cursor: 'pointer' }}
               onClick={() => {
                 const newValue = { ...localValue };
-                const currentText = newValue[selectedLanguage] || '';
+                const currentText = newValue[currentLanguage] || '';
                 const variable = `{{${action.filename}}}`;
-                newValue[selectedLanguage] = currentText + (currentText ? ' ' : '') + variable;
+                newValue[currentLanguage] = currentText + (currentText ? ' ' : '') + variable;
                 onChange(newValue);
               }}
             >
