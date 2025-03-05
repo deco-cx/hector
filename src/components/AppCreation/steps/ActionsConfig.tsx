@@ -1,15 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   Typography, Button, Space, Input, Select, Card, 
   Tooltip, Row, Col, Divider, Empty, Form,
-  message, Modal, Upload, Popconfirm, Tabs
+  message, Modal, Tabs
 } from 'antd';
 import { 
   PlusOutlined, DeleteOutlined, EditOutlined, EyeOutlined, 
   InfoCircleOutlined, FileTextOutlined, CodeOutlined,
   FileImageOutlined, SoundOutlined, PlayCircleOutlined,
-  RobotOutlined, RocketOutlined, SettingOutlined, CloseOutlined,
-  MinusCircleOutlined
+  RobotOutlined
 } from '@ant-design/icons';
 import { v4 as uuidv4 } from 'uuid';
 import { useHector } from '../../../context/HectorContext';
@@ -20,7 +19,6 @@ import RJSFForm from '@rjsf/antd';
 import validator from '@rjsf/validator-ajv8';
 import PromptTextArea from '../components/PromptTextArea';
 import { availableActions as actionConfigs, generateActionFilename as generateFilename } from '../../../config/actionsConfig';
-import LocalizableTextArea from '../../../components/LocalizableInput/LocalizableTextArea';
 
 const { Title, Paragraph, Text } = Typography;
 const { TextArea } = Input;
