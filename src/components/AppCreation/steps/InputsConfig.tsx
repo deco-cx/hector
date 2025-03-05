@@ -203,15 +203,37 @@ export function InputsConfig({ formData, navigateToLanguageTab, setFormData }: I
     const { appConfig } = useHectorState();
     
     // Get current value for the input from the execution bag
-    const currentValue = appConfig?.lastExecution?.bag?.[filename]?.textValue || '';
+    const initialValue = appConfig?.lastExecution?.bag?.[filename]?.textValue || '';
+    
+    // Use local state to track input value during typing
+    const [localValue, setLocalValue] = useState(initialValue);
+    
+    // Update local state when the global state changes
+    useEffect(() => {
+      const currentValue = appConfig?.lastExecution?.bag?.[filename]?.textValue || '';
+      setLocalValue(currentValue);
+    }, [appConfig?.lastExecution?.bag?.[filename]?.textValue, filename]);
+    
+    // Handle local changes without triggering global updates
+    const handleLocalChange = (value: string) => {
+      setLocalValue(value);
+    };
+    
+    // Update global state only when focus is lost
+    const handleBlur = () => {
+      if (localValue !== (appConfig?.lastExecution?.bag?.[filename]?.textValue || '')) {
+        onValueChange(localValue);
+      }
+    };
     
     switch (inputType) {
       case 'text':
         return (
           <Input
             placeholder={placeholder}
-            value={currentValue}
-            onChange={(e) => onValueChange(e.target.value)}
+            value={localValue}
+            onChange={(e) => handleLocalChange(e.target.value)}
+            onBlur={handleBlur}
           />
         );
       
@@ -220,8 +242,12 @@ export function InputsConfig({ formData, navigateToLanguageTab, setFormData }: I
           <Select
             style={{ width: '100%' }}
             placeholder={placeholder}
-            value={currentValue || undefined}
-            onChange={(value: string) => onValueChange(value)}
+            value={localValue || undefined}
+            onChange={(value: string) => {
+              handleLocalChange(value);
+              // For select, also update global state immediately since there's no blur event
+              onValueChange(value);
+            }}
           >
             {Array.isArray(options) && options.map((opt) => (
               <Select.Option key={opt.value} value={opt.value}>
@@ -236,8 +262,9 @@ export function InputsConfig({ formData, navigateToLanguageTab, setFormData }: I
         return (
           <Input
             placeholder={`Enter ${inputType} value...`}
-            value={currentValue}
-            onChange={(e) => onValueChange(e.target.value)}
+            value={localValue}
+            onChange={(e) => handleLocalChange(e.target.value)}
+            onBlur={handleBlur}
           />
         );
     }
