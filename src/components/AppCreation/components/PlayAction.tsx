@@ -146,12 +146,20 @@ export function PlayAction({ actionIndex }: PlayActionProps) {
     switch (action.type) {
       case 'generateText': {
         const config = action.config || {};
-        const result = await sdk.ai.generateText({
+        
+        // Create payload and only include model if it's not "Best"
+        const payload: any = {
           prompt: processedPrompt,
-          model: config.model || 'Best',
           temperature: config.temperature || 0.7,
           maxTokens: config.maxTokens || 500,
-        });
+        };
+        
+        // Only add model if it's not "Best" (default)
+        if (config.model && config.model !== 'Best') {
+          payload.model = config.model;
+        }
+        
+        const result = await sdk.ai.generateText(payload);
 
         // Set permissions on the file
         await sdk.fs.chmod(result.filepath, 0o744);
@@ -170,14 +178,22 @@ export function PlayAction({ actionIndex }: PlayActionProps) {
           schema = { type: 'object', properties: {} };
         }
 
-        const result = await sdk.ai.generateObject({
+        // Create payload and only include model if it's not "Best"
+        const payload: any = {
           prompt: processedPrompt,
           schema: {
             type: 'object',
             properties: schema.properties || {}
           },
           temperature: config.temperature || 0.7,
-        });
+        };
+        
+        // Only add model if it's not "Best" (default)
+        if (config.model && config.model !== 'Best') {
+          payload.model = config.model;
+        }
+        
+        const result = await sdk.ai.generateObject(payload);
 
         // Set permissions on the file
         await sdk.fs.chmod(result.filepath, 0o744);
@@ -191,11 +207,19 @@ export function PlayAction({ actionIndex }: PlayActionProps) {
 
       case 'generateImage': {
         const config = action.config || {};
-        const result = await sdk.ai.generateImage({
+        
+        // Create payload and only include model if it's not "Best"
+        const payload: any = {
           prompt: processedPrompt,
-          model: config.model || 'Best',
           size: config.size || '1024x1024',
-        });
+        };
+        
+        // Only add model if it's not "Best" (default)
+        if (config.model && config.model !== 'Best') {
+          payload.model = config.model;
+        }
+        
+        const result = await sdk.ai.generateImage(payload);
 
         // Set permissions on the file
         await sdk.fs.chmod(result.filepath, 0o744);
