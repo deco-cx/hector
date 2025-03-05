@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Input, Select, Switch, Space, Form, Tooltip, Empty } from 'antd';
 import { PlusOutlined, DeleteOutlined, EditOutlined, EyeOutlined, FileTextOutlined, PictureOutlined, AudioOutlined } from '@ant-design/icons';
-import { DEFAULT_LANGUAGE, Localizable, InputField } from '../../types/types';
-import { useRuntime } from '../../components/Runtime';
-import { LocalizableInput } from '../../components/LocalizableInput/LocalizableInput';
+import { DEFAULT_LANGUAGE, Localizable, InputField, getLocalizedValue } from '../../types/types';
+import LocalizableInput from '../../components/LocalizableInput/LocalizableInput';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -27,7 +26,6 @@ interface InputsConfigProps {
 export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
   const [flippedCards, setFlippedCards] = useState<number[]>([]);
   const [form] = Form.useForm();
-  const { executionContext } = useRuntime();
   
   // Generate a unique filename based on the title
   const generateFilename = (title: Localizable<string>): string => {
@@ -184,17 +182,10 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
     }
   };
 
-  // Handle input value change during testing
-  const handleTestInputChange = (input: InputField, value: any) => {
-    if (executionContext) {
-      executionContext.setValue(input.filename, value);
-    }
-  };
-
   // Helper to safely render default value
-  const renderDefaultValue = (value: unknown): string => {
+  const renderDefaultValue = (value: unknown): React.ReactNode => {
     if (value === null || value === undefined) {
-      return '';
+      return 'None';
     }
     if (typeof value === 'object') {
       return JSON.stringify(value);
@@ -204,134 +195,30 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
 
   // Render test input based on input type
   const renderTestInput = (input: InputField) => {
-    const value = executionContext.getValue(input.filename) || input.defaultValue || '';
-
-    switch (input.type) {
-      case 'text':
-        return input.multiValue ? (
-          <TextArea
-            value={value}
-            onChange={(e) => handleTestInputChange(input, e.target.value)}
-            placeholder={
-              typeof input.placeholder === 'object'
-                ? input.placeholder[DEFAULT_LANGUAGE] || ''
-                : input.placeholder || ''
-            }
-            rows={4}
-          />
-        ) : (
-          <Input
-            value={value}
-            onChange={(e) => handleTestInputChange(input, e.target.value)}
-            placeholder={
-              typeof input.placeholder === 'object'
-                ? input.placeholder[DEFAULT_LANGUAGE] || ''
-                : input.placeholder || ''
-            }
-          />
-        );
-
-      case 'select':
-        return (
-          <Select
-            value={value}
-            onChange={(val) => handleTestInputChange(input, val)}
-            style={{ width: '100%' }}
-            placeholder={
-              typeof input.placeholder === 'object'
-                ? input.placeholder[DEFAULT_LANGUAGE] || ''
-                : input.placeholder || ''
-            }
-          >
-            {input.options?.map((option) => (
-              <Option key={option.value} value={option.value}>
-                {typeof option.label === 'object'
-                  ? option.label[DEFAULT_LANGUAGE] || ''
-                  : option.label}
-              </Option>
-            ))}
-          </Select>
-        );
-
-      case 'image':
-        return (
-          <div>
-            {value && (
-              <div style={{ marginBottom: '10px' }}>
-                <img 
-                  src={typeof value === 'object' ? value.filepath || value.base64 : value} 
-                  alt={typeof input.title === 'object' ? input.title[DEFAULT_LANGUAGE] || '' : input.title || ''}
-                  style={{ maxWidth: '100%', maxHeight: '200px' }}
-                />
-              </div>
-            )}
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => {
-                if (e.target.files && e.target.files[0]) {
-                  const file = e.target.files[0];
-                  const reader = new FileReader();
-                  reader.onload = () => {
-                    handleTestInputChange(input, {
-                      filename: file.name,
-                      base64: reader.result,
-                      filepath: URL.createObjectURL(file)
-                    });
-                  };
-                  reader.readAsDataURL(file);
-                }
-              }}
-            />
-          </div>
-        );
-
-      case 'audio':
-        return (
-          <div>
-            {value && typeof value === 'object' && (value.filepath || value.base64) && (
-              <div style={{ marginBottom: '10px' }}>
-                <audio 
-                  src={value.filepath || value.base64} 
-                  controls 
-                  style={{ width: '100%' }}
-                />
-              </div>
-            )}
-            <input
-              type="file"
-              accept="audio/*"
-              onChange={(e) => {
-                if (e.target.files && e.target.files[0]) {
-                  const file = e.target.files[0];
-                  const reader = new FileReader();
-                  reader.onload = () => {
-                    handleTestInputChange(input, {
-                      filename: file.name,
-                      base64: reader.result,
-                      filepath: URL.createObjectURL(file)
-                    });
-                  };
-                  reader.readAsDataURL(file);
-                }
-              }}
-            />
-          </div>
-        );
-
-      default:
-        return (
-          <Input
-            value={value}
-            onChange={(e) => handleTestInputChange(input, e.target.value)}
-            placeholder={
-              typeof input.placeholder === 'object'
-                ? input.placeholder[DEFAULT_LANGUAGE] || ''
-                : input.placeholder || ''
-            }
-          />
-        );
-    }
+    return (
+      <div className="input-preview">
+        <div className="input-type-label">
+          {INPUT_TYPES.find(t => t.value === input.type)?.icon} 
+          {INPUT_TYPES.find(t => t.value === input.type)?.label || input.type}
+        </div>
+        <div className="input-details">
+          <p><strong>Filename:</strong> {input.filename}</p>
+          {input.description && (
+            <p><strong>Description:</strong> {typeof input.description === 'object' 
+              ? getLocalizedValue(input.description, DEFAULT_LANGUAGE) 
+              : input.description}
+            </p>
+          )}
+          {input.defaultValue !== undefined && (
+            <p><strong>Default Value:</strong> {
+              typeof input.defaultValue === 'object' 
+                ? JSON.stringify(input.defaultValue)
+                : String(input.defaultValue)
+            }</p>
+          )}
+        </div>
+      </div>
+    );
   };
 
   // Debug function to log form values

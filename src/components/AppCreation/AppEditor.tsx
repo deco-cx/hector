@@ -13,7 +13,6 @@ import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons';
 import LanguageSettings from '../LanguageSettings/LanguageSettings';
 import JSONViewer from '../JSONViewer/JSONViewer';
 import ExportsView from '../Exports/ExportsView';
-import { ExecutionPill } from '../../components/Runtime/ExecutionPill';
 
 // Extend Window interface to include our custom property
 declare global {
@@ -206,7 +205,6 @@ export function AppEditor({ tab = 'style' }: AppEditorProps) {
         </Space>
         
         <Space>
-          <ExecutionPill />
           <Button 
             type="primary" 
             icon={<SaveOutlined />} 

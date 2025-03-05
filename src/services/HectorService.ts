@@ -1,77 +1,62 @@
 import webdrawSDK from '../sdk/WebdrawSDK';
 import { AppConfig, WebdrawSDK } from '../types/types';
-import { ExecutionState, ExecutionMetadata } from '../components/Runtime/ExecutionContext';
 
 /**
  * Service for Hector-specific operations.
- * This includes app and execution management, and provides access to the SDK.
+ * This includes app management, and provides access to the SDK.
  */
 export class HectorService {
   private static instance: HectorService | null = null;
   private readonly APPS_PATH = '~/Hector/apps/';
-  private readonly EXECUTIONS_PATH = '~/Hector/executions/';
   
   private constructor() {
     // No need to initialize anything - SDK is already initialized
   }
   
   /**
-   * Get the singleton instance
+   * Get the singleton instance of HectorService
    */
   public static getInstance(): HectorService {
     if (!HectorService.instance) {
       HectorService.instance = new HectorService();
     }
+    
     return HectorService.instance;
   }
   
   /**
-   * Reset the service (for testing)
+   * Reset the singleton instance (primarily for testing)
    */
   public static reset(): void {
     HectorService.instance = null;
   }
   
   /**
-   * Normalize app data to ensure it has all required fields and correct structure
+   * Normalize app data with defaults when fields are missing
    */
   private normalizeAppData(appData: Partial<AppConfig>): AppConfig {
-    // Normalize the app data to ensure it has all required fields
-    let outputConfig: any[] = [];
-    
-    // Handle conversion from legacy format to new OutputTemplate[] format
-    if (Array.isArray(appData.output)) {
-      // Already in the new format
-      outputConfig = appData.output;
-    } else if (appData.output && typeof appData.output === 'object') {
-      // Convert from legacy format
-      outputConfig = [appData.output];
-    }
-    
-    // Return normalized app data with required fields and types
     return {
-      id: appData.id || '',
-      name: appData.name || {},
-      inputs: Array.isArray(appData.inputs) ? appData.inputs : [],
-      actions: Array.isArray(appData.actions) ? appData.actions : [],
-      output: outputConfig,
+      id: appData.id || crypto.randomUUID(),
+      name: appData.name || { en: 'Untitled App' },
+      template: appData.template || 'default',
       style: appData.style || '',
-      template: appData.template || '',
-      supportedLanguages: Array.isArray(appData.supportedLanguages) ? 
-        appData.supportedLanguages : ['en-US']
+      inputs: appData.inputs || [],
+      actions: appData.actions || [],
+      output: appData.output || [],
+      supportedLanguages: appData.supportedLanguages || ['en'],
+      selectedLanguage: appData.selectedLanguage || 'en'
     };
   }
   
   /**
-   * Get the underlying SDK
+   * Get the WebDraw SDK instance
    */
   public getSDK(): WebdrawSDK {
     return webdrawSDK;
   }
   
   /**
-   * Execute AI object generation - compatibility method for existing components
-   * @param options Options for generation including prompt and schema
+   * Execute AI object generation
    */
   public async executeAIGenerateObject(options: {
     prompt: string;
@@ -82,82 +67,60 @@ export class HectorService {
     };
     temperature?: number;
   }): Promise<any> {
-    // Type the schema properly to match the ObjectPayload interface
-    const schema = {
-      type: "object" as const,
-      properties: options.schema.properties
-    };
+    const sdk = this.getSDK();
+    if (!sdk.ai) {
+      throw new Error('AI functionality not available in SDK');
+    }
     
-    // Use the SDK's AI interface to generate the object
-    return this.getSDK().ai.generateObject({
+    const result = await sdk.ai.generateObject({
       prompt: options.prompt,
-      schema,
+      schema: options.schema,
       temperature: options.temperature || 0.7
     });
+    
+    return result.object;
   }
   
   /**
    * List all available apps
    */
   public async listApps(): Promise<AppConfig[]> {
+    const sdk = this.getSDK();
+    if (!sdk.fs) {
+      throw new Error('File system not available in SDK');
+    }
+    
     try {
-      console.log("Listing apps from path:", this.APPS_PATH);
-      
-      // Ensure the directory exists
+      // Ensure the apps directory exists
       await this.ensureDirectory(this.APPS_PATH);
       
-      const files = await this.getSDK().fs.list(this.APPS_PATH);
-      console.log("Found files:", files);
+      // List all files in the apps directory
+      const files = await sdk.fs.list(this.APPS_PATH);
       
-      const jsonFiles = files.filter(file => file.endsWith('.json'));
-      console.log("JSON files:", jsonFiles);
+      // Filter for .json files
+      const appFiles = files.filter(file => file.endsWith('.json'));
       
-      if (jsonFiles.length === 0) {
-        console.log("No app files found");
-        return [];
-      }
+      // Load each app
+      const apps: AppConfig[] = [];
       
-      const apps = await Promise.all(
-        jsonFiles.map(async (file) => {
-          try {
-            const content = await this.getSDK().fs.read(file);
-            const appData = JSON.parse(content) as AppConfig;
-            
-            // Extract just the filename from the path for display
-            const filename = file.split('/').pop() || '';
-            const filenameWithoutExt = filename.replace('.json', '');
-            
-            // If the app doesn't have a valid ID, use the filename
-            if (!appData.id) {
-              appData.id = filenameWithoutExt;
-            }
-            
-            return appData;
-          } catch (error) {
-            console.error(`Error reading file ${file}:`, error);
-            
-            // Return a minimal placeholder for corrupted files
-            const filename = file.split('/').pop() || 'unknown';
-            const filenameWithoutExt = filename.replace('.json', '');
-            
-            return {
-              id: filenameWithoutExt,
-              name: { 'en-US': filenameWithoutExt },
-              template: 'unknown',
-              style: 'unknown',
-              inputs: [],
-              actions: [],
-              output: [],
-              supportedLanguages: ['en-US']
-            } as AppConfig;
+      for (const file of appFiles) {
+        try {
+          const appPath = `${this.APPS_PATH}${file}`;
+          const appContent = await sdk.fs.read(appPath);
+          
+          if (typeof appContent === 'string') {
+            const appData = JSON.parse(appContent);
+            apps.push(this.normalizeAppData(appData));
           }
-        })
-      );
+        } catch (err) {
+          console.error(`Error loading app from ${file}:`, err);
+        }
+      }
       
       return apps;
     } catch (error) {
-      console.error("Error listing apps:", error);
-      return [];
+      console.error('Error listing apps:', error);
+      throw error;
     }
   }
   
@@ -165,38 +128,36 @@ export class HectorService {
    * Get an app by ID
    */
   public async getApp(id: string): Promise<AppConfig> {
-    console.log(`[HectorService] Getting app: ${id}`);
+    const sdk = this.getSDK();
+    if (!sdk.fs) {
+      throw new Error('File system not available in SDK');
+    }
     
     try {
-      // In a real app, this would load from a server or database
-      // For this demo, we'll simulate loading from local storage or create a default
-      const storedData = localStorage.getItem(`${this.APPS_PATH}${id}`);
+      const appPath = `${this.APPS_PATH}${id}.json`;
       
-      if (!storedData) {
-        console.log(`App not found: ${id}, creating default`);
-        
-        // Create a default app if none exists
-        const defaultApp: AppConfig = {
-          id,
-          name: { 'en-US': id },
-          inputs: [],
-          actions: [],
-          output: [],
-          supportedLanguages: ['en-US'],
-          template: '',
-          style: ''
-        };
-        
-        return defaultApp;
+      // Check if the file exists
+      const exists = await sdk.fs.exists(appPath);
+      
+      if (!exists) {
+        // Create a new app if it doesn't exist
+        const newApp = this.normalizeAppData({ id });
+        await this.saveApp(newApp);
+        return newApp;
       }
       
-      // Parse and normalize the stored data
-      const appData = JSON.parse(storedData);
-      return this.normalizeAppData(appData);
+      // Load existing app
+      const appContent = await sdk.fs.read(appPath);
       
+      if (typeof appContent === 'string') {
+        const appData = JSON.parse(appContent);
+        return this.normalizeAppData(appData);
+      }
+      
+      throw new Error('Invalid app data format');
     } catch (error) {
-      console.error('Error getting app:', error);
-      throw new Error(`Failed to get app: ${id}`);
+      console.error(`Error getting app ${id}:`, error);
+      throw error;
     }
   }
   
@@ -204,23 +165,26 @@ export class HectorService {
    * Save an app
    */
   public async saveApp(app: AppConfig): Promise<void> {
-    console.log(`[HectorService] Saving app: ${app.id}`);
+    const sdk = this.getSDK();
+    if (!sdk.fs) {
+      throw new Error('File system not available in SDK');
+    }
     
     try {
-      // Normalize the app data before saving
+      // Ensure the apps directory exists
+      await this.ensureDirectory(this.APPS_PATH);
+      
+      // Normalize the app data
       const normalizedApp = this.normalizeAppData(app);
       
-      // In a real app, this would save to a server or database
-      // For this demo, we'll simulate saving to local storage
-      localStorage.setItem(
-        `${this.APPS_PATH}${app.id}`, 
-        JSON.stringify(normalizedApp)
-      );
+      // Save the app
+      const appPath = `${this.APPS_PATH}${normalizedApp.id}.json`;
+      await sdk.fs.write(appPath, JSON.stringify(normalizedApp, null, 2));
       
-      console.log(`App saved: ${app.id}`);
+      console.log(`App ${normalizedApp.id} saved`);
     } catch (error) {
       console.error('Error saving app:', error);
-      throw new Error(`Failed to save app: ${app.id}`);
+      throw error;
     }
   }
   
@@ -228,131 +192,28 @@ export class HectorService {
    * Delete an app
    */
   public async deleteApp(id: string): Promise<void> {
-    if (!id) {
-      throw new Error("App ID is required for deletion");
+    const sdk = this.getSDK();
+    if (!sdk.fs) {
+      throw new Error('File system not available in SDK');
     }
     
-    const path = `${this.APPS_PATH}${id}.json`;
-    console.log("Deleting app file:", path);
-    
     try {
-      const exists = await this.getSDK().fs.exists(path);
+      const appPath = `${this.APPS_PATH}${id}.json`;
+      
+      // Check if the file exists
+      const exists = await sdk.fs.exists(appPath);
+      
       if (!exists) {
-        console.warn(`App file does not exist: ${path}`);
+        console.log(`App ${id} does not exist`);
         return;
       }
       
-      await this.getSDK().fs.remove(path);
-      console.log(`App deleted successfully: ${id}`);
+      // Delete the app
+      await sdk.fs.remove(appPath);
+      console.log(`App ${id} deleted`);
     } catch (error) {
-      console.error("Error deleting app:", error);
+      console.error(`Error deleting app ${id}:`, error);
       throw error;
-    }
-  }
-  
-  /**
-   * Save the current execution state as part of the app config
-   */
-  public async saveCurrentExecution(
-    appId: string, 
-    values: Record<string, any>,
-    executionMeta: Record<string, ExecutionMetadata>
-  ): Promise<void> {
-    try {
-      // Get the current app config
-      const appConfig = await this.getApp(appId);
-      
-      // Update with the current execution state
-      appConfig.currentExecution = {
-        values: JSON.parse(JSON.stringify(values)),
-        executionMeta: JSON.parse(JSON.stringify(executionMeta)),
-        timestamp: new Date().toISOString()
-      };
-      
-      // Save the updated app config
-      await this.saveApp(appConfig);
-      console.log(`Current execution state saved for app: ${appId}`);
-    } catch (error) {
-      console.error("Error saving current execution:", error);
-      throw error;
-    }
-  }
-  
-  /**
-   * Save an execution state to the executions history
-   */
-  public async saveExecution(
-    appId: string, 
-    state: ExecutionState
-  ): Promise<string> {
-    try {
-      // Create timestamp for filename
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const executionPath = `${this.EXECUTIONS_PATH}${appId}/`;
-      const filename = `${executionPath}${timestamp}.json`;
-      
-      // Ensure directories exist
-      await this.ensureDirectory(this.EXECUTIONS_PATH);
-      await this.ensureDirectory(executionPath);
-      
-      // Serialize and save
-      await this.getSDK().fs.write(filename, JSON.stringify(state, null, 2));
-      console.log(`Execution state saved to ${filename}`);
-      
-      return timestamp;
-    } catch (error) {
-      console.error("Error saving execution state:", error);
-      throw error;
-    }
-  }
-  
-  /**
-   * Load a specific execution state from history
-   */
-  public async loadExecution(
-    appId: string, 
-    timestamp: string
-  ): Promise<ExecutionState> {
-    try {
-      const filePath = `${this.EXECUTIONS_PATH}${appId}/${timestamp}.json`;
-      
-      const exists = await this.getSDK().fs.exists(filePath);
-      if (!exists) {
-        throw new Error(`Execution state file not found: ${filePath}`);
-      }
-      
-      const stateContent = await this.getSDK().fs.read(filePath);
-      return JSON.parse(stateContent) as ExecutionState;
-    } catch (error) {
-      console.error("Error loading execution state:", error);
-      throw error;
-    }
-  }
-  
-  /**
-   * List all available executions for an app
-   */
-  public async listExecutions(appId: string): Promise<string[]> {
-    try {
-      const executionPath = `${this.EXECUTIONS_PATH}${appId}/`;
-      
-      // Check if directory exists
-      const exists = await this.getSDK().fs.exists(executionPath);
-      if (!exists) {
-        return [];
-      }
-      
-      const files = await this.getSDK().fs.list(executionPath);
-      return files
-        .filter(file => file.endsWith('.json'))
-        .map(file => {
-          const filename = file.split('/').pop() || '';
-          return filename.replace('.json', '');
-        })
-        .sort((a, b) => b.localeCompare(a)); // Sort descending (newest first)
-    } catch (error) {
-      console.error("Error listing executions:", error);
-      return [];
     }
   }
   
@@ -360,10 +221,16 @@ export class HectorService {
    * Ensure a directory exists
    */
   private async ensureDirectory(path: string): Promise<void> {
+    const sdk = this.getSDK();
+    if (!sdk.fs) {
+      throw new Error('File system not available in SDK');
+    }
+    
     try {
-      const exists = await this.getSDK().fs.exists(path);
+      const exists = await sdk.fs.exists(path);
+      
       if (!exists) {
-        await this.getSDK().fs.mkdir(path, { recursive: true });
+        await sdk.fs.mkdir(path, { recursive: true });
       }
     } catch (error) {
       console.error(`Error ensuring directory ${path}:`, error);

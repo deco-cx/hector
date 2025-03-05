@@ -1,7 +1,5 @@
 import { WebdrawSDK, AppConfig, InputField, ActionData, OutputTemplate, DEFAULT_LANGUAGE, AVAILABLE_LANGUAGES } from '../types/types';
 import { HectorService } from '../services/HectorService';
-import { ExecutionContext } from '../components/Runtime';
-import type { ExecutionMetadata } from '../components/Runtime';
 
 // State structure
 export interface HectorState {
@@ -26,10 +24,8 @@ export interface HectorState {
   // Active tab in the editor
   activeTab: string;
 
-  // Runtime state (migrated from RuntimeContext)
+  // SDK reference
   sdk: WebdrawSDK | null;
-  executionContext: ExecutionContext | null;
-  executingActions: Record<string, boolean>;
 }
 
 // Initial state
@@ -51,10 +47,8 @@ export const initialState: HectorState = {
   
   activeTab: 'style',
 
-  // Runtime state initialization
-  sdk: null,
-  executionContext: null,
-  executingActions: {}
+  // SDK reference
+  sdk: null
 };
 
 // Action types
@@ -94,17 +88,11 @@ export enum ActionType {
   // UI state actions
   SET_ACTIVE_TAB = 'SET_ACTIVE_TAB',
 
-  // Runtime actions (migrated from RuntimeContext)
-  SET_SDK = 'SET_SDK',
-  INITIALIZE_EXECUTION_CONTEXT = 'INITIALIZE_EXECUTION_CONTEXT',
-  SET_ACTION_EXECUTING = 'SET_ACTION_EXECUTING',
-  RESET_ACTION = 'RESET_ACTION',
-  SET_EXECUTION_VALUE = 'SET_EXECUTION_VALUE',
-  UPDATE_EXECUTION_META = 'UPDATE_EXECUTION_META',
-  MARK_ACTION_FAILED = 'MARK_ACTION_FAILED'
+  // SDK action
+  SET_SDK = 'SET_SDK'
 }
 
-// Action interfaces
+// Define action interfaces
 interface SetUserAction {
   type: ActionType.SET_USER;
   payload: { username: string } | null;
@@ -219,47 +207,11 @@ interface SetActiveTabAction {
   payload: string;
 }
 
-// Runtime action interfaces
 interface SetSDKAction {
   type: ActionType.SET_SDK;
   payload: WebdrawSDK | null;
 }
 
-interface InitializeExecutionContextAction {
-  type: ActionType.INITIALIZE_EXECUTION_CONTEXT;
-  payload: {
-    appId: string;
-    inputs: InputField[];
-    actions: ActionData[];
-  };
-}
-
-interface SetActionExecutingAction {
-  type: ActionType.SET_ACTION_EXECUTING;
-  payload: { actionId: string; isExecuting: boolean };
-}
-
-interface ResetActionAction {
-  type: ActionType.RESET_ACTION;
-  payload: string; // actionId
-}
-
-interface SetExecutionValueAction {
-  type: ActionType.SET_EXECUTION_VALUE;
-  payload: { key: string; value: any };
-}
-
-interface UpdateExecutionMetaAction {
-  type: ActionType.UPDATE_EXECUTION_META;
-  payload: { actionId: string; metadata: Partial<ExecutionMetadata> };
-}
-
-interface MarkActionFailedAction {
-  type: ActionType.MARK_ACTION_FAILED;
-  payload: { actionId: string; error: Error | string };
-}
-
-// Union type for all actions
 export type HectorAction =
   | SetUserAction
   | SetLoadingAction
@@ -284,14 +236,7 @@ export type HectorAction =
   | RemoveOutputAction
   | SetOutputsLoadingAction
   | SetActiveTabAction
-  // Runtime actions
-  | SetSDKAction
-  | InitializeExecutionContextAction
-  | SetActionExecutingAction
-  | ResetActionAction
-  | SetExecutionValueAction
-  | UpdateExecutionMetaAction
-  | MarkActionFailedAction;
+  | SetSDKAction;
 
 // Reducer function
 export function hectorReducer(
@@ -470,73 +415,9 @@ export function hectorReducer(
     case ActionType.SET_ACTIVE_TAB:
       return { ...state, activeTab: action.payload };
     
-    // Runtime action cases
+    // SDK action
     case ActionType.SET_SDK:
       return { ...state, sdk: action.payload };
-    
-    case ActionType.INITIALIZE_EXECUTION_CONTEXT:
-      return { 
-        ...state, 
-        executionContext: new ExecutionContext(
-          action.payload.appId,
-          action.payload.inputs,
-          action.payload.actions
-        )
-      };
-    
-    case ActionType.SET_ACTION_EXECUTING:
-      return {
-        ...state,
-        executingActions: {
-          ...state.executingActions,
-          [action.payload.actionId]: action.payload.isExecuting
-        }
-      };
-    
-    case ActionType.RESET_ACTION:
-      if (!state.executionContext) return state;
-      
-      // Call the resetActionExecution method on the executionContext
-      state.executionContext.resetActionExecution(action.payload);
-      
-      // Also update our executingActions state
-      const updatedExecutingActions = { ...state.executingActions };
-      delete updatedExecutingActions[action.payload];
-      
-      return {
-        ...state,
-        executingActions: updatedExecutingActions
-      };
-    
-    case ActionType.SET_EXECUTION_VALUE:
-      if (!state.executionContext) return state;
-      
-      // Call the setValue method on the executionContext
-      state.executionContext.setValue(action.payload.key, action.payload.value);
-      
-      return state;
-    
-    case ActionType.UPDATE_EXECUTION_META:
-      if (!state.executionContext) return state;
-      
-      // Call the updateExecutionMeta method on the executionContext
-      state.executionContext.updateExecutionMeta(
-        action.payload.actionId,
-        action.payload.metadata
-      );
-      
-      return state;
-    
-    case ActionType.MARK_ACTION_FAILED:
-      if (!state.executionContext) return state;
-      
-      // Call the markActionFailed method on the executionContext
-      state.executionContext.markActionFailed(
-        action.payload.actionId,
-        action.payload.error
-      );
-      
-      return state;
       
     default:
       return state;

@@ -10,7 +10,6 @@ import {
 } from '../../../types/types';
 import LocalizableInput from '../../../components/LocalizableInput/LocalizableInput';
 import { useHector } from '../../../context/HectorContext';
-import { InputTest } from '../../../components/Runtime/InputTest';
 
 const { Title, Paragraph, Text } = Typography;
 const { TabPane } = Tabs;
@@ -33,7 +32,7 @@ const inputTypes = [
 
 export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
   const [form] = Form.useForm();
-  const { executionContext } = useHector();
+  const { } = useHector();
   
   // Track which inputs are in view mode
   const [viewModeInputs, setViewModeInputs] = useState<Record<number, boolean>>({});
@@ -256,10 +255,20 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
                   }
                 >
                   {isViewMode ? (
-                    // View mode - Show the InputTest component to fill values
-                    <InputTest 
-                      input={form.getFieldValue(['inputs', name])} 
-                    />
+                    // View mode - Show a simple view of the input field
+                    <div className="input-field-view">
+                      <Typography.Title level={5}>
+                        {getLocalizedValue(form.getFieldValue(['inputs', name, 'title']), DEFAULT_LANGUAGE)}
+                      </Typography.Title>
+                      <Typography.Paragraph type="secondary">
+                        Type: {form.getFieldValue(['inputs', name, 'type'])}
+                      </Typography.Paragraph>
+                      {form.getFieldValue(['inputs', name, 'description']) && (
+                        <Typography.Paragraph>
+                          {getLocalizedValue(form.getFieldValue(['inputs', name, 'description']), DEFAULT_LANGUAGE)}
+                        </Typography.Paragraph>
+                      )}
+                    </div>
                   ) : (
                     // Edit mode - Show the configuration form
                     <>

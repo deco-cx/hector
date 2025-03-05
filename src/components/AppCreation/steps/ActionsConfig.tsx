@@ -21,8 +21,6 @@ import validator from '@rjsf/validator-ajv8';
 import PromptTextArea from '../components/PromptTextArea';
 import { availableActions as actionConfigs, generateActionFilename as generateFilename } from '../../../config/actionsConfig';
 import LocalizableTextArea from '../../../components/LocalizableInput/LocalizableTextArea';
-import { PlayActionButton } from '../../../components/Runtime';
-import { ResultVisualization } from '../../../components/Runtime';
 
 const { Title, Paragraph, Text } = Typography;
 const { TextArea } = Input;
@@ -48,7 +46,7 @@ interface ActionsConfigProps {
 
 export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const { service, isSDKAvailable, executionContext, sdk, appConfig } = useHector();
+  const { service, isSDKAvailable, sdk, appConfig } = useHector();
   const selectedLanguage = appConfig?.selectedLanguage || DEFAULT_LANGUAGE;
   const [isGenerating, setIsGenerating] = useState(false);
   const [userPrompt, setUserPrompt] = useState('');
@@ -558,10 +556,6 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
                     <span>{getLocalizedValue(action.title, DEFAULT_LANGUAGE)}</span>
                   </Space>
                   <Space>
-                    {/* Add PlayActionButton when in runtime mode */}
-                    {executionContext && executionContext.hasValue && executionContext.hasValue(action.id) && (
-                      <PlayActionButton action={action} />
-                    )}
                     <Tooltip title={editingIndex === index ? "View action" : "Edit action"}>
                       <Button 
                         type="text" 
@@ -773,21 +767,6 @@ export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
                         </Text>
                       </div>
                     </Col>
-                    
-                    {/* Add ResultVisualization when in runtime mode */}
-                    {executionContext && executionContext.hasValue && executionContext.hasValue(action.id) && (
-                      <Col span={24}>
-                        <Divider style={{ margin: '12px 0' }} />
-                        <Text strong>Result:</Text>
-                        <div style={{ marginTop: '8px' }}>
-                          <ResultVisualization
-                            result={executionContext.getValue(action.id)}
-                            actionName={action.id}
-                            title={`${getLocalizedValue(action.title, DEFAULT_LANGUAGE)} Result`}
-                          />
-                        </div>
-                      </Col>
-                    )}
                   </Row>
                 </div>
               )}

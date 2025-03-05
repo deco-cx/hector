@@ -1,5 +1,17 @@
 # Hector Runtime Environment
 
+
+  currentExecution?: {
+    values: Record<string, any>;
+    executionMeta: Record<string, ExecutionMetadata>;
+    timestamp: string;
+  };
+
+
+THIS IS OUTDATED AND COMPLEx. I'll redo
+
+
+
 ## 1. Overview
 
 The Hector Runtime Environment is a system for executing and testing AI apps directly within the Hector app builder interface. It will allow users to:

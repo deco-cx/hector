@@ -1,17 +1,12 @@
 import { createContext, useContext } from 'react';
 import { HectorState } from './HectorReducer';
 import { HectorService } from '../services/HectorService';
-import { WebdrawSDK, ActionData } from '../types/types';
+import { WebdrawSDK } from '../types/types';
 
-// Extended state that includes service, SDK references and runtime methods
+// Extended state that includes service and SDK references
 export interface HectorStateWithRefs extends HectorState {
   service: HectorService;
   sdk: WebdrawSDK;
-  
-  // Runtime methods
-  executeAction: (action: ActionData) => Promise<any>;
-  isActionExecuting: (actionId: string) => boolean;
-  resetAction: (actionId: string) => void;
 }
 
 // Create the context with a default value of null
