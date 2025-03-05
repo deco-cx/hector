@@ -3,16 +3,15 @@ import { Typography, Row, Col, Card, Button, List, Spin, Empty, message, Alert, 
 import { PlusOutlined, AppstoreOutlined, BookOutlined, EditOutlined, DeleteOutlined, GlobalOutlined, ReloadOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { CreateAppModal } from '../AppCreation/CreateAppModal';
-import { useWebdraw } from '../../context/WebdrawContext';
-import { AppConfig } from '../../types/types';
+import { useHector } from '../../context/HectorContext';
+import { AppConfig, getLocalizedValue, DEFAULT_LANGUAGE } from '../../types/types';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { getLocalizedValue } from '../../types/i18n';
 
 const { Title, Paragraph } = Typography;
 
 export function HomePage() {
   const navigate = useNavigate();
-  const { service, isSDKAvailable, reloadSDK } = useWebdraw();
+  const { service, isSDKAvailable, reloadSDK } = useHector();
   const { currentLanguage } = useLanguage();
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [apps, setApps] = useState<AppConfig[]>([]);

@@ -705,121 +705,142 @@ class ExecutionContext {
     this.notifySubscribers();
   }
   
-  // Save the current execution state to the Webdraw filesystem
-  async saveExecutionState(sdk: any, appName: string): Promise<void> {
+  // Save the current execution state to the WebdrawSDK filesystem
+  async saveExecutionState(sdk: any, action?: ActionData): Promise<void> {
     try {
-      // Save current state to app config
-      await this.saveCurrentExecutionToAppConfig(sdk, appName);
+      // Make a deep copy of values and executionMeta to avoid reference issues
+      const valuesCopy = JSON.parse(JSON.stringify(this.values));
+      const executionMetaCopy = JSON.parse(JSON.stringify(this.executionMeta));
       
-      // Save to execution history
-      await this.saveExecutionToHistory(sdk, appName);
+      // Use HectorService to save the current execution
+      const service = HectorService.getInstance();
+      await service.saveCurrentExecution(
+        this.appId, 
+        valuesCopy, 
+        executionMetaCopy
+      );
+      
+      // Save specific execution to history if needed
+      if (action) {
+        const state: ExecutionState = {
+          values: JSON.parse(JSON.stringify(valuesCopy)),
+          executionMeta: JSON.parse(JSON.stringify(executionMetaCopy)),
+          timestamp: new Date().toISOString()
+        };
+        
+        await service.saveExecution(this.appId, state);
+      }
+      
+      console.log(`Execution state saved for ${this.appId}`);
+      this.lastExecutionTime = new Date().toISOString();
     } catch (error) {
       console.error('Failed to save execution state:', error);
     }
   }
-  
-  // Save current execution to app config
+
+  // Save current execution to app configuration state
   private async saveCurrentExecutionToAppConfig(sdk: any, appName: string): Promise<void> {
     try {
-      // Get the app config file path
-      const appConfigPath = `~/Hector/apps/${appName}.json`;
+      // Get the current app configuration
+      const service = HectorService.getInstance();
+      const appConfig = await service.getApp(appName);
       
-      // Read the current app config
-      const appConfigContent = await sdk.fs.readFile(appConfigPath);
-      const appConfig = JSON.parse(appConfigContent);
+      // Store current values to preserve ones that shouldn't be reset
+      const currentValues = { ...this.values };
       
       // Add/update the current execution state
       appConfig.currentExecution = {
         values: this.values,
         executionMeta: this.executionMeta,
-        updatedAt: new Date().toISOString()
+        timestamp: new Date().toISOString()
       };
       
-      // Write the updated app config
-      await sdk.fs.writeFile(appConfigPath, JSON.stringify(appConfig, null, 2));
+      // Save the updated app configuration
+      await service.saveApp(appConfig);
+      
+      console.log(`Execution state saved for ${appName}`);
+      this.lastExecutionTime = new Date().toISOString();
+      
+      // Ensure values are preserved
+      this.values = currentValues;
     } catch (error) {
       console.error('Failed to save current execution to app config:', error);
       throw error;
     }
   }
-  
-  // Save execution to history
-  private async saveExecutionToHistory(sdk: any, appName: string): Promise<void> {
+
+  // Load execution state from stored data
+  loadFromState(state: ExecutionState): void {
     try {
-      // Generate timestamp for the execution file
-      const timestamp = new Date().toISOString().replace(/:/g, '-');
+      // Make deep copies to avoid reference issues
+      this.values = state.values ? JSON.parse(JSON.stringify(state.values)) : {};
+      this.executionMeta = state.executionMeta ? JSON.parse(JSON.stringify(state.executionMeta)) : {};
       
-      // Ensure directory exists
-      await sdk.fs.mkdir(`~/Hector/executions/${appName}`, { recursive: true });
-      
-      // Create the execution history file
-      const executionPath = `~/Hector/executions/${appName}/${timestamp}.json`;
-      
-      // Create the execution data
-      const executionData = {
-        values: this.values,
-        executionMeta: this.executionMeta,
-        timestamp: new Date().toISOString()
-      };
-      
-      // Write the execution data
-      await sdk.fs.writeFile(executionPath, JSON.stringify(executionData, null, 2));
+    // Set the lastExecutionTime if present in state
+      if (state.timestamp) {
+        this.lastExecutionTime = state.timestamp;
+      }
+      this.notifySubscribers();
     } catch (error) {
-      console.error('Failed to save execution to history:', error);
-      throw error;
+      console.error('Failed to load from state:', error);
     }
   }
-  
-  // Load execution state from app config
-  async loadCurrentExecution(sdk: any, appName: string): Promise<boolean> {
+
+  // Get the current execution state
+  getExecutionState(): ExecutionState {
+    return {
+      values: this.values,
+      executionMeta: this.executionMeta,
+      timestamp: this.lastExecutionTime || new Date().toISOString()
+    };
+  }
+
+  // Load current execution from app state
+  async loadCurrentExecution(sdk: any, appName: string): Promise<void> {
     try {
-      // Get the app config file path
-      const appConfigPath = `~/Hector/apps/${appName}.json`;
-      
-      // Read the current app config
-      const appConfigContent = await sdk.fs.readFile(appConfigPath);
-      const appConfig = JSON.parse(appConfigContent);
+      // Get the app from HectorService
+      const service = HectorService.getInstance();
+      const appConfig = await service.getApp(appName);
       
       // Check if there's a current execution state
       if (appConfig.currentExecution) {
-        this.values = appConfig.currentExecution.values || {};
-        this.executionMeta = appConfig.currentExecution.executionMeta || {};
-        
-        // Notify subscribers of change
+        const valuesCopy = appConfig.currentExecution.values 
+          ? JSON.parse(JSON.stringify(appConfig.currentExecution.values)) 
+          : {};
+          
+        const executionMetaCopy = appConfig.currentExecution.executionMeta 
+          ? JSON.parse(JSON.stringify(appConfig.currentExecution.executionMeta)) 
+          : {};
+          
+        // Update the execution context values and metadata
+        this.values = valuesCopy;
+        this.executionMeta = executionMetaCopy;
+          
+        if (appConfig.currentExecution.timestamp) {
+          this.lastExecutionTime = appConfig.currentExecution.timestamp;
+        }
+          
         this.notifySubscribers();
-        return true;
       }
-      
-      return false;
     } catch (error) {
       console.error('Failed to load current execution:', error);
-      return false;
     }
   }
-  
+
   // Load a specific execution from history
-  async loadExecutionFromHistory(sdk: any, appName: string, timestamp: string): Promise<boolean> {
+  async loadExecutionFromHistory(sdk: any, appName: string, timestamp: string): Promise<void> {
     try {
-      // Get the execution file path
-      const executionPath = `~/Hector/executions/${appName}/${timestamp}.json`;
+      // Use HectorService to load the execution state
+      const service = HectorService.getInstance();
+      const state = await service.loadExecution(appName, timestamp);
       
-      // Read the execution data
-      const executionContent = await sdk.fs.readFile(executionPath);
-      const executionData = JSON.parse(executionContent);
-      
-      // Load the execution state
-      this.values = executionData.values || {};
-      this.executionMeta = executionData.executionMeta || {};
-      
-      // Notify subscribers of change
-      this.notifySubscribers();
-      return true;
+      // Load the state into the execution context
+      this.loadFromState(state);
     } catch (error) {
       console.error('Failed to load execution from history:', error);
-      return false;
     }
   }
-  
+
   // Subscribers for state changes
   private subscribers: Array<(state: any) => void> = [];
   

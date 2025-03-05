@@ -14,12 +14,12 @@ import { ExecutionMetadata } from '../components/Runtime/ExecutionContext';
  * Supported languages in the system
  * Using BCP 47 language tags (language-REGION)
  */
-export const AVAILABLE_LANGUAGES = ["en-US", "pt-BR"];
+export const AVAILABLE_LANGUAGES = ['en-US', 'pt-BR', 'es-ES', 'fr-FR', 'de-DE', 'it-IT', 'ja-JP', 'ko-KR', 'zh-CN'];
 
 /**
  * Default fallback language
  */
-export const DEFAULT_LANGUAGE = "en-US";
+export const DEFAULT_LANGUAGE = 'en-US';
 
 /**
  * Type for localizable content
@@ -612,4 +612,22 @@ export function createLocalizable<T>(lang: string, value: T): Localizable<T> {
  */
 export function createDefaultLocalizable(value: string): Localizable<string> {
   return { [DEFAULT_LANGUAGE]: value };
+}
+
+/**
+ * Check if a language exists in a localizable object
+ */
+export function hasLanguage<T>(obj: Localizable<T> | undefined, lang: string): boolean {
+  if (!obj) return false;
+  return obj[lang] !== undefined;
+}
+
+/**
+ * Get available languages in the app config
+ */
+export function getAvailableLanguages(appConfig?: any): string[] {
+  if (!appConfig?.supportedLanguages?.length) {
+    return [DEFAULT_LANGUAGE];
+  }
+  return appConfig.supportedLanguages;
 } 

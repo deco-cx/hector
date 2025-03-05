@@ -2,11 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Card, Typography, Button, Space, Modal, Progress, message, Alert, Divider, Tooltip } from 'antd';
 import { TranslationOutlined, GlobalOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { AVAILABLE_LANGUAGES, DEFAULT_LANGUAGE, getAvailableLanguages } from '../../types/i18n';
+import { AVAILABLE_LANGUAGES, DEFAULT_LANGUAGE, getAvailableLanguages } from '../../types/types';
 import { translateAppConfig } from '../../services/translationService';
 import LanguageToggle from '../LanguageToggle/LanguageToggle';
 import './LanguageSettings.css';
-import { useWebdraw } from '../../context/WebdrawContext';
+import { useHector } from '../../context/HectorContext';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -31,7 +31,7 @@ const LanguageSettings: React.FC<LanguageSettingsProps> = ({
   formData,
   setFormData,
 }) => {
-  const { service } = useWebdraw();
+  const { service } = useHector();
   const { currentLanguage, setCurrentLanguage, setAvailableLanguages } = useLanguage();
   const [translationProgress, setTranslationProgress] = useState(0);
   const [isTranslating, setIsTranslating] = useState(false);

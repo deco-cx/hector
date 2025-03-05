@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Layout, Typography, Button, List, Card, Spin } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import { useWebdraw } from '../context/WebdrawContext';
+import { useHector } from '../context/HectorContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { getLocalizedValue } from '../types/i18n';
-import { AppConfig } from '../types/types';
+import { getLocalizedValue, AppConfig } from '../types/types';
 
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
@@ -12,7 +11,7 @@ const { Title, Text } = Typography;
 export default function Dashboard() {
   const [apps, setApps] = useState<AppConfig[]>([]);
   const [loading, setLoading] = useState(true);
-  const { service } = useWebdraw();
+  const { service } = useHector();
   const { currentLanguage } = useLanguage();
 
   useEffect(() => {

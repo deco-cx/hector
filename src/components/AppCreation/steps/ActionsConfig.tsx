@@ -12,7 +12,7 @@ import {
   MinusCircleOutlined
 } from '@ant-design/icons';
 import { v4 as uuidv4 } from 'uuid';
-import { useWebdraw } from '../../../context/WebdrawContext';
+import { useHector } from '../../../context/HectorContext';
 import AvailableVariables from '../components/AvailableVariables';
 import { ActionData, ActionType, Localizable, DEFAULT_LANGUAGE, getLocalizedValue, createDefaultLocalizable, InputField } from '../../../types/types';
 import { useLanguage } from '../../../contexts/LanguageContext';
@@ -50,7 +50,7 @@ interface ActionsConfigProps {
 
 export function ActionsConfig({ formData, setFormData }: ActionsConfigProps) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const { service, isSDKAvailable } = useWebdraw();
+  const { service, isSDKAvailable } = useHector();
   const [isGenerating, setIsGenerating] = useState(false);
   const [userPrompt, setUserPrompt] = useState('');
   const [isModalVisible, setIsModalVisible] = useState(false);

@@ -1,13 +1,13 @@
 /**
- * Translation service for the Hector platform
+ * Translation Service
  * Uses the WebdrawSDK's generateObject method for AI-assisted translation
  */
-import { WebdrawSDK } from '../types/webdraw';
-import { Localizable } from '../types/i18n';
-import { WebdrawService } from '../services/webdraw-service';
+import { WebdrawSDK, Localizable, AppConfig } from '../types/types';
+import { cloneDeep } from 'lodash';
+import { HectorService } from './HectorService';
 
 /**
- * Translates a single text from one language to another
+ * Translates a single text string from one language to another using AI
  */
 export const translateText = async (
   sdk: WebdrawSDK,
@@ -15,35 +15,36 @@ export const translateText = async (
   fromLang: string,
   toLang: string
 ): Promise<string> => {
-  if (!text) return '';
-  
-  // Define schema for the translation response
-  const schema = {
-    type: "object" as const,
-    properties: {
-      value: {
-        type: 'string',
-        description: 'The translated text'
-      }
-    },
-    required: ['value']
-  };
-  
-  // Generate prompt for translation
-  const prompt = `Translate the following text from ${fromLang} to ${toLang}:\n\n"${text}"`;
+  if (!text?.trim()) {
+    return '';
+  }
   
   try {
-    // Use the ai interface with the proper type
-    const result = await sdk.ai.generateObject<{value: string}>({
-      prompt,
-      schema,
-      temperature: 0.3 // Lower temperature for more consistent translations
+    // Define our schema with proper typing
+    const schema = {
+      type: "object" as const,
+      properties: {
+        translation: {
+          type: 'string',
+          description: `The translated text in ${toLang}`,
+        }
+      }
+    };
+    
+    const result = await sdk.ai.generateObject({
+      prompt: `Translate the following text from ${fromLang} to ${toLang}:\n\n"${text}"`,
+      schema
     });
     
-    return result.object?.value || '';
+    if (result?.object?.translation) {
+      return result.object.translation;
+    } else {
+      console.error('Translation failed: No valid result', result);
+      return text; // Return original if translation fails
+    }
   } catch (error) {
     console.error('Translation error:', error);
-    throw new Error(`Failed to translate text: ${error}`);
+    return text; // Return original if translation fails
   }
 };
 
@@ -126,20 +127,23 @@ export const translateComplexObject = async (
 
 /**
  * Translates an entire app configuration
- * @param service The WebdrawService instance
+ * @param service The HectorService instance
  * @param appConfig The app configuration to translate
- * @param sourceLang The source language code
- * @param targetLang The target language code
+ * @param sourceLang The source language
+ * @param targetLang The target language to translate to
  * @returns The translated app configuration
  */
 export const translateAppConfig = async (
-  service: WebdrawService,
+  service: HectorService,
   appConfig: any,
   sourceLang: string,
   targetLang: string
 ): Promise<any> => {
   // Create a deep copy of the app config to avoid modifying the original
   const translatedConfig = JSON.parse(JSON.stringify(appConfig));
+  
+  // Get the SDK from HectorService
+  const sdk = service.getSDK();
   
   // Preserve the original actions array completely as is - do not translate or modify
   // This prevents any issues with actions being lost during translation
@@ -176,24 +180,22 @@ export const translateAppConfig = async (
               // Use AI to translate the text
               const translationPrompt = `Translate the following text from ${sourceLang} to ${targetLang}:\n\n${sourceText}`;
               
-              const result = await service.executeAIGenerateObject({
+              const result = await sdk.ai.generateObject<{ translation: string }>({
                 prompt: translationPrompt,
                 schema: {
                   type: "object",
                   properties: {
-                    value: {
+                    translation: {
                       type: "string",
-                      description: "The translated text"
+                      description: `The text translated from ${sourceLang} to ${targetLang}`
                     }
                   }
                 }
               });
               
-              // Update the object with the translated text
-              translatedObj[key] = {
-                ...obj[key],
-                [targetLang]: result.value
-              };
+              if (result.object && result.object.translation) {
+                obj[key][targetLang] = result.object.translation;
+              }
             } else {
               translatedObj[key] = obj[key];
             }

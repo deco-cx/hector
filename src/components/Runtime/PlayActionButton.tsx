@@ -1,15 +1,14 @@
 import React, { useState } from 'react';
-import { Button, Tooltip, Popconfirm, Badge, Typography, Space, Modal, Progress } from 'antd';
-import { PlayCircleOutlined, LoadingOutlined, CheckCircleOutlined, CloseCircleOutlined, 
-         WarningOutlined, QuestionCircleOutlined, SyncOutlined } from '@ant-design/icons';
+import { Button, Tooltip, Typography, Space, Alert } from 'antd';
+import { 
+  PlayCircleOutlined, 
+  LoadingOutlined, 
+  WarningOutlined, 
+  LockOutlined,
+  RedoOutlined
+} from '@ant-design/icons';
 import { ActionData } from '../../types/types';
 import { useRuntime } from './RuntimeContext';
-import { ResultVisualization } from './ResultVisualization';
-import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
-
-// Configure dayjs
-dayjs.extend(relativeTime);
 
 const { Text } = Typography;
 
@@ -21,15 +20,6 @@ interface PlayActionButtonProps {
   onExecutionComplete?: (result: any) => void;
   onExecutionError?: (error: Error) => void;
 }
-
-/**
- * Gets error message from Error or string
- */
-const getErrorMessage = (error: Error | string | undefined): string => {
-  if (!error) return 'Unknown error';
-  if (typeof error === 'string') return error;
-  return error.message || 'Error without message';
-};
 
 /**
  * Button component for executing an action
@@ -81,55 +71,96 @@ export const PlayActionButton: React.FC<PlayActionButtonProps> = ({
     handleExecute();
   };
   
-  // Determine button state
+  // Determine button appearance based on state
+  let buttonType: 'primary' | 'default' | 'dashed' | 'text' | 'link' = 'primary';
+  let buttonIcon = <PlayCircleOutlined />;
   let buttonText = 'Run';
-  let disabled = !actionStatus.playable || isExecuting;
-  let buttonClass = 'action-button';
+  let disabled = false;
   
   if (isExecuting) {
+    buttonIcon = <LoadingOutlined />;
     buttonText = 'Running...';
-    buttonClass += ' loading';
-  } else if (hasError) {
-    buttonText = 'Retry';
-    buttonClass += ' error';
-  } else if (actionStatus.status === 'success') {
-    buttonText = 'Run Again';
-    buttonClass += ' success';
+    disabled = true;
   } else if (!actionStatus.playable) {
+    buttonType = 'default';
+    buttonIcon = <LockOutlined />;
     buttonText = 'Locked';
-    buttonClass += ' disabled';
+    disabled = true;
+  } else if (hasError) {
+    buttonType = 'primary';
+    buttonIcon = <WarningOutlined />;
+    buttonText = 'Retry';
+    buttonType = 'dashed'; // Use dashed for retry
+  } else if (actionStatus.status === 'success') {
+    buttonType = 'dashed';
+    buttonIcon = <RedoOutlined />;
+    buttonText = 'Run Again';
   }
   
+  // Tooltip content for locked actions
+  const tooltipContent = !actionStatus.playable && actionStatus.missingDependencies?.length ? (
+    <div>
+      <Text>Missing dependencies:</Text>
+      <ul style={{ paddingLeft: '20px', margin: '5px 0' }}>
+        {actionStatus.missingDependencies.map(dep => (
+          <li key={dep}>{dep}</li>
+        ))}
+      </ul>
+    </div>
+  ) : null;
+  
   return (
-    <div className="play-action-button-container">
-      <button
-        className={buttonClass}
-        disabled={disabled}
-        onClick={hasError ? handleRetry : handleExecute}
+    <Space direction="vertical" style={{ width: '100%' }}>
+      <Tooltip 
+        title={tooltipContent} 
+        placement="top" 
+        open={!actionStatus.playable && !!tooltipContent}
       >
-        {buttonText}
-      </button>
+        <Button
+          type={buttonType}
+          icon={buttonIcon}
+          loading={isExecuting}
+          disabled={disabled}
+          onClick={hasError ? handleRetry : handleExecute}
+          style={{ width: '100%' }}
+        >
+          {buttonText}
+        </Button>
+      </Tooltip>
       
       {actionStatus.executedAt && (
-        <span className="execution-time">
+        <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>
           {hasError ? 'Failed at ' : 'Executed at '}
           {new Date(actionStatus.executedAt).toLocaleTimeString()}
-        </span>
+          {(actionStatus.attempts ?? 0) > 1 ? ` (${actionStatus.attempts} attempts)` : ''}
+        </Text>
       )}
       
       {hasError && actionStatus.error && (
-        <div className="error-message">
-          {typeof actionStatus.error === 'string' 
+        <Alert
+          type="error"
+          message="Execution Error"
+          description={typeof actionStatus.error === 'string' 
             ? actionStatus.error 
             : actionStatus.error.message}
-        </div>
+          showIcon
+          action={
+            <Button size="small" onClick={handleRetry}>
+              Retry
+            </Button>
+          }
+        />
       )}
       
-      {!actionStatus.playable && actionStatus.missingDependencies && actionStatus.missingDependencies.length > 0 && (
-        <div className="missing-dependencies">
-          Missing dependencies: {actionStatus.missingDependencies.join(', ')}
-        </div>
+      {/* Display circular dependency error if present */}
+      {actionStatus.hasCircularDependency && (
+        <Alert
+          type="warning"
+          message="Circular Dependency Detected"
+          description={actionStatus.hasCircularDependency.message}
+          showIcon
+        />
       )}
-    </div>
+    </Space>
   );
 }; 

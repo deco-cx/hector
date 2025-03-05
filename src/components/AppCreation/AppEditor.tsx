@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Tabs, message, Spin, Alert, Button, Input, Card, Space, Typography, Row, Col, Radio } from 'antd';
-import { useWebdraw } from '../../context/WebdrawContext';
+import { useHector } from '../../context/HectorContext';
 import { StyleGuide } from './steps/StyleGuide';
 import { InputsConfig } from './steps/InputsConfig';
 import { ActionsConfig as ActionsConfigStep } from './steps/ActionsConfig';
@@ -32,11 +32,11 @@ interface ExtendedAppConfig extends Omit<AppConfig, 'output'> {
   output: OutputTemplate[];
 }
 
-export const AppEditor: React.FC<AppEditorProps> = ({ tab }) => {
+export function AppEditor({ tab = 'editor' }: AppEditorProps) {
+  const { service, sdk, isSDKAvailable } = useHector();
   const { appName: appId } = useParams<{ appName: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { service, isSDKAvailable } = useWebdraw();
   const { currentLanguage } = useLanguage();
   
   // State for the form data
@@ -294,7 +294,7 @@ export const AppEditor: React.FC<AppEditorProps> = ({ tab }) => {
     return (
       <RuntimeProvider
         sdk={service.getSDK() as WebdrawSDK}
-        appName={appNameString}
+        appId={appId || ''}
         inputs={formData?.inputs || []}
         actions={formData?.actions || []}
       >
@@ -421,4 +421,4 @@ export const AppEditor: React.FC<AppEditorProps> = ({ tab }) => {
       </div>
     </RuntimeProviderWrapper>
   );
-}; 
+} 

@@ -1,6 +1,6 @@
 import { ActionData, InputField, WebdrawSDK } from '../../types/types';
 import { extractInputReferences, buildDependencyGraph } from './actionExecutor';
-import { WebdrawService } from '../../services/WebdrawService';
+import { HectorService } from '../../services/HectorService';
 
 /**
  * Metadata for an action execution
@@ -60,36 +60,31 @@ interface WebDrawSDKFS {
 }
 
 /**
- * Class for managing the execution state, dependencies, and results
+ * ExecutionContext class
+ * Manages the execution state of an app
  */
 export class ExecutionContext {
-  // Values stored by filename
   private values: Record<string, any> = {};
-  
-  // Execution metadata by action id
-  private executionMeta: Record<string, ExecutionMetadata> = {};
-  
-  // Dependencies by action id
-  private dependencies: Record<string, string[]> = {};
-  
-  // Circular dependencies by action id
-  private circularDependencies: Record<string, CircularDependency> = {};
-  
-  // Subscribers for changes
+  private metadata: Record<string, ExecutionMetadata> = {};
+  private dependencyGraph: Map<string, Set<string>> = new Map();
+  private appId: string;
+  private inputs: InputField[];
+  private actions: ActionData[];
   private subscribers: (() => void)[] = [];
-  
-  // Add the lastExecutionTime property and getter
   private lastExecutionTime: string | null = null;
   
   /**
-   * Constructor
+   * Create a new ExecutionContext
    */
-  constructor() {
-    this.values = {};
-    this.executionMeta = {};
-    this.dependencies = {};
-    this.circularDependencies = {};
+  constructor(appId?: string, inputs?: InputField[], actions?: ActionData[]) {
+    this.appId = appId || '';
+    this.inputs = inputs || [];
+    this.actions = actions || [];
     this.subscribers = [];
+    
+    if (actions?.length) {
+      this.buildDependencyGraph(actions);
+    }
   }
   
   /**
@@ -149,7 +144,7 @@ export class ExecutionContext {
    * @returns The execution metadata
    */
   getExecutionMeta(actionId: string): ExecutionMetadata {
-    return this.executionMeta[actionId] || {};
+    return this.metadata[actionId] || {};
   }
   
   /**
@@ -157,7 +152,7 @@ export class ExecutionContext {
    * @returns All execution metadata
    */
   getAllExecutionMeta(): Record<string, ExecutionMetadata> {
-    return { ...this.executionMeta };
+    return { ...this.metadata };
   }
   
   /**
@@ -166,8 +161,8 @@ export class ExecutionContext {
    * @param metadata The metadata to update
    */
   updateExecutionMeta(actionId: string, metadata: Partial<ExecutionMetadata>): void {
-    this.executionMeta[actionId] = {
-      ...this.executionMeta[actionId],
+    this.metadata[actionId] = {
+      ...this.metadata[actionId],
       ...metadata
     };
     this.notifySubscribers();
@@ -191,7 +186,7 @@ export class ExecutionContext {
    * @param actionId The action ID
    */
   resetActionExecution(actionId: string): void {
-    this.executionMeta[actionId] = {
+    this.metadata[actionId] = {
       status: 'idle'
     };
     
@@ -202,13 +197,12 @@ export class ExecutionContext {
   }
   
   /**
-   * Gets the status of an action
-   * @param actionId The action ID
-   * @returns The action status
+   * Get action status including playability, execution state, and dependencies
    */
   getActionStatus(actionId: string): ActionStatus {
-    const meta = this.executionMeta[actionId] || {};
-    const circularDep = this.circularDependencies[actionId];
+    const meta = this.metadata[actionId] || {};
+    // Check if there's a circular dependency for this action
+    const hasCircularDep = this.checkCircularDependency(actionId);
     
     return {
       playable: this.canExecuteAction(actionId),
@@ -218,8 +212,64 @@ export class ExecutionContext {
       error: meta.error,
       attempts: meta.attempts || 0,
       missingDependencies: this.getMissingDependencies(actionId),
-      hasCircularDependency: circularDep
+      hasCircularDependency: hasCircularDep
     };
+  }
+  
+  /**
+   * Check if an action has a circular dependency
+   * @param actionId The action ID to check
+   * @returns A CircularDependency object if circular dependency exists, undefined otherwise
+   */
+  private checkCircularDependency(actionId: string): CircularDependency | undefined {
+    // Check if the action depends on itself (directly or indirectly)
+    const visited = new Set<string>();
+    const path: string[] = [];
+    
+    const dfs = (current: string): boolean => {
+      if (visited.has(current)) {
+        if (current === actionId) {
+          // Found a cycle back to the starting node
+          return true;
+        }
+        return false;
+      }
+      
+      visited.add(current);
+      path.push(current);
+      
+      const dependencies = this.dependencyGraph.get(current);
+      if (dependencies) {
+        for (const dep of dependencies) {
+          if (dfs(dep)) {
+            return true;
+          }
+        }
+      }
+      
+      path.pop();
+      return false;
+    };
+    
+    if (dfs(actionId)) {
+      return {
+        cycle: [...path],
+        message: `Circular dependency detected: ${path.join(' -> ')} -> ${actionId}`
+      };
+    }
+    
+    return undefined;
+  }
+  
+  /**
+   * Get missing dependencies for an action
+   */
+  getMissingDependencies(actionId: string): string[] {
+    const dependencies = this.dependencyGraph.get(actionId);
+    if (!dependencies) return [];
+    
+    // Convert Set to Array and filter
+    return Array.from(dependencies).filter(dep => !this.hasValue(dep));
   }
   
   /**
@@ -245,23 +295,13 @@ export class ExecutionContext {
     const id = typeof actionId === 'string' ? actionId : actionId.id;
     
     // Check for circular dependencies
-    if (this.circularDependencies[id]) {
+    if (this.dependencyGraph.get(id)?.has(id)) {
       return false;
     }
     
     // Check for missing dependencies
     const missingDeps = this.getMissingDependencies(id);
     return missingDeps.length === 0;
-  }
-  
-  /**
-   * Gets missing dependencies for an action
-   * @param actionId The action ID
-   * @returns Array of missing dependency keys
-   */
-  getMissingDependencies(actionId: string): string[] {
-    const deps = this.dependencies[actionId] || [];
-    return deps.filter(dep => !this.hasValue(dep));
   }
   
   /**
@@ -294,31 +334,120 @@ export class ExecutionContext {
   }
   
   /**
-   * Builds the dependency graph for a set of actions
-   * @param actions The actions to build dependencies for
+   * Build dependency graph for all actions
    */
   buildDependencyGraph(actions: ActionData[]): void {
-    this.dependencies = {};
-    this.circularDependencies = {};
+    this.dependencyGraph.clear();
+    
+    // Initialize empty sets for each action
+    for (const action of actions) {
+      this.dependencyGraph.set(action.id, new Set<string>());
+    }
     
     // Use buildDependencyGraph from actionExecutor.ts for each action
     for (const action of actions) {
-      if (!this.dependencies[action.id]) {
-        const { graph, circularDeps } = buildDependencyGraph(action.id, actions);
-        
-        // Merge the results into our dependency maps
-        Object.assign(this.dependencies, graph);
-        
-        // Convert circular dependencies to our format
-        for (const cycle of circularDeps) {
-          if (cycle.length > 0) {
-            const actionId = cycle[0];
-            this.circularDependencies[actionId] = {
-              cycle,
-              message: `Circular dependency detected: ${cycle.join(' -> ')} -> ${actionId}`
-            };
+      try {
+        const deps = this.extractDependencies(action);
+        if (deps.length > 0) {
+          // Add dependencies to the graph
+          for (const dep of deps) {
+            this.dependencyGraph.get(action.id)?.add(dep);
           }
         }
+      } catch (error) {
+        console.error(`Failed to build dependency graph for action ${action.id}:`, error);
+      }
+    }
+    
+    // Check for circular dependencies
+    this.detectCircularDependencies();
+  }
+  
+  /**
+   * Extract dependencies from an action
+   */
+  private extractDependencies(action: ActionData): string[] {
+    // Extract references from prompt and other fields
+    const deps: string[] = [];
+    
+    // Check prompt for references
+    if (action.prompt) {
+      const promptValue = typeof action.prompt === 'object' 
+        ? Object.values(action.prompt).join(' ') 
+        : action.prompt;
+        
+      const references = this.findReferences(promptValue);
+      deps.push(...references);
+    }
+    
+    // Check config for references
+    if (action.config) {
+      const configString = JSON.stringify(action.config);
+      const references = this.findReferences(configString);
+      deps.push(...references);
+    }
+    
+    return [...new Set(deps)]; // Remove duplicates
+  }
+  
+  /**
+   * Find references in a string (e.g., {{input.name}})
+   */
+  private findReferences(text: string): string[] {
+    const regex = /\{\{([^}]+)\}\}/g;
+    const matches = text.matchAll(regex);
+    const references: string[] = [];
+    
+    for (const match of matches) {
+      const ref = match[1].trim();
+      // Split by dot to get the main reference
+      const parts = ref.split('.');
+      if (parts.length > 0) {
+        references.push(parts[0]);
+      }
+    }
+    
+    return references;
+  }
+  
+  /**
+   * Detect circular dependencies in the graph
+   */
+  private detectCircularDependencies(): void {
+    const visited = new Set<string>();
+    const stack = new Set<string>();
+    
+    const dfs = (node: string): boolean => {
+      if (stack.has(node)) {
+        return true; // Circular dependency found
+      }
+      
+      if (visited.has(node)) {
+        return false; // Already checked, no circular dependency
+      }
+      
+      visited.add(node);
+      stack.add(node);
+      
+      const deps = this.dependencyGraph.get(node);
+      if (deps) {
+        for (const dep of deps) {
+          if (dfs(dep)) {
+            // Mark the circular dependency
+            this.dependencyGraph.get(node)?.add(node); // Self-dependency indicates circularity
+            return true;
+          }
+        }
+      }
+      
+      stack.delete(node);
+      return false;
+    };
+    
+    // Check all nodes
+    for (const node of this.dependencyGraph.keys()) {
+      if (!visited.has(node)) {
+        dfs(node);
       }
     }
   }
@@ -369,37 +498,27 @@ export class ExecutionContext {
       // Store current values before saving
       const currentValues = { ...this.values };
       
-      // Create directories if they don't exist
-      try {
-        await sdk.fs.mkdir(`Hector`, { recursive: true });
-        await sdk.fs.mkdir(`Hector/executions`, { recursive: true });
-        await sdk.fs.mkdir(`Hector/executions/${appName}`, { recursive: true });
-      } catch (e) {
-        console.log('Directories might already exist:', e);
-      }
-      
-      // Create timestamp for filename
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const filename = `Hector/executions/${appName}/${timestamp}.json`;
-      
-      // Make deep copies of state to avoid reference issues
-      const valuesCopy = JSON.parse(JSON.stringify(currentValues));
-      const executionMetaCopy = JSON.parse(JSON.stringify(this.executionMeta));
+      // Initialize the HectorService
+      const hectorService = HectorService.getInstance();
       
       // Create the state to save
       const state: ExecutionState = {
-        values: valuesCopy,
-        executionMeta: executionMetaCopy,
+        values: JSON.parse(JSON.stringify(currentValues)),
+        executionMeta: JSON.parse(JSON.stringify(this.metadata)),
         timestamp: new Date().toISOString()
       };
       
-      // Write to file
-      await sdk.fs.write(filename, JSON.stringify(state, null, 2));
+      // Save to history
+      const timestamp = await hectorService.saveExecution(appName, state);
       
-      // Save to app config as well
-      await this.saveCurrentExecutionToAppConfig(sdk, appName);
+      // Save current execution to app config as well
+      await hectorService.saveCurrentExecution(
+        appName, 
+        currentValues, 
+        this.metadata
+      );
       
-      console.log(`Execution state saved to ${filename}`);
+      console.log(`Execution state saved for ${appName}`);
       this.lastExecutionTime = new Date().toISOString();
       
       // Ensure values are preserved
@@ -416,31 +535,21 @@ export class ExecutionContext {
    */
   private async saveCurrentExecutionToAppConfig(sdk: any, appName: string): Promise<void> {
     try {
-      // Initialize WebdrawService if not already done
-      WebdrawService.initialize(sdk);
-      const webdrawService = WebdrawService.getInstance();
+      // Initialize the HectorService
+      const hectorService = HectorService.getInstance();
       
-      try {
-        // Get the existing app configuration
-        const appConfig = await webdrawService.loadApp(appName);
-        
-        // Make a deep copy of values and executionMeta to avoid reference issues
-        const valuesCopy = JSON.parse(JSON.stringify(this.values));
-        const executionMetaCopy = JSON.parse(JSON.stringify(this.executionMeta));
-        
-        // Add/update the current execution state
-        appConfig.currentExecution = {
-          values: valuesCopy,
-          executionMeta: executionMetaCopy,
-          timestamp: new Date().toISOString()
-        };
-        
-        // Use the service to save the app
-        await webdrawService.saveApp(appConfig.id, appConfig);
-        console.log(`Current execution state saved to app config for ${appName}`);
-      } catch (error) {
-        console.error('Error loading or saving app config:', error);
-      }
+      // Make a deep copy of values and executionMeta to avoid reference issues
+      const valuesCopy = JSON.parse(JSON.stringify(this.values));
+      const executionMetaCopy = JSON.parse(JSON.stringify(this.metadata));
+      
+      // Use HectorService to save the current execution
+      await hectorService.saveCurrentExecution(
+        appName, 
+        valuesCopy, 
+        executionMetaCopy
+      );
+      
+      console.log(`Current execution state saved for app: ${appName}`);
     } catch (error) {
       console.error('Failed to save current execution to app config:', error);
     }
@@ -454,9 +563,9 @@ export class ExecutionContext {
     try {
       // Make deep copies to avoid reference issues
       this.values = state.values ? JSON.parse(JSON.stringify(state.values)) : {};
-      this.executionMeta = state.executionMeta ? JSON.parse(JSON.stringify(state.executionMeta)) : {};
+      this.metadata = state.executionMeta ? JSON.parse(JSON.stringify(state.executionMeta)) : {};
       
-      // Set the lastExecutionTime if present in state
+    // Set the lastExecutionTime if present in state
       if (state.timestamp) {
         this.lastExecutionTime = state.timestamp;
       }
@@ -474,7 +583,7 @@ export class ExecutionContext {
   getExecutionState(): ExecutionState {
     return {
       values: this.values,
-      executionMeta: this.executionMeta,
+      executionMeta: this.metadata,
       timestamp: this.lastExecutionTime || new Date().toISOString()
     };
   }
@@ -486,13 +595,12 @@ export class ExecutionContext {
    */
   async loadCurrentExecution(sdk: any, appName: string): Promise<void> {
     try {
-      // Initialize WebdrawService if not already done
-      WebdrawService.initialize(sdk);
-      const webdrawService = WebdrawService.getInstance();
+      // Initialize the HectorService
+      const hectorService = HectorService.getInstance();
       
       try {
         // Load the app config using the service
-        const appConfig = await webdrawService.loadApp(appName);
+        const appConfig = await hectorService.getApp(appName);
         
         // Check if there's a current execution
         if (appConfig.currentExecution) {
@@ -510,7 +618,7 @@ export class ExecutionContext {
           
           // Merge with values from app config
           this.values = { ...currentValues, ...valuesCopy };
-          this.executionMeta = executionMetaCopy;
+          this.metadata = executionMetaCopy;
           
           if (appConfig.currentExecution.timestamp) {
             this.lastExecutionTime = appConfig.currentExecution.timestamp;
@@ -534,17 +642,14 @@ export class ExecutionContext {
    */
   async loadExecutionFromHistory(sdk: any, appName: string, timestamp: string): Promise<void> {
     try {
-      const filePath = `Hector/executions/${appName}/${timestamp}.json`;
+      // Initialize the HectorService
+      const hectorService = HectorService.getInstance();
       
-      const exists = await sdk.fs.exists(filePath);
-      if (exists) {
-        const stateContent = await sdk.fs.readFile(filePath);
-        const state = JSON.parse(stateContent as string);
-        
-        this.loadFromState(state);
-      } else {
-        throw new Error(`Execution state file not found: ${filePath}`);
-      }
+      // Load execution from history
+      const state = await hectorService.loadExecution(appName, timestamp);
+      
+      // Load the state
+      this.loadFromState(state);
     } catch (error) {
       console.error('Failed to load execution from history:', error);
       throw error;

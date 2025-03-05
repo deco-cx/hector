@@ -1,14 +1,34 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { ConfigProvider, theme } from 'antd';
-import { WebdrawProvider } from './context/WebdrawContext';
+import { ConfigProvider, theme, Spin, Alert } from 'antd';
+import { HectorProvider } from './context/HectorContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { HomePage } from './components/Home/HomePage';
 import { AppEditor } from './components/AppCreation/AppEditor';
-import SDK from './sdk/webdraw-sdk-client';
 import './index.css';
 
 function App() {
+  const [initialized, setInitialized] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  
+  // Show loading while initializing
+  if (!initialized) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        {error ? (
+          <Alert
+            message="Initialization Error"
+            description={error.message}
+            type="error"
+            showIcon
+          />
+        ) : (
+          <Spin tip="Initializing..." size="large" />
+        )}
+      </div>
+    );
+  }
+  
   return (
     <ConfigProvider
       theme={{
@@ -20,7 +40,7 @@ function App() {
         },
       }}
     >
-      <WebdrawProvider sdk={SDK}>
+      <HectorProvider>
         <LanguageProvider>
           <Router>
             <Routes>
@@ -30,7 +50,7 @@ function App() {
             </Routes>
           </Router>
         </LanguageProvider>
-      </WebdrawProvider>
+      </HectorProvider>
     </ConfigProvider>
   );
 }

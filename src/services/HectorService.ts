@@ -1,35 +1,24 @@
-import { WebdrawSDKImpl } from './WebdrawSDK';
-import { AppConfig } from '../types/types';
+import webdrawSDK from '../sdk/WebdrawSDK';
+import { AppConfig, WebdrawSDK } from '../types/types';
 import { ExecutionState, ExecutionMetadata } from '../components/Runtime/ExecutionContext';
 
 /**
  * Service for Hector-specific operations.
- * This includes app and execution management.
+ * This includes app and execution management, and provides access to the SDK.
  */
 export class HectorService {
   private static instance: HectorService | null = null;
   private readonly APPS_PATH = '~/Hector/apps/';
   private readonly EXECUTIONS_PATH = '~/Hector/executions/';
-  private sdk: WebdrawSDKImpl;
   
   private constructor() {
-    this.sdk = WebdrawSDKImpl.getInstance();
+    // No need to initialize anything - SDK is already initialized
   }
   
   /**
    * Get the singleton instance
    */
   public static getInstance(): HectorService {
-    if (!HectorService.instance) {
-      HectorService.instance = new HectorService();
-    }
-    return HectorService.instance;
-  }
-  
-  /**
-   * Initialize the service
-   */
-  public static initialize(): HectorService {
     if (!HectorService.instance) {
       HectorService.instance = new HectorService();
     }
@@ -46,8 +35,35 @@ export class HectorService {
   /**
    * Get the underlying SDK
    */
-  public getSDK(): WebdrawSDKImpl {
-    return this.sdk;
+  public getSDK(): WebdrawSDK {
+    return webdrawSDK;
+  }
+  
+  /**
+   * Execute AI object generation - compatibility method for existing components
+   * @param options Options for generation including prompt and schema
+   */
+  public async executeAIGenerateObject(options: {
+    prompt: string;
+    schema: {
+      type: "object";
+      properties: Record<string, any>;
+      required?: string[];
+    };
+    temperature?: number;
+  }): Promise<any> {
+    // Type the schema properly to match the ObjectPayload interface
+    const schema = {
+      type: "object" as const,
+      properties: options.schema.properties
+    };
+    
+    // Use the SDK's AI interface to generate the object
+    return this.getSDK().ai.generateObject({
+      prompt: options.prompt,
+      schema,
+      temperature: options.temperature || 0.7
+    });
   }
   
   /**
@@ -60,7 +76,7 @@ export class HectorService {
       // Ensure the directory exists
       await this.ensureDirectory(this.APPS_PATH);
       
-      const files = await this.sdk.fs.list(this.APPS_PATH);
+      const files = await this.getSDK().fs.list(this.APPS_PATH);
       console.log("Found files:", files);
       
       const jsonFiles = files.filter(file => file.endsWith('.json'));
@@ -74,7 +90,7 @@ export class HectorService {
       const apps = await Promise.all(
         jsonFiles.map(async (file) => {
           try {
-            const content = await this.sdk.fs.read(file);
+            const content = await this.getSDK().fs.read(file);
             const appData = JSON.parse(content) as AppConfig;
             
             // Extract just the filename from the path for display
@@ -124,12 +140,12 @@ export class HectorService {
     
     try {
       // Check if the file exists
-      const exists = await this.sdk.fs.exists(path);
+      const exists = await this.getSDK().fs.exists(path);
       if (!exists) {
         throw new Error(`App not found: ${id}`);
       }
       
-      const content = await this.sdk.fs.read(path);
+      const content = await this.getSDK().fs.read(path);
       console.log("File content loaded successfully");
       
       // Parse the content
@@ -172,7 +188,7 @@ export class HectorService {
       
       // Serialize and save
       const serializedApp = JSON.stringify(app, null, 2);
-      await this.sdk.fs.write(path, serializedApp);
+      await this.getSDK().fs.write(path, serializedApp);
       
       console.log(`App saved successfully to ${path}`);
     } catch (error) {
@@ -193,13 +209,13 @@ export class HectorService {
     console.log("Deleting app file:", path);
     
     try {
-      const exists = await this.sdk.fs.exists(path);
+      const exists = await this.getSDK().fs.exists(path);
       if (!exists) {
         console.warn(`App file does not exist: ${path}`);
         return;
       }
       
-      await this.sdk.fs.remove(path);
+      await this.getSDK().fs.remove(path);
       console.log(`App deleted successfully: ${id}`);
     } catch (error) {
       console.error("Error deleting app:", error);
@@ -253,7 +269,7 @@ export class HectorService {
       await this.ensureDirectory(executionPath);
       
       // Serialize and save
-      await this.sdk.fs.write(filename, JSON.stringify(state, null, 2));
+      await this.getSDK().fs.write(filename, JSON.stringify(state, null, 2));
       console.log(`Execution state saved to ${filename}`);
       
       return timestamp;
@@ -273,12 +289,12 @@ export class HectorService {
     try {
       const filePath = `${this.EXECUTIONS_PATH}${appId}/${timestamp}.json`;
       
-      const exists = await this.sdk.fs.exists(filePath);
+      const exists = await this.getSDK().fs.exists(filePath);
       if (!exists) {
         throw new Error(`Execution state file not found: ${filePath}`);
       }
       
-      const stateContent = await this.sdk.fs.read(filePath);
+      const stateContent = await this.getSDK().fs.read(filePath);
       return JSON.parse(stateContent) as ExecutionState;
     } catch (error) {
       console.error("Error loading execution state:", error);
@@ -294,12 +310,12 @@ export class HectorService {
       const executionPath = `${this.EXECUTIONS_PATH}${appId}/`;
       
       // Check if directory exists
-      const exists = await this.sdk.fs.exists(executionPath);
+      const exists = await this.getSDK().fs.exists(executionPath);
       if (!exists) {
         return [];
       }
       
-      const files = await this.sdk.fs.list(executionPath);
+      const files = await this.getSDK().fs.list(executionPath);
       return files
         .filter(file => file.endsWith('.json'))
         .map(file => {
@@ -318,9 +334,9 @@ export class HectorService {
    */
   private async ensureDirectory(path: string): Promise<void> {
     try {
-      const exists = await this.sdk.fs.exists(path);
+      const exists = await this.getSDK().fs.exists(path);
       if (!exists) {
-        await this.sdk.fs.mkdir(path, { recursive: true });
+        await this.getSDK().fs.mkdir(path, { recursive: true });
       }
     } catch (error) {
       console.error(`Error ensuring directory ${path}:`, error);

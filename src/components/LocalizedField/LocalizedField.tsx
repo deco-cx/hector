@@ -3,7 +3,7 @@ import { Input, Form, Tooltip, Button, Modal, Spin, message } from 'antd';
 import { TranslationOutlined } from '@ant-design/icons';
 import LanguageToggle from '../LanguageToggle/LanguageToggle';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { Localizable, getLocalizedValue, setLocalizedValue, hasLanguage } from '../../types/i18n';
+import { Localizable, getLocalizedValue, setLocalizedValue, hasLanguage } from '../../types/types';
 import './LocalizedField.css';
 
 // Translation service mock - to be replaced with actual SDK implementation

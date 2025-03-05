@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Input, Button, Space, Tooltip, InputProps } from 'antd';
 import { GlobalOutlined, PlusOutlined } from '@ant-design/icons';
-import { Localizable, AVAILABLE_LANGUAGES, DEFAULT_LANGUAGE } from '../../types/i18n';
+import { Localizable, AVAILABLE_LANGUAGES, DEFAULT_LANGUAGE } from '../../types/types';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useNavigate, useParams } from 'react-router-dom';
 import './LocalizableInput.css';

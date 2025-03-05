@@ -1,3 +1,0 @@
-import { WebdrawSDK, AppConfig } from '../types/types';
-
-// ... existing code ... 
