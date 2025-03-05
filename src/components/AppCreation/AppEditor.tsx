@@ -8,12 +8,11 @@ import { StyleGuide } from './steps/StyleGuide';
 import { InputsConfig } from './steps/InputsConfig';
 import { ActionsConfig as ActionsConfigStep } from './steps/ActionsConfig';
 import { OutputConfig } from './steps/OutputConfig';
-import { getLocalizedValue, WebdrawSDK, AppConfig } from '../../types/types';
+import { getLocalizedValue, AppConfig } from '../../types/types';
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons';
 import LanguageSettings from '../LanguageSettings/LanguageSettings';
 import JSONViewer from '../JSONViewer/JSONViewer';
 import ExportsView from '../Exports/ExportsView';
-import { RuntimeProvider } from '../../components/Runtime';
 import { ExecutionPill } from '../../components/Runtime/ExecutionPill';
 
 // Extend Window interface to include our custom property
@@ -128,28 +127,6 @@ export function AppEditor({ tab = 'style' }: AppEditorProps) {
       : String(appId) || 'app';
   }, [appConfig, selectedLanguage, appId]);
   
-  // Create a wrapper for the RuntimeProvider that removes the mode-related functionality
-  const RuntimeProviderWrapper: React.FC<React.PropsWithChildren> = ({ children }) => {
-    // This will be rendered inside the RuntimeContext, allowing us to use the already defined state
-    console.log('RuntimeProvider render cycle - service type:', service);
-    
-    if (!appConfig) {
-      return <>{children}</>;
-    }
-    
-    // Use the getSDK() method to access the WebdrawSDK instance
-    return (
-      <RuntimeProvider
-        sdk={service.getSDK() as WebdrawSDK}
-        appId={appId || ''}
-        inputs={appConfig.inputs || []}
-        actions={appConfig.actions || []}
-      >
-        {children}
-      </RuntimeProvider>
-    );
-  };
-  
   if (!isSDKAvailable) {
     return (
       <div className="p-4">
@@ -206,112 +183,110 @@ export function AppEditor({ tab = 'style' }: AppEditorProps) {
   }
   
   return (
-    <RuntimeProviderWrapper>
-      <div className="app-editor">
-        <div className="app-editor-header" style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
-          marginBottom: 16,
-          padding: '8px 16px',
-          backgroundColor: '#f5f5f5',
-          borderBottom: '1px solid #e8e8e8'
-        }}>
-          <Space>
-            <Button 
-              icon={<ArrowLeftOutlined />} 
-              onClick={() => navigate('/')}
-            >
-              Back
-            </Button>
-            <Typography.Title level={4} style={{ margin: 0 }}>
-              {getLocalizedValue(appConfig.name, selectedLanguage) || appId}
-            </Typography.Title>
-          </Space>
-          
-          <Space>
-            <ExecutionPill />
-            <Button 
-              type="primary" 
-              icon={<SaveOutlined />} 
-              onClick={handleSaveApp} 
-              loading={appSaving}
-            >
-              Save
-            </Button>
-          </Space>
-        </div>
+    <div className="app-editor">
+      <div className="app-editor-header" style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        marginBottom: 16,
+        padding: '8px 16px',
+        backgroundColor: '#f5f5f5',
+        borderBottom: '1px solid #e8e8e8'
+      }}>
+        <Space>
+          <Button 
+            icon={<ArrowLeftOutlined />} 
+            onClick={() => navigate('/')}
+          >
+            Back
+          </Button>
+          <Typography.Title level={4} style={{ margin: 0 }}>
+            {getLocalizedValue(appConfig.name, selectedLanguage) || appId}
+          </Typography.Title>
+        </Space>
         
-        <div className="app-editor-content" style={{ padding: 16 }}>
-          <Tabs 
-            activeKey={currentTab} 
-            onChange={handleTabChange}
-            destroyInactiveTabPane={false}
-            items={[
-              {
-                key: 'style',
-                label: 'Style Guide',
-                children: (
-                  <StyleGuide 
-                    formData={appConfig} 
-                    setFormData={handleFormDataChange}
-                  />
-                )
-              },
-              {
-                key: 'inputs',
-                label: 'Inputs',
-                children: (
-                  <InputsConfig 
-                    formData={appConfig} 
-                    setFormData={handleFormDataChange}
-                  />
-                )
-              },
-              {
-                key: 'actions',
-                label: 'Actions',
-                children: (
-                  <ActionsConfigStep 
-                    formData={appConfig} 
-                    setFormData={handleFormDataChange}
-                  />
-                )
-              },
-              {
-                key: 'output',
-                label: 'Output',
-                children: (
-                  <OutputConfig 
-                    formData={appConfig} 
-                    setFormData={handleFormDataChange}
-                  />
-                )
-              },
-              {
-                key: 'languages',
-                label: 'Languages',
-                children: (
-                  <LanguageSettings 
-                    formData={appConfig} 
-                    setFormData={handleFormDataChange}
-                  />
-                )
-              },
-              {
-                key: 'json',
-                label: 'JSON View',
-                children: <JSONViewer data={appConfig} />
-              },
-              {
-                key: 'exports',
-                label: 'Export',
-                children: <ExportsView data={appConfig} />
-              }
-            ]}
-          />
-        </div>
+        <Space>
+          <ExecutionPill />
+          <Button 
+            type="primary" 
+            icon={<SaveOutlined />} 
+            onClick={handleSaveApp} 
+            loading={appSaving}
+          >
+            Save
+          </Button>
+        </Space>
       </div>
-    </RuntimeProviderWrapper>
+      
+      <div className="app-editor-content" style={{ padding: 16 }}>
+        <Tabs 
+          activeKey={currentTab} 
+          onChange={handleTabChange}
+          destroyInactiveTabPane={false}
+          items={[
+            {
+              key: 'style',
+              label: 'Style Guide',
+              children: (
+                <StyleGuide 
+                  formData={appConfig} 
+                  setFormData={handleFormDataChange}
+                />
+              )
+            },
+            {
+              key: 'inputs',
+              label: 'Inputs',
+              children: (
+                <InputsConfig 
+                  formData={appConfig} 
+                  setFormData={handleFormDataChange}
+                />
+              )
+            },
+            {
+              key: 'actions',
+              label: 'Actions',
+              children: (
+                <ActionsConfigStep 
+                  formData={appConfig} 
+                  setFormData={handleFormDataChange}
+                />
+              )
+            },
+            {
+              key: 'output',
+              label: 'Output',
+              children: (
+                <OutputConfig 
+                  formData={appConfig} 
+                  setFormData={handleFormDataChange}
+                />
+              )
+            },
+            {
+              key: 'languages',
+              label: 'Languages',
+              children: (
+                <LanguageSettings 
+                  formData={appConfig} 
+                  setFormData={handleFormDataChange}
+                />
+              )
+            },
+            {
+              key: 'json',
+              label: 'JSON View',
+              children: <JSONViewer data={appConfig} />
+            },
+            {
+              key: 'exports',
+              label: 'Export',
+              children: <ExportsView data={appConfig} />
+            }
+          ]}
+        />
+      </div>
+    </div>
   );
 } 

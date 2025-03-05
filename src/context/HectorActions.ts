@@ -1,7 +1,8 @@
 import { Dispatch } from 'react';
 import { ActionType, HectorAction } from './HectorReducer';
-import { AppConfig, InputField, ActionData, OutputTemplate } from '../types/types';
+import { AppConfig, InputField, ActionData, OutputTemplate, WebdrawSDK } from '../types/types';
 import { HectorService } from '../services/HectorService';
+import { ExecutionMetadata } from '../components/Runtime/ExecutionContext';
 
 // Create action creators that correspond to the actions defined in HectorReducer
 
@@ -144,11 +145,11 @@ export const loadAppConfig = async (
     
     dispatch({ type: ActionType.SET_APP_CONFIG, payload: appData });
     
-    // If app has supported languages, update available languages
-    if (appData?.supportedLanguages && Array.isArray(appData.supportedLanguages)) {
+    // If app has supported languages, use UPDATE_APP_LANGUAGE for the first language
+    if (appData?.supportedLanguages && Array.isArray(appData.supportedLanguages) && appData.supportedLanguages.length > 0) {
       dispatch({ 
-        type: ActionType.SET_AVAILABLE_LANGUAGES, 
-        payload: appData.supportedLanguages 
+        type: ActionType.UPDATE_APP_LANGUAGE, 
+        payload: appData.supportedLanguages[0]
       });
     }
     
@@ -189,4 +190,69 @@ export const saveAppConfig = async (
   } finally {
     dispatch({ type: ActionType.SET_APP_SAVING, payload: false });
   }
+};
+
+// Runtime actions (migrated from RuntimeContext)
+export const setSDK = (dispatch: Dispatch<HectorAction>, sdk: WebdrawSDK | null) => {
+  dispatch({ type: ActionType.SET_SDK, payload: sdk });
+};
+
+export const initializeExecutionContext = (
+  dispatch: Dispatch<HectorAction>,
+  appId: string,
+  inputs: InputField[],
+  actions: ActionData[]
+) => {
+  dispatch({
+    type: ActionType.INITIALIZE_EXECUTION_CONTEXT,
+    payload: { appId, inputs, actions }
+  });
+};
+
+export const setActionExecuting = (
+  dispatch: Dispatch<HectorAction>,
+  actionId: string,
+  isExecuting: boolean
+) => {
+  dispatch({
+    type: ActionType.SET_ACTION_EXECUTING,
+    payload: { actionId, isExecuting }
+  });
+};
+
+export const resetAction = (dispatch: Dispatch<HectorAction>, actionId: string) => {
+  dispatch({ type: ActionType.RESET_ACTION, payload: actionId });
+};
+
+export const setExecutionValue = (
+  dispatch: Dispatch<HectorAction>,
+  key: string,
+  value: any
+) => {
+  dispatch({ 
+    type: ActionType.SET_EXECUTION_VALUE, 
+    payload: { key, value } 
+  });
+};
+
+export const updateExecutionMeta = (
+  dispatch: Dispatch<HectorAction>,
+  actionId: string,
+  metadata: Partial<ExecutionMetadata>
+) => {
+  dispatch({
+    type: ActionType.UPDATE_EXECUTION_META,
+    payload: { actionId, metadata }
+  });
+};
+
+export const markActionFailed = (
+  dispatch: Dispatch<HectorAction>,
+  actionId: string,
+  error: Error | string
+) => {
+  dispatch({
+    type: ActionType.MARK_ACTION_FAILED,
+    payload: { actionId, error }
+  });
 }; 

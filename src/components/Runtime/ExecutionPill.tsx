@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Badge, Button, Modal, List, Typography, Space, Tag, Tooltip } from 'antd';
 import { HistoryOutlined, ClockCircleOutlined } from '@ant-design/icons';
-import { useRuntime } from './RuntimeContext';
+import { useHector } from '../../context/HectorContext';
 import { formatDistanceToNow } from 'date-fns';
 
 const { Text, Title } = Typography;
@@ -16,11 +16,11 @@ interface Execution {
  * ExecutionPill component for showing execution history
  */
 export const ExecutionPill: React.FC = () => {
-  const { executionContext } = useRuntime();
+  const { executionContext } = useHector();
   const [modalVisible, setModalVisible] = useState(false);
   
   // Get last execution time from the context
-  const lastExecution = executionContext.getLastExecutionTime();
+  const lastExecution = executionContext?.getLastExecutionTime?.() || null;
   
   // This would be replaced with actual history data from the backend
   const executionHistory: Execution[] = [

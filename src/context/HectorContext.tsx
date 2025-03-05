@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useReducer, ReactNode, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useReducer, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { HectorService } from '../services/HectorService';
-import { WebdrawSDK, DEFAULT_LANGUAGE, AVAILABLE_LANGUAGES, STORAGE_KEYS, AppConfig } from '../types/types';
+import { WebdrawSDK, DEFAULT_LANGUAGE, AVAILABLE_LANGUAGES, STORAGE_KEYS, AppConfig, ActionData } from '../types/types';
 import { hectorReducer, initialState, ActionType } from './HectorReducer';
 import { HectorStateContext, useHectorState, HectorStateWithRefs } from './HectorStateContext';
 import { HectorDispatchContext, useHectorDispatch } from './HectorDispatchContext';
@@ -13,6 +13,10 @@ export interface HectorContextType extends HectorStateWithRefs {
   // Additional methods
   reloadSDK: () => void;
   navigateToLanguageSettings: () => void;
+  // Runtime methods (migrated from RuntimeContext)
+  executeAction: (action: ActionData) => Promise<any>;
+  isActionExecuting: (actionId: string) => boolean;
+  resetAction: (actionId: string) => void;
 }
 
 /**
@@ -33,6 +37,27 @@ export function HectorProvider({ children }: HectorProviderProps) {
   const hectorService = HectorService.getInstance();
   const sdk = hectorService.getSDK();
   
+  // Initialize the SDK in state
+  useEffect(() => {
+    if (sdk) {
+      dispatch({ type: ActionType.SET_SDK, payload: sdk });
+    }
+  }, [sdk]);
+  
+  // Initialize execution context when appConfig changes
+  useEffect(() => {
+    if (state.appConfig && state.sdk) {
+      dispatch({
+        type: ActionType.INITIALIZE_EXECUTION_CONTEXT,
+        payload: {
+          appId: state.appConfig.id,
+          inputs: state.appConfig.inputs || [],
+          actions: state.appConfig.actions || []
+        }
+      });
+    }
+  }, [state.appConfig?.id, state.sdk]);
+
   /**
    * Reload SDK function
    */
@@ -154,12 +179,73 @@ export function HectorProvider({ children }: HectorProviderProps) {
     window.location.href = '/settings/languages';
   };
   
-  // Create the context value with service and SDK references
-  const contextValue = {
+  /**
+   * Execute an action (migrated from RuntimeContext)
+   */
+  const executeAction = useCallback(async (action: ActionData) => {
+    if (!state.executionContext || !state.sdk) {
+      throw new Error('Execution context or SDK not initialized');
+    }
+    
+    // Mark action as executing
+    dispatch({ 
+      type: ActionType.SET_ACTION_EXECUTING, 
+      payload: { actionId: action.id, isExecuting: true } 
+    });
+    
+    try {
+      // Use the ExecutionContext's built-in executeAction method
+      const result = await state.executionContext.executeAction(action, state.sdk);
+      return result;
+    } catch (error) {
+      // Mark action as failed
+      dispatch({
+        type: ActionType.MARK_ACTION_FAILED,
+        payload: { 
+          actionId: action.id, 
+          error: error instanceof Error ? error : String(error)
+        }
+      });
+      throw error;
+    } finally {
+      // Clear executing state
+      dispatch({ 
+        type: ActionType.SET_ACTION_EXECUTING, 
+        payload: { actionId: action.id, isExecuting: false } 
+      });
+    }
+  }, [state.executionContext, state.sdk]);
+  
+  /**
+   * Check if an action is executing (migrated from RuntimeContext)
+   */
+  const isActionExecuting = useCallback((actionId: string) => {
+    return !!state.executingActions[actionId];
+  }, [state.executingActions]);
+  
+  /**
+   * Reset an action's execution state (migrated from RuntimeContext)
+   */
+  const resetAction = useCallback((actionId: string) => {
+    dispatch({ type: ActionType.RESET_ACTION, payload: actionId });
+  }, []);
+  
+  // Create the context value with service, SDK references, and runtime methods
+  const contextValue = useMemo(() => ({
     ...state,
     service: hectorService,
-    sdk
-  };
+    sdk,
+    executeAction,
+    isActionExecuting,
+    resetAction
+  }), [
+    state, 
+    hectorService, 
+    sdk, 
+    executeAction, 
+    isActionExecuting, 
+    resetAction
+  ]);
   
   return (
     <HectorStateContext.Provider value={contextValue}>
@@ -187,7 +273,11 @@ export function useHector(): HectorContextType {
   return {
     ...state,
     reloadSDK,
-    navigateToLanguageSettings: actions.navigateToLanguageSettings
+    navigateToLanguageSettings: actions.navigateToLanguageSettings,
+    // Runtime methods
+    executeAction: state.executeAction,
+    isActionExecuting: state.isActionExecuting,
+    resetAction: state.resetAction
   };
 }
 
