@@ -23,6 +23,7 @@ interface LocalizableInputProps {
   enableRichText?: boolean;
   hideLanguageButtons?: boolean;
   showLanguageButtons?: boolean;
+  onAddLanguage?: () => void;
 }
 
 // Component for editing localizable text values
@@ -39,6 +40,7 @@ const LocalizableInput: React.FC<LocalizableInputProps> = memo(({
   enableRichText = false,
   hideLanguageButtons = false,
   showLanguageButtons = false,
+  onAddLanguage,
 }) => {
   const [fieldLanguage, setFieldLanguage] = useState<string | null>(null);
   const { appConfig, navigateToLanguageSettings } = useHector();
@@ -59,6 +61,16 @@ const LocalizableInput: React.FC<LocalizableInputProps> = memo(({
   const handleLanguageClick = useCallback((lang: string) => {
     setFieldLanguage(lang);
   }, []);
+  
+  // Handle add language button click
+  const handleAddLanguage = useCallback(() => {
+    if (onAddLanguage) {
+      onAddLanguage();
+    } else if (navigateToLanguageSettings) {
+      // Fallback to the navigateToLanguageSettings if available
+      navigateToLanguageSettings();
+    }
+  }, [onAddLanguage, navigateToLanguageSettings]);
   
   // Get supported languages from appConfig or use a fallback
   const supportedLanguages = appConfig?.supportedLanguages || ['en-US'];
@@ -101,7 +113,7 @@ const LocalizableInput: React.FC<LocalizableInputProps> = memo(({
                   type="default"
                   shape="circle"
                   icon={<PlusOutlined />}
-                  onClick={navigateToLanguageSettings}
+                  onClick={handleAddLanguage}
                   size="small"
                   className="add-language-button"
                 />

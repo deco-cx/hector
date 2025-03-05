@@ -67,14 +67,20 @@ export function AppEditor({ tab = 'style' }: AppEditorProps) {
     setActiveTab(key);
   };
   
+  // Function to navigate to language tab
+  const navigateToLanguageTab = () => {
+    console.log('Navigating to language tab');
+    setActiveTab('languages');
+  };
+  
   // Update activeTab when tab prop or location state changes
-  // useEffect(() => {
-  //   if (tab) {
-  //     setActiveTab(tab);
-  //   } else if ((location.state as any)?.activeTab) {
-  //     setActiveTab((location.state as any).activeTab);
-  //   }
-  // }, [tab, location.state, setActiveTab]);
+  useEffect(() => {
+    if (tab) {
+      setActiveTab(tab);
+    } else if ((location.state as any)?.activeTab) {
+      setActiveTab((location.state as any).activeTab);
+    }
+  }, [tab, location.state, setActiveTab]);
   
   // Save the app to the backend
   const handleSaveApp = async () => {
@@ -246,6 +252,7 @@ export function AppEditor({ tab = 'style' }: AppEditorProps) {
               children: (
                 <InputsConfig 
                   formData={appConfig} 
+                  navigateToLanguageTab={navigateToLanguageTab}
                   setFormData={handleFormDataChange}
                 />
               )

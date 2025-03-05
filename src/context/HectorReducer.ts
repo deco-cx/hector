@@ -1,5 +1,6 @@
-import { WebdrawSDK, AppConfig, InputField, ActionData, OutputTemplate, DEFAULT_LANGUAGE, AVAILABLE_LANGUAGES } from '../types/types';
+import { WebdrawSDK, AppConfig, InputField, ActionData, OutputTemplate, DEFAULT_LANGUAGE, AVAILABLE_LANGUAGES, Localizable } from '../types/types';
 import { HectorService } from '../services/HectorService';
+import { getLocalizedValue } from '../types/types';
 
 // State structure
 export interface HectorState {
@@ -290,11 +291,28 @@ export function hectorReducer(
       if (!state.appConfig) {
         return state;
       }
+      
+      // Process the input to ensure required field is properly set
+      const newInput = { ...action.payload };
+      
+      // Ensure required is properly set as boolean
+      if (newInput.required !== undefined) {
+        newInput.required = newInput.required === true || String(newInput.required) === 'true';
+      }
+      
+      // Generate filename from title if it exists
+      if (newInput.title) {
+        const displayTitle = getLocalizedValue(newInput.title, DEFAULT_LANGUAGE) || '';
+        if (displayTitle && (!newInput.filename || newInput.filename === '')) {
+          newInput.filename = generateFilenameFromTitle(displayTitle, newInput.type);
+        }
+      }
+      
       return {
         ...state,
         appConfig: {
           ...state.appConfig,
-          inputs: [...state.appConfig.inputs, action.payload]
+          inputs: [...state.appConfig.inputs, newInput]
         }
       };
     
@@ -302,12 +320,32 @@ export function hectorReducer(
       if (!state.appConfig) {
         return state;
       }
+      
+      // Process the input to ensure filename is generated correctly
+      const updatedInput = { ...action.payload.input };
+      
+      // Generate filename from title on every keystroke if title exists
+      if (updatedInput.title) {
+        const displayTitle = getLocalizedValue(updatedInput.title, DEFAULT_LANGUAGE) || '';
+        
+        if (displayTitle) {
+          const baseFilename = generateFilenameFromTitle(displayTitle, updatedInput.type);
+          
+          updatedInput.filename = baseFilename;
+        }
+      }
+      
+      // Ensure required is properly set as boolean
+      if (updatedInput.required !== undefined) {
+        updatedInput.required = updatedInput.required === true || String(updatedInput.required) === 'true';
+      }
+      
       return {
         ...state,
         appConfig: {
           ...state.appConfig,
           inputs: state.appConfig.inputs.map((input, index) =>
-            index === action.payload.index ? action.payload.input : input
+            index === action.payload.index ? updatedInput : input
           )
         }
       };
@@ -422,4 +460,44 @@ export function hectorReducer(
     default:
       return state;
   }
+}
+
+/**
+ * Generates a filename from a title based on the input type
+ * @param title The display title to convert to a filename
+ * @param type The input field type
+ * @returns A formatted filename with appropriate extension
+ */
+function generateFilenameFromTitle(title: string, type: string): string {
+  if (!title) return '';
+  
+  const baseFilename = title
+    .toLowerCase()
+    .replace(/\s+/g, '_')       // Replace spaces with underscores
+    .replace(/[^a-z0-9_]/g, '') // Keep only alphanumeric and underscores
+    .slice(0, 30);              // Limit length to 30 chars
+  
+  // Add appropriate file extension based on input type
+  let extension = '';
+  switch (type) {
+    case 'text':
+      extension = '.md';
+      break;
+    case 'image':
+      extension = '.png';
+      break;
+    case 'audio':
+      extension = '.mp3';
+      break;
+    case 'file':
+      extension = '.txt';
+      break;
+    case 'select':
+      extension = '.txt';
+      break;
+    default:
+      extension = '.txt';
+  }
+  
+  return baseFilename + extension;
 } 

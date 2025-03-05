@@ -9,7 +9,9 @@ import {
   InputField
 } from '../../../types/types';
 import LocalizableInput from '../../../components/LocalizableInput/LocalizableInput';
-import { useHector } from '../../../context/HectorContext';
+import { useHectorState } from '../../../context/HectorStateContext';
+import { useHectorDispatch } from '../../../context/HectorDispatchContext';
+import { ActionType } from '../../../context/HectorReducer';
 
 const { Title, Paragraph, Text } = Typography;
 const { TabPane } = Tabs;
@@ -19,7 +21,8 @@ interface InputsConfigProps {
     inputs: Array<InputField>;
     [key: string]: any;
   };
-  setFormData: React.Dispatch<React.SetStateAction<any>>;
+  navigateToLanguageTab?: () => void;
+  setFormData?: React.Dispatch<React.SetStateAction<any>>;
 }
 
 const inputTypes = [
@@ -30,9 +33,10 @@ const inputTypes = [
   { label: 'Audio', value: 'audio' },
 ];
 
-export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
+export function InputsConfig({ formData, navigateToLanguageTab, setFormData }: InputsConfigProps) {
   const [form] = Form.useForm();
-  const { } = useHector();
+  const { appConfig } = useHectorState();
+  const dispatch = useHectorDispatch();
   
   // Track which inputs are in view mode
   const [viewModeInputs, setViewModeInputs] = useState<Record<number, boolean>>({});
@@ -45,19 +49,6 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
     }));
   };
   
-  // Generate a filename from the title
-  const generateFilename = (title: Localizable<string>): string => {
-    const displayTitle = getLocalizedValue(title, DEFAULT_LANGUAGE) || '';
-    
-    const baseFilename = displayTitle
-      .toLowerCase()
-      .replace(/\s+/g, '_')
-      .replace(/[^a-z0-9_]/g, '')
-      .slice(0, 30);
-    
-    return baseFilename ? `${baseFilename}.md` : '';
-  };
-  
   // Handle form values change
   const onValuesChange = (changedValues: any, allValues: any) => {
     console.log("[InputsConfig] onValuesChange called with:", { 
@@ -65,49 +56,32 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
       allValues: JSON.stringify(allValues, null, 2) 
     });
     
-    if (changedValues.inputs) {
-      // Process each changed input
-      const newInputs = allValues.inputs.map((input: InputField, index: number) => {
-        const newInput = { ...input };
-        
-        // Generate filename from title if it doesn't exist or has been reset
-        if ((!newInput.filename || newInput.filename === '') && newInput.title) {
-          newInput.filename = generateFilename(newInput.title);
+    if (changedValues.inputs && appConfig) {
+      // Update each changed input individually
+      changedValues.inputs.forEach((input: InputField, index: number) => {
+        if (input && Object.keys(input).length > 0) {
+          // Get the complete input data by merging with existing data
+          const currentInput = allValues.inputs[index];
+          if (currentInput) {
+            console.log(`[InputsConfig] Updating input ${index}:`, currentInput);
+            
+            // Use UPDATE_INPUT action to update a specific input
+            dispatch({
+              type: ActionType.UPDATE_INPUT,
+              payload: {
+                index,
+                input: currentInput
+              }
+            });
+          }
         }
-        
-        // Ensure required is properly set as boolean
-        if (newInput.required !== undefined) {
-          newInput.required = newInput.required === true || String(newInput.required) === 'true';
-        }
-        
-        console.log(`[InputsConfig] Processing input ${index}:`, {
-          title: newInput.title,
-          filename: newInput.filename,
-          required: newInput.required,
-          type: newInput.type,
-          placeholder: newInput.placeholder
-        });
-        
-        return newInput;
-      });
-      
-      console.log('[InputsConfig] Setting updated inputs:', newInputs);
-      
-      setFormData((prev: any) => {
-        const updated = {
-          ...prev,
-          inputs: newInputs
-        };
-        console.log('[InputsConfig] New formData:', updated);
-        return updated;
       });
     }
   };
   
   // Handle adding a new field
   const handleAddField = () => {
-    const currentInputs = form.getFieldValue('inputs') || [];
-    const newInput = {
+    const newInput: InputField = {
       title: createLocalizable(DEFAULT_LANGUAGE, ''),
       filename: '',
       type: 'text',
@@ -117,36 +91,37 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
     
     console.log("Adding new field with required=false:", newInput);
     
-    // Update the form directly
+    // Add the new input to the form
+    const currentInputs = form.getFieldValue('inputs') || [];
     form.setFieldsValue({
       inputs: [...currentInputs, newInput]
     });
     
-    // Trigger the onValuesChange handler to update parent state
-    onValuesChange(
-      { inputs: [...currentInputs, newInput] },
-      { inputs: [...currentInputs, newInput] }
-    );
+    // Use ADD_INPUT action to add a new input
+    dispatch({
+      type: ActionType.ADD_INPUT,
+      payload: newInput
+    });
     
-    console.log("Added new field, total inputs:", currentInputs.length + 1);
+    console.log("Added new field");
   };
   
   // Handle removing a field
   const handleRemoveField = (index: number) => {
+    // Update the form
     const currentInputs = form.getFieldValue('inputs') || [];
     const newInputs = [...currentInputs];
     newInputs.splice(index, 1);
     
-    // Update the form directly
     form.setFieldsValue({
       inputs: newInputs
     });
     
-    // Trigger the onValuesChange handler to update parent state
-    onValuesChange(
-      { inputs: newInputs },
-      { inputs: newInputs }
-    );
+    // Use REMOVE_INPUT action to remove an input
+    dispatch({
+      type: ActionType.REMOVE_INPUT,
+      payload: index
+    });
     
     // Clean up viewModeInputs state
     setViewModeInputs(prev => {
@@ -160,37 +135,24 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
       );
     });
     
-    console.log("Removed field, total inputs:", newInputs.length);
+    console.log("Removed field at index:", index);
   };
   
   // Initialize form with current values
   useEffect(() => {
     if (formData && Array.isArray(formData.inputs)) {
       console.log("InputsConfig useEffect - formData inputs:", JSON.stringify(formData.inputs, null, 2));
-      
-      // Log each input's required field value
-      formData.inputs.forEach((input, index) => {
-        console.log(`Input ${index} initial required value:`, input.required, typeof input.required);
-      });
-      
       form.setFieldsValue({ inputs: formData.inputs });
     }
   }, [formData, form]);
   
-  // Add a new function to log values before form submission
+  // Debug function to log form values
   const logFormValues = () => {
     const values = form.getFieldsValue();
     console.log("Current form values:", JSON.stringify(values, null, 2));
     
-    // Check the required field specifically
-    if (values.inputs) {
-      values.inputs.forEach((input: any, index: number) => {
-        console.log(`Form input ${index} required value:`, input.required, typeof input.required);
-      });
-    }
-    
-    // Check what's actually in formData
-    console.log("Current formData.inputs:", JSON.stringify(formData.inputs, null, 2));
+    // Check what's actually in appConfig
+    console.log("Current appConfig.inputs:", appConfig ? JSON.stringify(appConfig.inputs, null, 2) : "No appConfig");
   };
   
   return (
@@ -216,11 +178,6 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
           {(fields) => (
             <div className="space-y-4">
               {fields.map(({ key, name, ...restField }) => {
-                // Log the current field values from the form for debugging
-                const currentField = form.getFieldValue(['inputs', name]);
-                const currentRequired = currentField ? currentField.required : undefined;
-                console.log(`Rendering field ${name}, required value:`, currentRequired, typeof currentRequired);
-                
                 const isViewMode = viewModeInputs[name] === true;
                 
                 return (
@@ -280,7 +237,11 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
                             label="Field Name"
                             rules={[{ required: true, message: 'Field name is required' }]}
                           >
-                            <LocalizableInput placeholder="Enter field name" showLanguageButtons={true} />
+                            <LocalizableInput 
+                              placeholder="Enter field name" 
+                              showLanguageButtons={true} 
+                              onAddLanguage={navigateToLanguageTab}
+                            />
                           </Form.Item>
                         </Col>
                         
@@ -309,7 +270,10 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
                             name={[name, 'placeholder']}
                             label="Placeholder"
                           >
-                            <LocalizableInput placeholder="Enter placeholder text" />
+                            <LocalizableInput 
+                              placeholder="Enter placeholder text" 
+                              onAddLanguage={navigateToLanguageTab}
+                            />
                           </Form.Item>
                         </Col>
                         
@@ -323,13 +287,29 @@ export function InputsConfig({ formData, setFormData }: InputsConfigProps) {
                             <Select
                               onChange={(value) => {
                                 console.log(`Required value changed for field ${name}:`, value, typeof value);
-                                // Directly modify the form field to ensure it's set properly
+                                
+                                // Get the current input and update it
                                 const currentInputs = form.getFieldValue('inputs');
                                 if (currentInputs && currentInputs[name]) {
-                                  console.log('Before update, current value:', currentInputs[name].required);
-                                  currentInputs[name].required = value === true || value === 'true';
-                                  console.log('After update, new value:', currentInputs[name].required);
-                                  form.setFieldsValue({ inputs: currentInputs });
+                                  // Update the form field
+                                  const updatedInput = {
+                                    ...currentInputs[name],
+                                    required: value === true || value === 'true'
+                                  };
+                                  
+                                  // Update the form
+                                  const newInputs = [...currentInputs];
+                                  newInputs[name] = updatedInput;
+                                  form.setFieldsValue({ inputs: newInputs });
+                                  
+                                  // Dispatch the update action
+                                  dispatch({
+                                    type: ActionType.UPDATE_INPUT,
+                                    payload: {
+                                      index: name,
+                                      input: updatedInput
+                                    }
+                                  });
                                 }
                               }}
                             >
