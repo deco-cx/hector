@@ -4,13 +4,18 @@ import { PlusOutlined, AppstoreOutlined, BookOutlined, EditOutlined, DeleteOutli
 import { useNavigate } from 'react-router-dom';
 import { CreateAppModal } from '../AppCreation/CreateAppModal';
 import { useHector } from '../../context/HectorContext';
+import { useHectorActions } from '../../hooks/useHectorActions';
+import { useHectorState } from '../../context/HectorStateContext';
 import { AppConfig, getLocalizedValue, DEFAULT_LANGUAGE } from '../../types/types';
 
 const { Title, Paragraph } = Typography;
 
 export function HomePage() {
   const navigate = useNavigate();
-  const { service, isSDKAvailable, reloadSDK, selectedLanguage } = useHector();
+  const { service, isSDKAvailable, reloadSDK } = useHector();
+  const { appConfig } = useHectorState();
+  const selectedLanguage = appConfig?.selectedLanguage || DEFAULT_LANGUAGE;
+  const { setAppConfig, loadAppConfig } = useHectorActions();
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [apps, setApps] = useState<AppConfig[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,12 +68,32 @@ export function HomePage() {
     }
   };
   
-  const handleEditApp = (appId: string) => {
+  const handleEditApp = async (appId: string) => {
     if (!isSDKAvailable) {
       message.warning('SDK is not available in this environment. Please test on webdraw.com');
       return;
     }
-    navigate(`/app/${appId}`);
+    
+    try {
+      // Show loading indicator
+      setLoading(true);
+      console.log('Loading app config for:', appId);
+      
+      // Load the app config first
+      const appData = await service.getApp(appId);
+      console.log('App config loaded:', appData.id);
+      
+      // Set the app config in the global state
+      setAppConfig(appData);
+      console.log('App config set in state, navigating to editor');
+      
+      // Navigate to the app editor
+      navigate(`/app/${appId}`);
+    } catch (error) {
+      console.error('Failed to load app config:', error);
+      message.error('Failed to load app configuration');
+      setLoading(false);
+    }
   };
   
   const handleLanguageSettings = (appId: string) => {
@@ -160,7 +185,10 @@ export function HomePage() {
                 </div>
               }
               hoverable
-              onClick={() => handleEditApp(app.id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleEditApp(app.id);
+              }}
               style={{
                 borderRadius: '12px',
                 overflow: 'hidden',

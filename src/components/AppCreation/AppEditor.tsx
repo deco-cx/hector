@@ -33,7 +33,6 @@ export function AppEditor({ tab = 'style' }: AppEditorProps) {
   console.log('useHectorState values:', { serviceAvailable: !!service, sdkAvailable: !!sdk });
   
   const { 
-    loadAppConfig, 
     saveAppConfig, 
     setActiveTab, 
     setAppSaving,
@@ -56,6 +55,9 @@ export function AppEditor({ tab = 'style' }: AppEditorProps) {
     lastSaved 
   } = useHectorState();
   
+  // Debug log to track changes to appConfig
+  console.log('Current appConfig ID:', appConfig?.id);
+  
   // Get the selected language from the app config
   const selectedLanguage = appConfig?.selectedLanguage || 'en-US';
   
@@ -66,21 +68,13 @@ export function AppEditor({ tab = 'style' }: AppEditorProps) {
   };
   
   // Update activeTab when tab prop or location state changes
-  useEffect(() => {
-    if (tab) {
-      setActiveTab(tab);
-    } else if ((location.state as any)?.activeTab) {
-      setActiveTab((location.state as any).activeTab);
-    }
-  }, [tab, location.state, setActiveTab]);
-  
-  // Load app data
-  useEffect(() => {
-    console.log('AppEditor useEffect for appId dependency triggered:', appId);
-    if (appId) {
-      loadAppConfig(appId);
-    }
-  }, [appId, loadAppConfig]);
+  // useEffect(() => {
+  //   if (tab) {
+  //     setActiveTab(tab);
+  //   } else if ((location.state as any)?.activeTab) {
+  //     setActiveTab((location.state as any).activeTab);
+  //   }
+  // }, [tab, location.state, setActiveTab]);
   
   // Save the app to the backend
   const handleSaveApp = async () => {
@@ -109,6 +103,20 @@ export function AppEditor({ tab = 'style' }: AppEditorProps) {
   // Handler for updating form data in child components
   const handleFormDataChange = (newData: Partial<AppConfig>) => {
     if (!appConfig) return;
+    
+    console.log('handleFormDataChange called with:', Object.keys(newData));
+    
+    // Compare objects to prevent unnecessary updates
+    const hasChanges = Object.keys(newData).some(key => {
+      const typedKey = key as keyof AppConfig;
+      // Deep equality comparison would be better but this is a start
+      return JSON.stringify(newData[typedKey]) !== JSON.stringify(appConfig[typedKey]);
+    });
+    
+    if (!hasChanges) {
+      console.log('No changes detected, skipping update');
+      return;
+    }
     
     // Merge the new data with existing app config
     setAppConfig({

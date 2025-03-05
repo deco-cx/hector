@@ -82,51 +82,7 @@ export function HectorProvider({ children }: HectorProviderProps) {
   /**
    * Initialize language settings from browser or localStorage
    */
-  useEffect(() => {
-    if (!state.appConfig) return;
-    
-    // Try to get from local storage first
-    const storedLanguage = localStorage.getItem(STORAGE_KEYS.PREFERRED_LANGUAGE);
-    
-    if (storedLanguage && state.appConfig.supportedLanguages?.includes(storedLanguage)) {
-      dispatch({ type: ActionType.UPDATE_APP_LANGUAGE, payload: storedLanguage });
-      return;
-    }
-    
-    // Check URL query parameter
-    const urlParams = new URLSearchParams(window.location.search);
-    const langParam = urlParams.get('lang');
-    
-    if (langParam && state.appConfig.supportedLanguages?.includes(langParam)) {
-      dispatch({ type: ActionType.UPDATE_APP_LANGUAGE, payload: langParam });
-      return;
-    }
-    
-    // Fall back to browser language if available and supported
-    const browserLang = navigator.language;
-    
-    // Check for exact or partial match with supported languages
-    if (state.appConfig.supportedLanguages?.includes(browserLang)) {
-      dispatch({ type: ActionType.UPDATE_APP_LANGUAGE, payload: browserLang });
-      return;
-    }
-    
-    // Check if language prefix matches any supported language
-    const browserLangPrefix = browserLang.split('-')[0];
-    const matchingLang = state.appConfig.supportedLanguages?.find(
-      (lang: string) => lang.split('-')[0] === browserLangPrefix
-    );
-    
-    if (matchingLang) {
-      dispatch({ type: ActionType.UPDATE_APP_LANGUAGE, payload: matchingLang });
-      return;
-    }
-    
-    // Default fallback
-    if (state.appConfig.supportedLanguages?.length) {
-      dispatch({ type: ActionType.UPDATE_APP_LANGUAGE, payload: state.appConfig.supportedLanguages[0] });
-    }
-  }, [state.appConfig]);
+  // Removed problematic useEffect that was causing infinite loops
   
   // Save language preference when it changes
   useEffect(() => {
