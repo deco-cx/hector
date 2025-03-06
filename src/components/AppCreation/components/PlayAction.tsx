@@ -220,6 +220,37 @@ export function PlayAction({ actionIndex }: PlayActionProps) {
         };
       }
 
+      case 'generateWithLora': {
+        const config = action.config || {};
+        
+        // Create payload for Lora-based image generation
+        const payload: any = {
+          prompt: processedPrompt,
+          aspect_ratio: "1:1",
+          loraId: config.loraId || '',
+          strength: config.strength || 0.8,
+        };
+        
+        // For Lora image generation, "Best" should be replaced with a default Lora model
+        if (config.model && config.model !== 'Best') {
+          payload.model = config.model;
+        } else {
+          payload.model = "replicate:black-forest-labs/flux-dev-lora";
+        }
+        
+        // Call the same generateImage function but with Lora parameters
+        const result = await sdk.ai.generateImage(payload);
+
+        // Set permissions on the file
+        await sdk.fs.chmod(result.filepath, 0o744);
+
+        // Return the image URL
+        return { 
+          text: `Lora image generated at: ${result.filepath}`, 
+          filepath: result.filepath 
+        };
+      }
+
       case 'generateAudio': {
         const config = action.config || {};
         

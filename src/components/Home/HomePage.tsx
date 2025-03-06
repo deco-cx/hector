@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Typography, Row, Col, Card, Button, List, Spin, Empty, message, Alert, Steps, Space } from 'antd';
-import { PlusOutlined, AppstoreOutlined, BookOutlined, EditOutlined, DeleteOutlined, GlobalOutlined, ReloadOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import { PlusOutlined, AppstoreOutlined, BookOutlined, EditOutlined, DeleteOutlined, GlobalOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { CreateAppModal } from '../AppCreation/CreateAppModal';
 import { useHector } from '../../context/HectorContext';
@@ -118,14 +118,6 @@ export function HomePage() {
       console.error('Failed to delete app:', error);
       message.error('Failed to delete app');
     }
-  };
-
-  // Handle Play button click
-  const handlePlayApp = (appId: string) => {
-    // In a real app, this would navigate to the app runner or execution page
-    message.success(`Playing app: ${appId}`);
-    // Navigate to a hypothetical play route
-    // navigate(`/play/${appId}`);
   };
 
   // Render app list
@@ -246,21 +238,6 @@ export function HomePage() {
                 gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
                 gap: '8px'
               }}>
-                <Button
-                  type="primary"
-                  icon={<PlayCircleOutlined />}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handlePlayApp(app.id);
-                  }}
-                  style={{ 
-                    backgroundColor: '#52c41a', 
-                    borderColor: '#52c41a'
-                  }}
-                >
-                  Play
-                </Button>
-                
                 <Button 
                   type="primary"
                   icon={<EditOutlined />}

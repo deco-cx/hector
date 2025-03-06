@@ -213,6 +213,65 @@ export const availableActions: Record<ActionType, ActionConfig> = {
       n: 1,
     },
   },
+  generateWithLora: {
+    type: 'generateWithLora',
+    label: 'Generate with Lora',
+    description: 'Generate image content using fine-tuned Lora models',
+    icon: 'ExperimentOutlined',
+    fileExtension: '.png',
+    category: 'AI',
+    schema: {
+      type: 'object',
+      required: ['prompt', 'model', 'loraId'],
+      properties: {
+        prompt: {
+          type: 'string',
+          title: 'Prompt',
+          description: 'The prompt for image generation with Lora. Use @filename.md to reference input fields.',
+        },
+        model: {
+          type: 'string',
+          title: 'Base Model',
+          description: 'The base AI model to use for Lora image generation',
+          enum: [
+            'Best',
+            'Fast',
+            'replicate:black-forest-labs/flux-dev-lora',
+            'replicate:stability-ai/sdxl-lora',
+            'replicate:lucataco/animate-diff-xl',
+            'replicate:fofr/sdxl-emoji',
+            'replicate:kvz/anime-screengen'
+          ],
+          default: 'Best',
+        },
+        loraId: {
+          type: 'string',
+          title: 'Lora ID',
+          description: 'The ID of the fine-tuned Lora model to use',
+        },
+        size: {
+          type: 'string',
+          title: 'Size',
+          description: 'Size of the generated image',
+          enum: ['256x256', '512x512', '1024x1024'],
+          default: '512x512',
+        },
+        strength: {
+          type: 'number',
+          title: 'Lora Strength',
+          description: 'Strength of the Lora model influence (0-1)',
+          minimum: 0,
+          maximum: 1,
+          default: 0.8,
+        },
+      },
+    },
+    defaultProps: {
+      model: 'Best',
+      size: '512x512',
+      strength: 0.8,
+    },
+  },
   generateAudio: {
     type: 'generateAudio',
     label: 'Generate Audio',

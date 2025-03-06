@@ -120,7 +120,7 @@ export interface InputField {
 /**
  * Available action types in the system
  */
-export type ActionType = 'generateText' | 'generateJSON' | 'generateImage' | 'generateAudio' | 'generateVideo' | 'readFile' | 'writeFile';
+export type ActionType = 'generateText' | 'generateJSON' | 'generateImage' | 'generateAudio' | 'generateVideo' | 'generateWithLora' | 'readFile' | 'writeFile';
 
 /**
  * Configuration for each action type

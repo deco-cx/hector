@@ -243,3 +243,23 @@ When an image file is generated, the system will:
 
 Image files will be accessible at the URL pattern: `https://fs.webdraw.com/users/{userId}/Pictures/{filename}.webp`
 
+## Generate with Lora
+
+For Lora-based image generation, the following model substitution should be used:
+- When "Best" is selected, use "replicate:black-forest-labs/flux-dev-lora" as the default model parameter
+- This ensures compatibility with the Replicate provider for fine-tuned Lora models
+
+Required parameters for Lora image generation:
+- `prompt` - The text prompt describing the desired image
+- `loraId` - The ID of the specific Lora fine-tuned model to use
+- `aspect_ratio: "1:1"` - Set a square aspect ratio for all generated images
+- `strength: 0.8` - The influence strength of the Lora model (0-1)
+
+When a Lora image is generated, the system will:
+1. Store the filepath in the execution bag's `path` property
+2. Display an ImageVisualizer component in the result area (same as regular image generation)
+3. The ImageVisualizer will poll the web-accessible URL until the file is available
+4. Once available, the component will render the Lora-generated image with appropriate styling
+
+Lora image files will be accessible at the same URL pattern as regular images: `https://fs.webdraw.com/users/{userId}/Pictures/{filename}.webp`
+

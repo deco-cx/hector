@@ -8,7 +8,7 @@ import {
   PlusOutlined, DeleteOutlined, EditOutlined, EyeOutlined, 
   InfoCircleOutlined, FileTextOutlined, CodeOutlined,
   FileImageOutlined, SoundOutlined, PlayCircleOutlined,
-  RobotOutlined, FileOutlined, SaveOutlined
+  RobotOutlined, FileOutlined, SaveOutlined, ExperimentOutlined
 } from '@ant-design/icons';
 import { v4 as uuidv4 } from 'uuid';
 import { useHector } from '../../../context/HectorContext';
@@ -35,6 +35,7 @@ const actionIcons: Record<ActionType, React.ReactNode> = {
   generateImage: <FileImageOutlined />,
   generateAudio: <SoundOutlined />,
   generateVideo: <PlayCircleOutlined />,
+  generateWithLora: <ExperimentOutlined />,
   readFile: <FileOutlined />,
   writeFile: <SaveOutlined />
 };
