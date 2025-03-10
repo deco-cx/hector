@@ -1,5 +1,5 @@
 WebdrawSDK Documentation
-The WebdrawSDK is a comprehensive interface for interacting with the Webdraw platform, providing capabilities for file system operations, AI-powered content generation, canvas drawing, user authentication, and more. This document outlines the SDK's structure, methods, and usage patterns.
+The WebdrawSDK is a comprehensive interface for interacting with the Webdraw platform, providing capabilities for file system operations, AI-powered content generation, user authentication, and more. This document outlines the SDK's structure, methods, and usage patterns.
 
 The generated code will use AI APIs using Webdraw SDK
 
@@ -12,11 +12,9 @@ import  inside of a <script type="module"
 
 instantiates like this: const sdk = SDK
 
-
 Core SDK Interface
 export interface WebdrawSDK {
   fs: FileSystemInterface;
-  drawElements: DrawElementsFunction;
   ai: AISDK & LegacyAISDK;
   inspect: (inspectedElement: InspectedElement | null) => void;
   fetch: (input: RequestInfo, init?: RequestInit) => Promise<SerializableResponse>;
@@ -25,21 +23,6 @@ export interface WebdrawSDK {
   onLoad: () => void;
   getUser: () => Promise<{ username: string } | null>;
   redirectToLogin: (options?: { appReturnUrl?: string }) => void;
-  openEmbedInCanvas: (
-    link: string,
-    position?: {
-      clientX: number;
-      clientY: number;
-      width?: number;
-      height?: number;
-    } | {
-      x: number;
-      y: number;
-      width?: number;
-      height?: number;
-    },
-    type?: "embed" | "frame",
-  ) => Element | undefined;
   posthogEvent: (
     eventId: PosthogEvent["name"],
     properties: Record<string, unknown>,
@@ -68,7 +51,6 @@ interface FileSystemInterface {
     options?: { recursive?: boolean; mode?: number },
   ): Promise<void>;
   readlink(filepath: string): Promise<string>;
-  drawElements: WebdrawSDK["drawElements"];
   exists(filepath: string): Promise<boolean>;
 }
 Key File System Methods
@@ -198,41 +180,129 @@ type Object3DPayload = {
   headers?: Record<string, string>;
   seed?: number;
 };
-Drawing Interface
-The SDK provides capabilities for drawing elements on the canvas:
 
-type DrawElementsFunction = (
-  elements: Element[],
-  position: "top" | "bottom" | "left" | "right" | {
-    x: number;
-    y: number;
-  },
-) => Promise<void>;
 
-interface Element {
-  x: number;
-  y: number;
-  type: string;
-  link: string | null;
-  height: number;
-  width: number;
-}
-Position Calculation
-The SDK includes a utility for calculating positions relative to existing elements:
+Supported Models
+The SDK supports various models for different types of content generation:
 
-interface PositionCalculationParams {
-  position: "top" | "bottom" | "left" | "right";
-  elements: Array<Element>;
-  appEmbeddable: Element;
-  padding?: number;
-}
+Text Models (TextModel)
+```typescript
+export const TEXT_MODELS = [
+  "openai:gpt-4-turbo",
+  "openai:gpt-4",
+  "openai:gpt-4o",
+  "openai:gpt-4o-mini",
+  "openai:o1-preview",
+  "openai:o1-mini",
+  "openai:o1",
+  "openai:o3-mini",
+  "openai:gpt-4o-audio-preview",
+  "anthropic:claude-3-5-sonnet-latest",
+  "anthropic:claude-3-7-sonnet-latest",
+  "anthropic:claude-3-5-haiku-20241022",
+  "google:gemini-2.0-flash",
+  "google:gemini-2.0-flash-lite-preview-02-05",
+  "google:gemini-1.5-pro-latest",
+  "google:gemini-1.5-flash",
+  "mistral:pixtral-large-latest",
+  "mistral:mistral-large-latest",
+  "mistral:mistral-small-latest",
+  "mistral:pixtral-12b-2409",
+  "deepseek:deepseek-chat",
+  "deepseek:deepseek-reasoner",
+  "perplexity:sonar-pro",
+  "perplexity:sonar",
+  "perplexity:llama-3.1-sonar-small-128k-online",
+  "perplexity:llama-3.1-sonar-large-128k-online",
+  "perplexity:llama-3.1-sonar-huge-128k-online",
+  "xai:grok-2-latest",
+  "xai:grok-2-vision-latest",
+  "pinecone:*"
+];
+```
 
-function calculatePosition({
-  position,
-  elements,
-  appEmbeddable,
-  padding = 50,
-}: PositionCalculationParams): { x: number; y: number };
+Image Models (ImageModel)
+```typescript
+export const IMAGE_MODELS = [
+  "openai:dall-e-3",
+  "stability:core",
+  "stability:ultra",
+  "stability:conservative",
+  "stability:creative",
+  "stability:fast",
+  "stability:erase",
+  "stability:inpaint",
+  "stability:outpaint",
+  "stability:search-and-replace",
+  "stability:search-and-recolor",
+  "stability:remove-background",
+  "stability:replace-background-and-relight",
+  "stability:sketch",
+  "stability:structure",
+  "stability:style",
+  "replicate:black-forest-labs/flux-dev-lora",
+  "replicate:smoosh-sh/baby-mystic",
+  "replicate:zetyquickly-org/faceswap-a-gif",
+  "replicate:bytedance/pulid",
+  "replicate:recraft-ai/recraft-v3",
+  "replicate:bytedance/sdxl-lightning-4step",
+  "replicate:adirik/interior-design",
+  "luma:photon-1",
+  "luma:photon-flash-1"
+];
+```
+
+Video Models (VideoModel)
+```typescript
+export const VIDEO_MODELS = [
+  "stability:video",
+  "minimax:video-01",
+  "minimax:video-01-live2d",
+  "minimax:I2V-01",
+  "minimax:I2V-01-live",
+  "minimax:T2V-01",
+  "minimax:T2V-01-Director",
+  "minimax:S2V-01",
+  "pika:generate",
+  "pika:extend",
+  "pika:adjust",
+  "vidu:img2video",
+  "vidu:reference2video",
+  "vidu:start-end2video",
+  "vidu:text2video",
+  "vidu:template2video",
+  "vidu:upscale",
+  "replicate:fictions-ai/autocaption",
+  "replicate:tencent/hunyuan-video",
+  "replicate:zsxkib/mmaudio",
+  "luma:ray-2",
+  "luma:ray-1-6"
+];
+```
+
+Audio Models (AudioModel)
+```typescript
+export const AUDIO_MODELS = [
+  "elevenlabs:tts",
+  "elevenlabs:tts-timestamps",
+  "elevenlabs:voice-changer",
+  "elevenlabs:sound-effects",
+  "elevenlabs:audio-isolation",
+  "elevenlabs:text-to-voice",
+  "replicate:meta/musicgen"
+];
+```
+
+3D Object Models (ObjectModel3D)
+```typescript
+export const OBJECT_3D_MODELS = [
+  "meshy:text-to-3d",
+  "meshy:image-to-3d",
+  "stability:fast-3d",
+  "stability:point-aware-3d"
+];
+```
+
 User Authentication
 The SDK provides methods for user authentication and session management:
 
